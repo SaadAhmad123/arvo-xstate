@@ -1,6 +1,6 @@
 {
   "name": "arvo-state-engine",
-  "version": "1.0.1",
+  "version": "0.0.1",
   "description": "This package contains the primitive and the state machine engine to orchestrate events in an Arvo Event Driven System",
   "main": "dist/index.js",
   "scripts": {
