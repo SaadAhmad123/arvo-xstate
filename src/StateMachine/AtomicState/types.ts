@@ -1,5 +1,5 @@
-import Transition from "../Transition"
-import { ActionFunction, SomeValue, StateMachineContext } from "../types"
+import Transition from '../Transition';
+import { ActionFunction, SomeValue, StateMachineContext } from '../types';
 
 /**
  * Represents an atomic state in a state machine.
@@ -28,7 +28,7 @@ export interface IAtomicState<TContext extends StateMachineContext> {
    * Represents transitions that are always active and evaluated,
    * regardless of the event that occurred.
    * Can be a single Transition or an array of Transitions.
-   * 
+   *
    * @remarks
    * An AtomicState can have either the `always` field or the `on` field,
    * but not both simultaneously.
@@ -39,7 +39,7 @@ export interface IAtomicState<TContext extends StateMachineContext> {
    * A record of event-triggered transitions.
    * The keys are event types, and the values are either a single Transition
    * or an array of Transitions that can be taken when the event occurs.
-   * 
+   *
    * @remarks
    * An AtomicState can have either the `on` field or the `always` field,
    * but not both simultaneously.
@@ -50,17 +50,17 @@ export interface IAtomicState<TContext extends StateMachineContext> {
    * An array of tags associated with this state.
    * Tags can be used to group states or add metadata for querying purposes.
    */
-  tags?: Array<string>
+  tags?: Array<string>;
 
   /**
    * Additional metadata associated with this state.
    * Can be used to store any custom information relevant to the state.
    */
-  meta?: Record<string, SomeValue | null>
-  
+  meta?: Record<string, SomeValue | null>;
+
   /**
    * A human-readable description of the state.
    * Useful for documentation and debugging purposes.
    */
-  description?: string
+  description?: string;
 }

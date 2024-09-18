@@ -4,7 +4,7 @@ import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
-import { OTLPTraceExporter as GRPCTraceExporter} from '@opentelemetry/exporter-trace-otlp-grpc'
+import { OTLPTraceExporter as GRPCTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -13,8 +13,8 @@ diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 const createTelemetrySdk = () => {
   const telemetryResources = new Resource({
     [ATTR_SERVICE_NAME]: 'arvo-event-handler',
-  })
-  if (process.env.EXPORTER_OTEL === "JAEGER") {
+  });
+  if (process.env.EXPORTER_OTEL === 'JAEGER') {
     return new NodeSDK({
       resource: telemetryResources,
       traceExporter: new GRPCTraceExporter(),
@@ -26,13 +26,13 @@ const createTelemetrySdk = () => {
     traceExporter: new ConsoleSpanExporter(),
     instrumentations: [getNodeAutoInstrumentations()],
   });
-}
+};
 
 // Console Logger
-export const telemetrySdk = createTelemetrySdk()
+export const telemetrySdk = createTelemetrySdk();
 
 export const telemetrySdkStart = () => {
-  if (process.env.ENABLE_OTEL === "TRUE") {
+  if (process.env.ENABLE_OTEL === 'TRUE') {
     telemetrySdk.start();
   }
 };
