@@ -61,11 +61,11 @@ This package provides functions and classes to leverage xstate as state machine 
 You can install the core package via `npm` or `yarn`
 
 ```bash
-npm install arvo-xstate
+npm install arvo-xstate xstate@5.18.1
 ```
 
 ```bash
-yarn add arvo-xstate
+yarn add arvo-xstate xstate@5.18.1
 ```
 
 ## License
