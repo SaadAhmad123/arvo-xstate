@@ -10,7 +10,6 @@ import {
   assign,
   MachineConfig,
 } from 'xstate';
-import { GuardPredicate } from 'xstate/dist/declarations/src/guards';
 import {
   ArvoMachineContext,
   ArvoMachineVersion,
