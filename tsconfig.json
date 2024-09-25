@@ -8,7 +8,8 @@
     "esModuleInterop": true, // Enables CommonJS/AMD/UMD module interop
     "skipLibCheck": true, // Skip type checking of all declaration files
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "noErrorTruncation": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "tests"],

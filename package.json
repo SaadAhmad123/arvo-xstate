@@ -1,7 +1,7 @@
 {
-  "name": "arvo-state-engine",
+  "name": "arvo-xstate",
   "version": "0.0.1",
-  "description": "This package contains the primitive and the state machine engine to orchestrate events in an Arvo Event Driven System",
+  "description": "This package allows you to use xstate Actors and State Machines to act as orchestrators in an Arvo Event Driven System",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -49,8 +49,9 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "arvo-core": "^1.0.30",
+    "arvo-core": "^1.1.2",
     "uuid": "^10.0.0",
+    "xstate": "^5.18.1",
     "zod": "^3.23.8"
   }
 }
