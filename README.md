@@ -23,7 +23,7 @@ Key features of Arvo include:
 
 Whether you're building a small microservice or a large-scale distributed system, my hope with Arvo is to offers you some of the tools and patterns to help you succeed in the world of event-driven architecture.
 
-# Arvo - XState: Arvo's Event-Driven System Orchestration
+# Arvo - XState
 
 Arvo's event-driven system requires an orchestration mechanism capable of emitting events based on predefined rules. Arvo utilizes a state machine approach, where orchestration is defined in the form of a state chart. This state chart is then interpreted by a state machine engine to calculate the next events to emit and the resulting system state.
 
