@@ -1,11 +1,3 @@
-import { Span, SpanKind, SpanOptions } from '@opentelemetry/api';
-import {
-  ArvoEvent,
-  ArvoExecution,
-  ArvoExecutionSpanKind,
-  OpenInference,
-  OpenInferenceSpanKind,
-} from 'arvo-core';
 import * as fs from 'fs';
 import * as path from 'path';
 

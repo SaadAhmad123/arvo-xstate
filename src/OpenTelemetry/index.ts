@@ -1,4 +1,4 @@
-import { trace, propagation, Context, context } from '@opentelemetry/api';
+import { trace } from '@opentelemetry/api';
 import { getPackageInfo } from './utils';
 
 const pkg = getPackageInfo();
