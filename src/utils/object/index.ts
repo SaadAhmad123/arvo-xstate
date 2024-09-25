@@ -62,7 +62,9 @@ export function getAllPaths(obj: Record<string, any>): PathValue[] {
  * // result = "#a.#b.1"
  */
 export const pathValueToString = (item: PathValue): string => {
-  return !(item.path || []).length
-    ? item.value.toString()
-    : `${item.path.map((i) => `#${i}`).join('.')}.${item.value}`;
+  if (!(item.path || []).length) {
+    return item.value.toString();
+  }
+  const pathString = item.path.map(i => '#' + i).join('.');
+  return pathString + '.' + item.value;
 };
