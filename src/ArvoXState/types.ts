@@ -3,14 +3,14 @@ import {
   IsNever,
   Values,
   UnknownActorLogic,
-  Invert
+  Invert,
 } from 'xstate';
 import { ArvoEvent } from 'arvo-core';
 
 /**
  * Represents the version of an Arvo Machine in semantic versioning format.
  */
-export type ArvoMachineVersion = `${number}.${number}.${number}`
+export type ArvoMachineVersion = `${number}.${number}.${number}`;
 
 /**
  * Represents an extended context for Arvo XState machines, including additional properties
@@ -37,14 +37,14 @@ export type ArvoMachineContext = {
 
 /**
  * @remarks
- * This is an internal type. Copied as it is from the 
+ * This is an internal type. Copied as it is from the
  * xstate core [here](https://github.com/statelyai/xstate/blob/main/packages/core/src/setup.ts#L26)
  */
 export type ToParameterizedObject<
   TParameterizedMap extends Record<
     string,
     ParameterizedObject['params'] | undefined
-  >
+  >,
 > = // `silentNeverType` to `never` conversion (explained in `ToProvidedActor`)
   IsNever<TParameterizedMap> extends true
     ? never
@@ -57,12 +57,12 @@ export type ToParameterizedObject<
 
 /**
  * @remarks
- * This is an internal type. Copied as it is from the 
+ * This is an internal type. Copied as it is from the
  * xstate core [here](https://github.com/statelyai/xstate/blob/main/packages/core/src/setup.ts#L43)
  */
 export type ToProvidedActor<
   TChildrenMap extends Record<string, string>,
-  TActors extends Record<string, UnknownActorLogic>
+  TActors extends Record<string, UnknownActorLogic>,
 > =
   // this essentially is meant to convert a leaked `silentNeverType` to the true `never` type
   // it shouldn't be observable but here we are

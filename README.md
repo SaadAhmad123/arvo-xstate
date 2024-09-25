@@ -29,7 +29,11 @@ Arvo's event-driven system requires an orchestration mechanism capable of emitti
 The fundamental idea behind this orchestration is to enable the development of a simple functional model. For demonstration purposes, consider the following conceptual code:
 
 ```typescript
-const {newSystemState, eventsToEmit} = stateMachineEngine(stateChart, currentSystemState, event)
+const { newSystemState, eventsToEmit } = stateMachineEngine(
+  stateChart,
+  currentSystemState,
+  event,
+);
 ```
 
 To achieve this, the engine must execute events synchronously and provide the new system state along with events that need to be emitted.
@@ -47,7 +51,7 @@ Arvo leverages XState as its state machine engine for several reasons:
 
 This package provides functions and classes to leverage xstate as state machine engine in the Arvo Event Driven system. The following are the main components:
 
-- [ArvoXState](src/ArvoXState/README.md) exposes XState class with static functions, mimicking XState's API as much as possible. 
+- [ArvoXState](src/ArvoXState/README.md) exposes XState class with static functions, mimicking XState's API as much as possible.
 
 ## Installation
 
