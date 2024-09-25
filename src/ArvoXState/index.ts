@@ -196,10 +196,7 @@ export default class ArvoXState {
         type: 'invoke' | 'after',
         path: string[],
       ) => {
-        const location = (emphasisString: string) =>
-          path
-            .map((item) => (item === emphasisString ? `**${item}**` : item))
-            .join(' > ');
+        const location = (emphasisString: string) => path.join(' > ');
         if (type === 'invoke') {
           return cleanString(`
             Error: Unsupported 'invoke' configuration

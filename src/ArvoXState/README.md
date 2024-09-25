@@ -1,37 +1,75 @@
-# ArvoXState: Synchronous State Management in Arvo
+# ArvoXState: Synchronous State Management for Arvo
 
-ArvoXState is a specialized implementation of state management in Arvo, designed to maintain synchronous operations while providing functionality similar to XState. This approach ensures that all asynchronous tasks are handled by event handlers, maintaining Arvo's core principle of synchronous state transitions.
+ArvoXState is a specialized state management implementation for Arvo, designed to provide XState-like functionality while maintaining Arvo's core principle of synchronous state transitions. This orchestration mechanism ensures a robust, predictable, and easily understandable event-driven system.
 
-By adopting this orchestration mechanism, Arvo aims to provide a robust, predictable, and easily understandable event-driven system.
+## Table of Contents
 
-## Key Features and Limitations
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Benefits](#benefits)
+- [Components](#components)
+- [Default Arvo Actions](#default-arvo-actions)
+- [Usage](#usage)
+  - [Defining a Contract](#defining-a-contract)
+  - [Creating a State Machine](#creating-a-state-machine)
+- [Limitations](#limitations)
 
-- **Synchronous Design**: ArvoXState enforces a synchronous state engine, differing from XState's ability to handle asynchronous operations directly within the state machine.
-- **Static Setup Function**: The `ArvoXState.setup` function serves as the primary method for configuring state machines, mimicking XState's API where possible.
-- **Restricted Functionality**: To preserve synchronicity, ArvoXState intentionally omits or modifies certain XState features:
-  - invoke: Not supported, as it typically introduces asynchronous behavior.
-  - after (delayed transitions): Removed to prevent time-based asynchronous state changes.
-- **Event Handler-Centric Approach**: All asynchronous operations must be managed through event handlers, maintaining a clear separation between state logic and asynchronous processes.
+## Overview
+
+ArvoXState adapts the concepts of XState to fit Arvo's synchronous architecture. It ensures that all asynchronous tasks are handled by event handlers, preserving the synchronous nature of state transitions in Arvo.
+
+## Key Features
+
+1. **Synchronous Design**: Enforces a synchronous state engine, differing from XState's asynchronous capabilities.
+2. **Static Setup Function**: Uses `ArvoXState.setup` for configuring state machines, mimicking XState's API where possible.
+3. **Event Handler-Centric Approach**: Manages all asynchronous operations through event handlers.
+4. **Restricted Functionality**: Intentionally omits certain XState features to preserve synchronicity.
 
 ## Benefits
 
-- **Predictable State Transitions**: By enforcing synchronous operations, ArvoXState ensures that state transitions are immediate and deterministic.
-- **Simplified Debugging**: The absence of built-in asynchronous features makes it easier to trace state changes and diagnose issues.
-- **Consistent with Arvo's Philosophy**: ArvoXState aligns with Arvo's overall design principles, providing a cohesive development experience.
+- **Predictable State Transitions**: Ensures immediate and deterministic state changes.
+- **Simplified Debugging**: Easier tracing of state changes and issue diagnosis.
+- **Consistency with Arvo**: Aligns with Arvo's overall design principles.
 
 ## Components
 
-This class provides methods to create a Arvo-specific XState state machine using the following methods
+ArvoXState provides two main methods to create Arvo-specific XState state machines:
 
-- **setup**: It is similar to the XState `setup` function except for the restricted `actors` and `delays` config. It is encouraged to read the XState `setup` function [documentation](https://stately.ai/docs/setup) to know more about it. At a high-level, this function allows to set the `types` and reusable `actions` and `guard` for a more ergonomic developer experience.
+1. **setup**: Similar to XState's `setup` function, but with restricted `actors` and `delays` config. It sets up `types`, reusable `actions`, and `guards` for an ergonomic developer experience.
 
-- **setup(...).createMachine**: It is also similar to the XState `createMachine` function except for restricting the `invoke` and `after` keywords as configuation key on runtime. This function create a state chart which can then be interpreted by the XState actors for execution.
+2. **setup(...).createMachine**: Analogous to XState's `createMachine` function, but restricts the use of `invoke` and `after` keywords in the configuration.
+
+For more details on the `setup` function, refer to the [XState setup documentation](https://stately.ai/docs/setup).
+
+## Default Arvo Actions
+
+ArvoXState defines helpful default actions, including:
+
+- **emitArvoEvent**: Appends an `ArvoEvent` to the internal event queue. These events are returned by the actor which can then be emitted for processing.
+
+Example usage:
+
+```typescript
+entry: [
+  {
+    type: 'emitArvoEvent',
+    params: ({ context }) =>
+      createArvoEventFactory(openAIContract).accepts({
+        data: {
+          request: context.request ?? '',
+        },
+        source: 'arvo.xstate.llm',
+        subject: 'test',
+      }),
+  },
+],
+```
 
 ## Usage
 
-The following is an example usage of the `ArvoXState` state machine
+### Defining a Contract
 
-First, a contract is defined. This is a sample contract of an OpenAI Completions event handler
+First, define a contract. Here's an example of an OpenAI Completions event handler contract:
 
 ```typescript
 import {
@@ -58,7 +96,9 @@ const openAIContract = createArvoContract({
 });
 ```
 
-Then a machine can be defined
+### Creating a State Machine
+
+Then, create a machine using ArvoXState:
 
 ```typescript
 import { ArvoXState } from 'arvo-xstate';
@@ -163,3 +203,9 @@ const openAiMachine = ArvoXState.setup({
   },
 });
 ```
+
+### Limitations
+To preserve synchronicity, ArvoXState does not support:
+
+- **invoke**: Typically introduces asynchronous behavior.
+- **after** (delayed transitions): Removed to prevent time-based asynchronous state changes.
