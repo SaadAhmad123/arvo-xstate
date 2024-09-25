@@ -77,3 +77,16 @@ This package is available under the MIT License. For more details, refer to the 
 For a detailed list of changes and updates, please refer to the [document](CHANGELOG.md) file.
 
 ### SonarCloud Metrics
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=bugs)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=coverage)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
+
