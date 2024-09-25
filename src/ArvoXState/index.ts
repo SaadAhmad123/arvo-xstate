@@ -158,12 +158,13 @@ export default class ArvoXState {
       >;
     };
     guards?: {
-      [K in keyof TGuards]: GuardPredicate<
-        TContext,
-        TEvent,
-        TGuards[K],
-        ToParameterizedObject<TGuards>
-      >;
+      [K in keyof TGuards]: (
+        args: {
+          context: TContext,
+          event: TEvent,
+        },
+        params: TGuards[K]
+      ) => boolean;
     };
   }) {
 
@@ -246,7 +247,7 @@ export default class ArvoXState {
     >({
       schemas: param.schemas,
       types: param.types,
-      guards: param.guards,
+      guards: param.guards as any,
       actions: combinedActions as any,
     });
 
@@ -299,7 +300,6 @@ export default class ArvoXState {
       };
 
       for (const item of getAllPaths(config)) {
-        console.log({item})
         if (item.path.includes('invoke')) {
           throw new Error(createConfigErrorMessage('invoke', item.path))
         }

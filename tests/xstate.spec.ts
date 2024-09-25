@@ -1,10 +1,27 @@
-import { createActor, createMachine, setup } from 'xstate';
+import { assign, createActor, setup } from 'xstate';
 import ArvoXState from '../src/ArvoXState'
-import { ArvoContract, createArvoContract, createArvoEvent } from 'arvo-core';
+import { ArvoContract, ArvoErrorSchema, createArvoContract, createArvoEvent, createArvoEventFactory, InferArvoContract } from 'arvo-core';
 import { z } from 'zod';
 
 
 describe('xstate', () => {
+
+  const openAIContract = createArvoContract({
+    uri: "#/test/openai/completions",
+    accepts: {
+      type: 'com.openai.completions',
+      schema: z.object({
+        request: z.string()
+      })
+    },
+    emits: {
+      'evt.openai.completions.success': z.object({
+        response: z.string()
+      }),
+      'evt.openai.completions.error': ArvoErrorSchema,
+    }
+  })
+
   /**
    * This OpenAI machine initially execpts a user input. It then 
    * emits an ArvoEvent to invoke a fictisious OpenAI completions
@@ -13,52 +30,96 @@ describe('xstate', () => {
   const openAiMachine = ArvoXState.setup({
     types: {
       context: {} as {
-        request: string
+        request: string | null
         llm: {
-          response: string
+          response: string | null
         }
+        error: z.infer<typeof ArvoErrorSchema>[]
       },
-      events: {} as {type: 'saad'} | {type: 'ahmad'}
+      input: {} as {
+        request: string,
+      },
+      events: {} as |
+        InferArvoContract<typeof openAIContract>['emittableEvents'],
     },
     actions: {
-      a: ({context, event}) => {
-      
-      }
     },
+    guards: {
+      isValidInput: ({context}) => Boolean(context?.request?.length)
+    }
   }).createMachine({
-    /** @xstate-layout N4IgpgJg5mDOIC5gF8A0IB2B7CdGlgBcAnASwynxAActZTDSsMqAPRAWgDZ0BPTrsjQgiZCgDpSEADZgqteo2ZtEAFgBMfRAA4AjOICsQoUA */
+    /** @xstate-layout N4IgpgJg5mDOIC5SwC4CcCWA7KA6AbgIYA2GEhKYAxANoAMAuoqAA4D2sGKGbWzIAD0QBGAEzDcwugDYA7MNkAWAMwBWAJyyAHNK0AaEAE8Rorbml1hq6aNUBfOwdSYcBEmQrUawpkhDtObl5+IQQrZVxFUXU5dS1ZGTpVRVkDYwRFFVw1dWVZe0cQZ2w8bAAzMDQwLABjajB8FFw2FmrCDFwatgBbFmIwIKxYXFgAVxq62Fh6X1YOLh4+P1DVVVlcWWUVOTzE1bTEAFpRbOVo4XVRUXl1OlFpByd0Etxyyuq6qgamlraOrt6-UGw0qaDYaBm-ACC2Cy0Q1nUuHUMToOjEe1UBwQ10USJktkeRWerjeVVq1FghmGAOarSw7U6PT6A0WILQYIhjCh80GIXhqgkwkUMgUuws+yMJgiWlWyPkpmEygusgchSwbAgcH4xRw3MCiz5CEOa1wdDoMXy5vEimSymkWMOWkRWjOl2UylRohS7sJOrwRFI5EoephS1AoUOiLNFtUVqFtvtkrCZ0islMXs2wuUWhzvuJpSwFTJdRDvLhCDOdDxHu01jo2jiWKkJxlVhsBSeLjwoPBpYN5Z0JzN2joiniGKx0XWOYVBMKftwEF4YD7sPDiEHpvrWlH4-FmKTUlxmmk1jnDiAA */
     version: '1.0.0',
     id: 'string',
-    context: () => ({
-      name: null,
-      age: null,
+    context: ({input}) => ({
+      request: input.request,
+      llm: {
+        response: null
+      },
+      error: []
     }),
-    initial: 'idle',
+    initial: 'validate',
     states: {
-      idle: {
-        type: 'final',
+      validate: {
+        always: [{
+          guard: 'isValidInput',
+          target: "inference"
+        }, {
+          target: "error",
+        }]
+      },
+      inference: {
+        description: "Contractual event <arvo>",
         entry: [
           {
             type: 'emitArvoEvent',
-            params: ({context}) => createArvoEvent({
-              type: 'com.example.event',
-              source: '/example/source',
-              subject: 'example-subject',
-              data: { key: 'value' }
-              
+            params: ({context}) => createArvoEventFactory(openAIContract).accepts({
+              data: {
+                request: context.request ?? "",
+              },
+              source: 'arvo.xstate.llm',
+              subject: 'test',
             })
           }
         ],
+        on: {
+          'evt.openai.completions.success': {
+            target: 'done',
+            actions: [
+              assign({llm: ({event}) => ({
+                response: event.data.response ?? ""
+              })})
+            ]
+          },
+          'evt.openai.completions.error': {
+            target: 'error',
+            actions: [
+              assign({error: ({context, event}) => [...(context?.error || []), event.data]})
+            ]
+          },
+          'sys.com.openai.completions.error': {
+            target: 'error',
+            actions: [
+              assign({error: ({context, event}) => [...(context?.error || []), event.data]})
+            ]
+          },
+        }
       },
+      error: {},
+      done: {}
     },
   });
 
 
   it("s", () => {
-    const actor = createActor(machine)
+    const actor = createActor(openAiMachine, {
+      input: {
+        request: "Hello"
+      }
+    })
     actor.start()
     actor.stop()
-    console.log(JSON.stringify(actor.getPersistedSnapshot()))
+    console.log(JSON.stringify(actor.getPersistedSnapshot(), null, 2))
   })
 
 });
