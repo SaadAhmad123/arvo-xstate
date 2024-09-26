@@ -26,6 +26,7 @@ ArvoXState adapts the concepts of XState to fit Arvo's synchronous architecture.
 3. **XState-like API**: Provides familiar methods like `setup` and `createMachine` for easy adoption.
 4. **Arvo Integration**: Seamlessly integrates with Arvo's event-driven architecture.
 5. **Type Safety**: Leverages TypeScript for enhanced type checking and developer experience.
+6. **OpenTelemetry Integration**: Built-in support for OpenTelemetry, facilitating distributed tracing and monitoring.
 
 ## Usage
 
@@ -158,5 +159,5 @@ ArvoXState includes built-in actions like `enqueueArvoEvent` for appending event
 
 To preserve synchronicity, ArvoXState does not support:
 
-- **invoke**: Typically introduces asynchronous behavior.
-- **after** (delayed transitions): Removed to prevent time-based asynchronous state changes.
+- **invoke (actors)**: Typically introduces asynchronous behavior.
+- **after (delays)** (delayed transitions): Removed to prevent time-based asynchronous state changes.
