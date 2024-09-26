@@ -65,6 +65,6 @@ export const pathValueToString = (item: PathValue): string => {
   if (!(item.path || []).length) {
     return item.value.toString();
   }
-  const pathString = item.path.map(i => '#' + i).join('.');
+  const pathString = item.path.map((i) => '#' + i).join('.');
   return pathString + '.' + item.value;
 };

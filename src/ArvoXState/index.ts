@@ -13,11 +13,18 @@ import {
 import {
   ArvoMachineContext,
   ArvoMachineVersion,
+  EnqueueArvoEventActionParam,
   ToParameterizedObject,
   ToProvidedActor,
 } from './types';
-import { ArvoEvent, cleanString } from 'arvo-core';
+import { ArvoDataContentType, cleanString, exceptionToSpan } from 'arvo-core';
 import { getAllPaths } from '../utils/object';
+import { ArvoXStateTracer } from '../OpenTelemetry';
+import {
+  context as otelcontext,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 
 /**
  * ArvoXState: Synchronous State Machine Orchestration for Arvo Event-Driven Systems
@@ -107,12 +114,12 @@ export default class ArvoXState {
       throw new Error(createConfigErrorMessage('delays'));
     }
 
-    if (param.actions?.emitArvoEvent) {
+    if (param.actions?.enqueueArvoEvent) {
       throw new Error(
         cleanString(`
-          Error: Reserved action name 'emitArvoEvent'
+          Error: Reserved action name 'enqueueArvoEvent'
           
-          The action name 'emitArvoEvent' is reserved for internal use in the Arvo system.
+          The action name 'enqueueArvoEvent' is reserved for internal use in the Arvo system.
           
           Suggestion: Choose a different name for your action. For example:
           - 'sendCustomEvent'
@@ -124,26 +131,45 @@ export default class ArvoXState {
 
     const combinedActions = {
       ...((param.actions ?? {}) as typeof param.actions),
-      emitArvoEvent: assign<
+      enqueueArvoEvent: assign<
         TContext & ArvoMachineContext,
         TEvent,
-        ArvoEvent,
+        EnqueueArvoEventActionParam,
         TEvent,
         never
       >(({ context }, param) => {
-        return {
-          ...(context ?? {}),
-          arvo$$: {
-            ...(context?.arvo$$ ?? {}),
-            volatile$$: {
-              ...(context?.arvo$$?.volatile$$ ?? {}),
-              eventQueue$$: [
-                ...(context?.arvo$$?.volatile$$?.eventQueue$$ || []),
-                param,
-              ],
-            },
+        const span = ArvoXStateTracer.startSpan(
+          `enqueueArvoEvent<${param.type}>`,
+          {},
+        );
+        return otelcontext.with(
+          trace.setSpan(otelcontext.active(), span),
+          () => {
+            try {
+              span.setStatus({ code: SpanStatusCode.OK });
+              return {
+                ...(context ?? {}),
+                arvo$$: {
+                  ...(context?.arvo$$ ?? {}),
+                  volatile$$: {
+                    ...(context?.arvo$$?.volatile$$ ?? {}),
+                    eventQueue$$: [
+                      ...(context?.arvo$$?.volatile$$?.eventQueue$$ || []),
+                      param,
+                    ],
+                  },
+                },
+              };
+            } catch (e) {
+              span.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: (e as Error).message,
+              });
+              exceptionToSpan(e as Error);
+              throw e;
+            }
           },
-        };
+        );
       }),
     };
 
@@ -154,7 +180,7 @@ export default class ArvoXState {
       {}, // No actors
       {}, // No children map
       TActions & {
-        emitArvoEvent: ArvoEvent;
+        enqueueArvoEvent: EnqueueArvoEventActionParam;
       },
       TGuards,
       never, // No delays
@@ -177,7 +203,7 @@ export default class ArvoXState {
         ToProvidedActor<{}, {}>,
         ToParameterizedObject<
           TActions & {
-            emitArvoEvent: ArvoEvent;
+            enqueueArvoEvent: EnqueueArvoEventActionParam;
           }
         >,
         ToParameterizedObject<TGuards>,

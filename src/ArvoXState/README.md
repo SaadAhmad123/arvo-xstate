@@ -45,14 +45,14 @@ For more details on the `setup` function, refer to the [XState setup documentati
 
 ArvoXState defines helpful default actions, including:
 
-- **emitArvoEvent**: Appends an `ArvoEvent` to the internal event queue. These events are returned by the actor which can then be emitted for processing.
+- **enqueueArvoEvent**: Appends an `ArvoEvent` to the internal event queue. These events are returned by the actor which can then be emitted for processing.
 
 Example usage:
 
 ```typescript
 entry: [
   {
-    type: 'emitArvoEvent',
+    type: 'enqueueArvoEvent',
     params: ({ context }) =>
       createArvoEventFactory(openAIContract).accepts({
         data: {
@@ -148,7 +148,7 @@ const openAiMachine = ArvoXState.setup({
       description: 'Contractual event <arvo>',
       entry: [
         {
-          type: 'emitArvoEvent',
+          type: 'enqueueArvoEvent',
           params: ({ context }) =>
             createArvoEventFactory(openAIContract).accepts({
               data: {
@@ -205,6 +205,7 @@ const openAiMachine = ArvoXState.setup({
 ```
 
 ### Limitations
+
 To preserve synchronicity, ArvoXState does not support:
 
 - **invoke**: Typically introduces asynchronous behavior.

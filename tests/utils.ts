@@ -12,7 +12,7 @@ diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 
 const createTelemetrySdk = () => {
   const telemetryResources = new Resource({
-    [ATTR_SERVICE_NAME]: 'arvo-event-handler',
+    [ATTR_SERVICE_NAME]: 'arvo-xstate',
   });
   if (process.env.EXPORTER_OTEL === 'JAEGER') {
     return new NodeSDK({

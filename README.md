@@ -89,4 +89,3 @@ For a detailed list of changes and updates, please refer to the [document](CHANG
 [![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=sqale_index)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
 [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
-

@@ -6,4 +6,4 @@ const pkg = getPackageInfo();
 /**
  * A tracer instance for the ArvoEventHandler package.
  */
-export const ArvoStateEngineTracer = trace.getTracer(pkg.name, pkg.version);
+export const ArvoXStateTracer = trace.getTracer(pkg.name, pkg.version);
