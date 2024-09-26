@@ -1,7 +1,7 @@
 import XStateMachineBuilder from '../XStateMachineBuilder';
 
 /**
- * ArvoXState is a utility class that provides a singleton instance of 
+ * ArvoXState is a utility class that provides a singleton instance of
  * XStateMachineBuilder for use within the Arvo ecosystem.
  *
  * @remarks
