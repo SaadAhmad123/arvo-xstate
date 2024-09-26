@@ -1,6 +1,5 @@
-import ArvoXState from '../../src/ArvoXState';
+import { ArvoXState, ArvoMachineContext } from '../../src';
 import { createActor } from 'xstate';
-import { ArvoMachineContext } from '../../src/ArvoXState/types';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 
 describe('ArvoXState', () => {
@@ -14,7 +13,7 @@ describe('ArvoXState', () => {
 
   describe('setup', () => {
     it('should create a valid machine setup', () => {
-      const setup = ArvoXState.setup({
+      const setup = ArvoXState.machine.setup({
         types: {} as {
           context: { count: number };
           events: { type: 'INCREMENT' | 'DECREMENT' };
@@ -34,7 +33,7 @@ describe('ArvoXState', () => {
 
     it('should throw an error when using "actors" parameter', () => {
       expect(() => {
-        ArvoXState.setup({
+        ArvoXState.machine.setup({
           // @ts-ignore
           actors: {},
         });
@@ -43,7 +42,7 @@ describe('ArvoXState', () => {
 
     it('should throw an error when using "delays" parameter', () => {
       expect(() => {
-        ArvoXState.setup({
+        ArvoXState.machine.setup({
           // @ts-ignore
           delays: {},
         });
@@ -52,7 +51,7 @@ describe('ArvoXState', () => {
 
     it('should throw an error when using reserved action name "enqueueArvoEvent"', () => {
       expect(() => {
-        ArvoXState.setup({
+        ArvoXState.machine.setup({
           actions: {
             enqueueArvoEvent: () => {},
           },
@@ -63,7 +62,7 @@ describe('ArvoXState', () => {
 
   describe('createMachine', () => {
     it('should create a valid machine', () => {
-      const { createMachine } = ArvoXState.setup({
+      const { createMachine } = ArvoXState.machine.setup({
         types: {
           context: {} as { count: number },
           events: {} as { type: 'INCREMENT' } | { type: 'DECREMENT' },
@@ -93,7 +92,7 @@ describe('ArvoXState', () => {
     });
 
     it('should throw an error when using "invoke" in machine config', () => {
-      const { createMachine } = ArvoXState.setup({
+      const { createMachine } = ArvoXState.machine.setup({
         types: {
           context: {} as { count: number },
           events: {} as { type: 'INCREMENT' } | { type: 'DECREMENT' },
@@ -121,7 +120,7 @@ describe('ArvoXState', () => {
     });
 
     it('should throw an error when using "after" in machine config', () => {
-      const { createMachine } = ArvoXState.setup({
+      const { createMachine } = ArvoXState.machine.setup({
         types: {
           context: {} as { count: number },
           events: {} as { type: 'INCREMENT' } | { type: 'DECREMENT' },
@@ -149,7 +148,7 @@ describe('ArvoXState', () => {
 
   describe('enqueueArvoEvent action', () => {
     it('should add an ArvoEvent to the eventQueue', () => {
-      const { createMachine } = ArvoXState.setup({
+      const { createMachine } = ArvoXState.machine.setup({
         types: {
           context: {} as {},
           events: {} as { type: 'EMIT' },

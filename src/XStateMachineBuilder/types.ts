@@ -5,12 +5,7 @@ import {
   UnknownActorLogic,
   Invert,
 } from 'xstate';
-import {
-  ArvoEvent,
-  ArvoEventData,
-  CloudEventExtension,
-  CreateArvoEvent,
-} from 'arvo-core';
+import { ArvoEventData, CloudEventExtension } from 'arvo-core';
 
 /**
  * Represents the version of an Arvo Machine in semantic versioning format.
