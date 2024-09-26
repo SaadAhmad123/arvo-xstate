@@ -140,8 +140,8 @@ const openAiMachine = ArvoXState.machine
 
 ArvoXState provides two main methods:
 
-1. **setup**: Configures types, reusable actions, and guards for the state machine.
-2. **createMachine**: Creates an Arvo-specific XState machine with restricted asynchronous features.
+1. **machine.setup**: Configures types, reusable actions, and guards for the state machine.
+2. **machine.setup(...).createMachine**: Creates an Arvo-specific XState machine with restricted asynchronous features.
 
 ## Default Arvo Actions
 
