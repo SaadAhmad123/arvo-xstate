@@ -1,15 +1,17 @@
-import XStateMachineBuilder from './XStateMachineBuilder';
-import ArvoXState from './ArvoXState';
+import { setupArvoMachine } from './ArvoMachine';
 import {
   ArvoMachineVersion,
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
-} from './XStateMachineBuilder/types';
+} from './ArvoMachine/types';
+import ArvoActor from './ArvoActor';
 
 export {
-  ArvoXState,
-  XStateMachineBuilder,
+  ArvoActor,
+  setupArvoMachine,
   ArvoMachineContext,
   ArvoMachineVersion,
   EnqueueArvoEventActionParam,
 };
+
+

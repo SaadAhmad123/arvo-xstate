@@ -1,4 +1,4 @@
-import XStateMachineBuilder from '../XStateMachineBuilder';
+import ArvoMachine from '../ArvoMachine';
 
 /**
  * ArvoXState is a utility class that provides a singleton instance of
@@ -22,5 +22,5 @@ import XStateMachineBuilder from '../XStateMachineBuilder';
  * ```
  */
 export default class ArvoXState {
-  public static machine = new XStateMachineBuilder();
+  public static machine = new ArvoMachine();
 }

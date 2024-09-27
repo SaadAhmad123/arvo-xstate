@@ -1,6 +1,8 @@
-import { ArvoXState, ArvoMachineContext } from '../../src';
-import { createActor } from 'xstate';
+import { setupArvoMachine, ArvoMachineContext, ArvoActor } from '../../src';
+import { createActor, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
+import { number, z } from 'zod';
+import { createArvoContract, createArvoOrchestratorContract } from 'arvo-core';
 
 describe('ArvoXState', () => {
   beforeAll(() => {
@@ -11,9 +13,36 @@ describe('ArvoXState', () => {
     telemetrySdkStop();
   });
 
+
   describe('setup', () => {
     it('should create a valid machine setup', () => {
-      const setup = ArvoXState.machine.setup({
+      const setup = setupArvoMachine({
+        contracts: {
+          self: createArvoOrchestratorContract({
+            uri: '#/test/orch',
+            name: 'test',
+            schema: {
+              init: z.object({}),
+              complete: z.object({})
+            }
+          }),
+          services: {
+            notification: createArvoContract({
+              uri: '#/test/service',
+              accepts: {
+                type: 'notif.number.change',
+                schema: z.object({
+                  num: z.number()
+                })
+              },
+              emits: {
+                'evt.number.change.success': z.object({
+                  success: z.boolean()
+                })
+              }
+            })
+          }
+        },
         types: {} as {
           context: { count: number };
           events: { type: 'INCREMENT' | 'DECREMENT' };
@@ -21,6 +50,12 @@ describe('ArvoXState', () => {
         actions: {
           increment: ({ context }) => ({ count: context.count + 1 }),
           decrement: ({ context }) => ({ count: context.count - 1 }),
+          emitEvent: emit(({context}) => ({
+            type: 'notif.number.change',
+            data: {
+              num: context.count
+            }
+          }))
         },
         guards: {
           isPositive: ({ context }) => context.count > 0,
@@ -33,7 +68,7 @@ describe('ArvoXState', () => {
 
     it('should throw an error when using "actors" parameter', () => {
       expect(() => {
-        ArvoXState.machine.setup({
+        setupArvoMachine({
           // @ts-ignore
           actors: {},
         });
@@ -42,7 +77,7 @@ describe('ArvoXState', () => {
 
     it('should throw an error when using "delays" parameter', () => {
       expect(() => {
-        ArvoXState.machine.setup({
+        setupArvoMachine({
           // @ts-ignore
           delays: {},
         });
@@ -51,7 +86,8 @@ describe('ArvoXState', () => {
 
     it('should throw an error when using reserved action name "enqueueArvoEvent"', () => {
       expect(() => {
-        ArvoXState.machine.setup({
+        // @ts-ignore
+        setupArvoMachine({
           actions: {
             enqueueArvoEvent: () => {},
           },
@@ -62,7 +98,33 @@ describe('ArvoXState', () => {
 
   describe('createMachine', () => {
     it('should create a valid machine', () => {
-      const { createMachine } = ArvoXState.machine.setup({
+      const { createMachine } = setupArvoMachine({
+        contracts: {
+          self: createArvoOrchestratorContract({
+            uri: '#/test/orch',
+            name: 'test',
+            schema: {
+              init: z.object({}),
+              complete: z.object({})
+            }
+          }),
+          services: {
+            notification: createArvoContract({
+              uri: '#/test/service',
+              accepts: {
+                type: 'notif.number.change',
+                schema: z.object({
+                  num: z.number()
+                })
+              },
+              emits: {
+                'evt.number.change.success': z.object({
+                  success: z.boolean()
+                })
+              }
+            })
+          }
+        },
         types: {
           context: {} as { count: number },
           events: {} as { type: 'INCREMENT' } | { type: 'DECREMENT' },
@@ -92,7 +154,7 @@ describe('ArvoXState', () => {
     });
 
     it('should throw an error when using "invoke" in machine config', () => {
-      const { createMachine } = ArvoXState.machine.setup({
+      const { createMachine } = ArvoXState.machine.setupArvoMachine({
         types: {
           context: {} as { count: number },
           events: {} as { type: 'INCREMENT' } | { type: 'DECREMENT' },
@@ -120,7 +182,7 @@ describe('ArvoXState', () => {
     });
 
     it('should throw an error when using "after" in machine config', () => {
-      const { createMachine } = ArvoXState.machine.setup({
+      const { createMachine } = ArvoXState.machine.setupArvoMachine({
         types: {
           context: {} as { count: number },
           events: {} as { type: 'INCREMENT' } | { type: 'DECREMENT' },
@@ -148,13 +210,21 @@ describe('ArvoXState', () => {
 
   describe('enqueueArvoEvent action', () => {
     it('should add an ArvoEvent to the eventQueue', () => {
-      const { createMachine } = ArvoXState.machine.setup({
+
+      const inputSchema = z.object({
+        name: z.string()
+      })
+
+      const outputSchema = z.any()
+
+      const machine = ArvoXState.machine.setupArvoMachine({
         types: {
+          input: {} as z.infer<typeof inputSchema>,
+          output: {} as z.infer<typeof outputSchema>,
           context: {} as {},
           events: {} as { type: 'EMIT' },
         },
-      });
-      const machine = createMachine({
+      }).createMachine({
         version: '1.0.0',
         id: 'emitter',
         context: {},
@@ -177,6 +247,18 @@ describe('ArvoXState', () => {
           },
         },
       });
+
+      const a = new ArvoActor({
+        init: {
+          type: 'com.test.actor',
+          schema: inputSchema
+        },
+        complete: {
+          type: 'com.test.actor',
+          schema: outputSchema
+        },
+        machines: [machine]
+      })
 
       const actor = createActor(machine);
       actor.start();

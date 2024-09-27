@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
-    "arvo-core": "^1.1.7",
+    "arvo-core": "^1.1.8",
     "uuid": "^10.0.0",
     "xstate": "^5.18.1"
   }

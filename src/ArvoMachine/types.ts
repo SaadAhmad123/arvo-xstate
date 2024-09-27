@@ -46,7 +46,11 @@ export type ArvoMachineContext = {
  * only relevant properties are included and properly typed.
  * ```
  */
-export type EnqueueArvoEventActionParam = {
+export type EnqueueArvoEventActionParam<
+  TData extends ArvoEventData = ArvoEventData,
+  TType extends string = string,
+  TExtension extends CloudEventExtension = CloudEventExtension
+> = {
   /**
    * Custom extensions for the CloudEvent.
    * Allows for additional metadata to be attached to the event.
@@ -55,7 +59,7 @@ export type EnqueueArvoEventActionParam = {
    * Use this field to include any non-standard attributes that are not
    * covered by the core CloudEvent specification or Arvo extensions.
    */
-  __extensions?: CloudEventExtension;
+  __extensions?: TExtension;
 
   /**
    * Defines access controls for the event.
@@ -76,7 +80,7 @@ export type EnqueueArvoEventActionParam = {
    * the structure of this data conforms to the schema specified in the
    * `dataschema` field, if provided.
    */
-  data: ArvoEventData;
+  data: TData;
 
   /**
    * Identifies the schema that the `data` adheres to.
@@ -129,7 +133,7 @@ export type EnqueueArvoEventActionParam = {
    * of the event without inspecting its data. Use a consistent naming convention
    * to enhance system-wide event comprehension.
    */
-  type: string;
+  type: TType;
 
   /**
    * Identifies the context in which an event happened. Must be a valid URI representing the event producer.

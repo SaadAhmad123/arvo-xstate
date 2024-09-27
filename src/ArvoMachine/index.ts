@@ -4,7 +4,6 @@ import {
   AnyEventObject,
   ParameterizedObject,
   MetaObject,
-  NonReducibleUnknown,
   ActionFunction,
   SetupTypes,
   assign,
@@ -17,7 +16,7 @@ import {
   ToParameterizedObject,
   ToProvidedActor,
 } from './types';
-import { cleanString, exceptionToSpan } from 'arvo-core';
+import { ArvoContract, ArvoOrchestratorContract, cleanString, exceptionToSpan, InferArvoContract, InferArvoOrchestratorContract } from 'arvo-core';
 import { getAllPaths } from '../utils/object';
 import { ArvoXStateTracer } from '../OpenTelemetry';
 import {
@@ -25,63 +24,91 @@ import {
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
+import { z } from 'zod';
+
+type InferServiceContract<T extends Record<string, ArvoContract>> = {
+  // All the events that can be emitted by the orchestrator
+  emitted: { [K in keyof T]: EnqueueArvoEventActionParam<
+      z.infer<T[K]['accepts']['schema']>,
+      T[K]['accepts']['type']
+  > }[keyof T],
+
+  // All the events that can be recieved by the orchestrator
+  events: { [K in keyof T]: InferArvoContract<T[K]>['emittableEvents'] }[keyof T]
+}
+
 
 /**
- * XStateMachineBuilder: Synchronous State Machine Orchestration for Arvo Event-Driven Systems
- *
+ * This method sets up the foundation for creating Arvo-compatible state machines definition.
+ * It includes built-in actions like `enqueueArvoEvent` and performs various checks
+ * to ensure the configuration adheres to Arvo's constraints.
+ * 
+ * @param param - Configuration object for the machine setup
+ * @returns Object with createMachine function
+ * @throws Error if 'actors', 'delays', or reserved action names are used
+ * 
  * @description
- * Leverages XState to provide a synchronous state machine implementation
+ * ArvoMachine is Synchronous State Machine Orchestration for Arvo Event-Driven Systems
+ * 
+ * It leverages XState to provide a synchronous state machine implementation
  * for Arvo's event-driven architecture. This class restricts asynchronous features
  * to maintain predictable state transitions and integrates with OpenTelemetry for tracing.
- *
+ * 
  * @remarks
- * This class is designed to work within the Arvo ecosystem, providing a way to create
- * state machines that are compatible with Arvo's event-driven approach. It enforces
- * certain constraints to ensure that the resulting machines behave predictably in a
- * synchronous environment.
- *
+ * Since this function is a variant of the `setup` and `createMachine` of XState, 
+ * you can find more information on the paramerters of these functions there. The
+ * documentation on both can be found [here](https://stately.ai/docs/setup) and the 
+ * 
  * @example
  * ```typescript
- * const builder = new XStateMachineBuilder();
- * const { createMachine } = builder.setup({
- *   types: {...},
- *   actions: {...},
- *   guards: {...}
- * });
- *
- * const machine = createMachine({
+ * import { setupArvoMachine } from 'arvo-xstate'
+ * import { createArvoOrchestratorContract, ArvoErrorSchema } from 'arvo-core'
+ * import { z } from 'zod'
+ * 
+ * const llmContract = createArvoOrchestratorContract({
+ *  uri: `#/orchestrators/llm/`,
+ *  name: 'llm',
+ *  schema: {
+ *    init: z.object({
+ *      request: z.string(),
+ *      llm: z.enum(['gpt-4', 'gpt-4o']),
+ *    }),
+ *    complete: z.object({
+ *      response: z.string(),
+ *    })
+ *  }
+ * })
+ * 
+ * const llmMachine = setupArvoMachine({
+ *  constract: llmContract
+ *  types: {
+ *    // Similar to xstata setup
+ *    context: {} as {
+ *      request: string,
+ *      llm: string,
+ *      response: string | null,
+ *      errors: ArvoErrorSchema[]
+ *    }, 
+ *    // Similar to xstata setup
+ *    events: {} as any,
+ *    // Similar to xstata setup [here](https://stately.ai/docs/tags)
+ *    tags: {} as 'pending' | 'success' | 'error',
+ *    
+ *    
+ *    
+ *  },
+ *  actions: {...},
+ *  guards: {...}
+ * }).createMachine({
  *   version: '1.0.0',
  *   // ... machine configuration
  * });
  * ```
  */
-export default class XStateMachineBuilder {
-  /**
-   * Creates an Arvo-compatible XState machine setup.
-   *
-   * @param param - Configuration object for the machine setup
-   * @returns Object with createMachine function
-   *
-   * @throws Error if 'actors', 'delays', or reserved action names are used
-   *
-   * @typeParam TContext - The type of the machine's context
-   * @typeParam TEvent - The type of events the machine can receive
-   * @typeParam TActions - The type of actions the machine can perform
-   * @typeParam TGuards - The type of guards the machine can use
-   * @typeParam TTag - The type of tags that can be used in the machine
-   * @typeParam TInput - The type of input the machine can receive
-   * @typeParam TOutput - The type of output the machine can produce
-   * @typeParam TEmitted - The type of events the machine can emit
-   * @typeParam TMeta - The type of metadata that can be attached to states
-   *
-   * @remarks
-   * This method sets up the foundation for creating Arvo-compatible state machines.
-   * It includes built-in actions like `enqueueArvoEvent` and performs various checks
-   * to ensure the configuration adheres to Arvo's constraints.
-   */
-  public setup<
+export function setupArvoMachine<
     TContext extends MachineContext,
-    TEvent extends AnyEventObject,
+    TSelfContract extends ArvoOrchestratorContract,
+    TServiceContracts extends Record<string, ArvoContract>,
     TActions extends Record<
       string,
       ParameterizedObject['params'] | undefined
@@ -91,40 +118,48 @@ export default class XStateMachineBuilder {
       ParameterizedObject['params'] | undefined
     > = {},
     TTag extends string = string,
-    TInput = NonReducibleUnknown,
-    TOutput extends NonReducibleUnknown = NonReducibleUnknown,
-    TEmitted extends AnyEventObject = AnyEventObject,
     TMeta extends MetaObject = MetaObject,
   >(param: {
     schemas?: unknown;
-    types?: SetupTypes<
-      TContext,
-      TEvent,
-      {},
-      TTag,
-      TInput,
-      TOutput,
-      TEmitted,
-      TMeta
+    contracts: {
+      // The self orchestrator contract defining the machine init input
+      // data structure and completion output data structure
+      self: TSelfContract,
+      // Definition of all the services the orchestrator talks to and 
+      // send and/or recieves events from
+      services: TServiceContracts,
+    },
+    types?: Omit<
+      SetupTypes<
+        TContext,
+        InferServiceContract<TServiceContracts>['events'],
+        {},
+        TTag,
+        InferArvoOrchestratorContract<TSelfContract>['init']['data'],
+        InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
+        InferServiceContract<TServiceContracts>['emitted'],
+        TMeta
+      >,
+      "input" | "output" | "children" | "emitted"
     >;
     actions?: {
       [K in keyof TActions]: ActionFunction<
         TContext,
-        TEvent,
-        TEvent,
+        InferServiceContract<TServiceContracts>['events'],
+        InferServiceContract<TServiceContracts>['events'],
         TActions[K],
         never,
         ToParameterizedObject<TActions>,
         ToParameterizedObject<TGuards>,
         never,
-        TEmitted
+        InferServiceContract<TServiceContracts>['emitted']
       >;
     };
     guards?: {
       [K in keyof TGuards]: (
         args: {
           context: TContext;
-          event: TEvent;
+          event: InferServiceContract<TServiceContracts>['events'];
         },
         params: TGuards[K],
       ) => boolean;
@@ -173,9 +208,9 @@ export default class XStateMachineBuilder {
           ...((param.actions ?? {}) as typeof param.actions),
           enqueueArvoEvent: assign<
             TContext & ArvoMachineContext,
-            TEvent,
-            EnqueueArvoEventActionParam,
-            TEvent,
+            InferServiceContract<TServiceContracts>['events'],
+            InferServiceContract<TServiceContracts>['emitted'],
+            InferServiceContract<TServiceContracts>['events'],
             never
           >(({ context }, param) => {
             const span = ArvoXStateTracer.startSpan(
@@ -218,18 +253,18 @@ export default class XStateMachineBuilder {
         // Call the original setup function with modified parameters
         const systemSetup = xstateSetup<
           TContext,
-          TEvent,
+          InferServiceContract<TServiceContracts>['events'],
           {}, // No actors
           {}, // No children map
           TActions & {
-            enqueueArvoEvent: EnqueueArvoEventActionParam;
+            enqueueArvoEvent: InferServiceContract<TServiceContracts>['emitted'];
           },
           TGuards,
           never, // No delays
           TTag,
-          TInput,
-          TOutput,
-          TEmitted,
+          InferArvoOrchestratorContract<TSelfContract>['init']['data'],
+          InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
+          InferServiceContract<TServiceContracts>['emitted'],
           TMeta
         >({
           schemas: param.schemas,
@@ -274,19 +309,19 @@ export default class XStateMachineBuilder {
         const createMachine = <
           const TConfig extends MachineConfig<
             TContext,
-            TEvent,
+            InferServiceContract<TServiceContracts>['events'],
             ToProvidedActor<{}, {}>,
             ToParameterizedObject<
               TActions & {
-                enqueueArvoEvent: EnqueueArvoEventActionParam;
+                enqueueArvoEvent: InferServiceContract<TServiceContracts>['emitted'];
               }
             >,
             ToParameterizedObject<TGuards>,
             never,
             TTag,
-            TInput,
-            TOutput,
-            TEmitted,
+            InferArvoOrchestratorContract<TSelfContract>['init']['data'],
+            InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
+            InferServiceContract<TServiceContracts>['emitted'],
             TMeta
           >,
         >(
@@ -347,7 +382,8 @@ export default class XStateMachineBuilder {
                   }
                 }
 
-                return systemSetup.createMachine(config as any);
+                const machine = systemSetup.createMachine(config as any);
+                return machine as ((typeof machine) & {version: ArvoMachineVersion})
               } catch (e) {
                 span.setStatus({
                   code: SpanStatusCode.ERROR,
@@ -374,4 +410,3 @@ export default class XStateMachineBuilder {
       }
     });
   }
-}
