@@ -49,7 +49,7 @@ export type ArvoMachineContext = {
 export type EnqueueArvoEventActionParam<
   TData extends ArvoEventData = ArvoEventData,
   TType extends string = string,
-  TExtension extends CloudEventExtension = CloudEventExtension
+  TExtension extends CloudEventExtension = CloudEventExtension,
 > = {
   /**
    * Custom extensions for the CloudEvent.
