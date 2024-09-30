@@ -10,7 +10,6 @@ import {
 } from 'xstate';
 import {
   ArvoMachineContext,
-  ArvoMachineVersion,
   EnqueueArvoEventActionParam,
   ToParameterizedObject,
   ToProvidedActor,
@@ -21,6 +20,7 @@ import {
   cleanString,
   InferArvoContract,
   InferArvoOrchestratorContract,
+  ArvoOrchestratorVersion,
 } from 'arvo-core';
 import { getAllPaths } from '../utils/object';
 import { z } from 'zod';
@@ -376,7 +376,7 @@ export function setupArvoMachine<
       TMeta
     >,
   >(
-    config: TConfig & { version: ArvoMachineVersion; id: string },
+    config: TConfig & { version: ArvoOrchestratorVersion; id: string },
   ) => {
     const createConfigErrorMessage = (
       type: 'invoke' | 'after' | 'enqueueArvoEvent',

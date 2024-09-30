@@ -1,14 +1,8 @@
-import { ArvoContract, ArvoOrchestratorContract } from 'arvo-core';
-import { ArvoMachineVersion } from './types';
+import { ArvoContract, ArvoOrchestratorContract, ArvoOrchestratorVersion } from 'arvo-core';
 import { AnyActorLogic } from 'xstate';
 
 /**
  * Represents an ArvoMachine object that can be consumed by an Arvo orchestrator.
- *
- * @template TId - The type of the machine's identifier.
- * @template TVersion - The type of the machine's version.
- * @template TSelfContract - The type of the machine's self contract.
- * @template TServiceContract - The type of the machine's service contracts.
  *
  * @description
  * ArvoMachine encapsulates the logic and metadata required for an Arvo-compatible
@@ -22,7 +16,7 @@ import { AnyActorLogic } from 'xstate';
  */
 export default class ArvoMachine<
   TId extends string,
-  TVersion extends ArvoMachineVersion,
+  TVersion extends ArvoOrchestratorVersion,
   TSelfContract extends ArvoOrchestratorContract,
   TServiceContract extends Record<string, ArvoContract>,
   TLogic extends AnyActorLogic,

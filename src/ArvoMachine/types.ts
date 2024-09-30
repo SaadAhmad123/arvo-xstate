@@ -8,11 +8,6 @@ import {
 import { ArvoEventData, CloudEventExtension } from 'arvo-core';
 
 /**
- * Represents the version of an Arvo Machine in semantic versioning format.
- */
-export type ArvoMachineVersion = `${number}.${number}.${number}`;
-
-/**
  * Represents an extended context for Arvo XState machines, including additional properties
  * for volatile and internal data.
  *
