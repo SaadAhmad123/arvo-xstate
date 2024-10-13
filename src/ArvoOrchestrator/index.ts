@@ -25,6 +25,7 @@ import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { xstatePersistanceSchema } from './schema';
+import { ArvoXStateTracer } from '../OpenTelemetry';
 
 /**
  * ArvoOrchestrator manages the execution of ArvoMachines and handles orchestration events.
@@ -149,16 +150,18 @@ export default class ArvoOrchestrator<
   public execute({
     event,
     state,
+    opentelemetry = { inheritFrom: 'execution' },
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
-    const span = createSpanFromEvent(
-      `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`,
-      event,
-      {
-        kind: SpanKind.INTERNAL,
-        openInference: OpenInferenceSpanKind.CHAIN,
-        arvoExecution: ArvoExecutionSpanKind.COMMANDER,
-      },
-    );
+    const spanName = `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`;
+    const defaultSpanAttr = {
+      kind: SpanKind.INTERNAL,
+      openInference: OpenInferenceSpanKind.CHAIN,
+      arvoExecution: ArvoExecutionSpanKind.COMMANDER,
+    };
+    const span =
+      opentelemetry.inheritFrom === 'event'
+        ? createSpanFromEvent(spanName, event, defaultSpanAttr)
+        : ArvoXStateTracer.startSpan(spanName, defaultSpanAttr);
 
     return context.with(
       trace.setSpan(context.active(), span),
@@ -265,8 +268,10 @@ export default class ArvoOrchestrator<
             );
             actor.send(event.toJSON() as any);
           }
-          
-          const snapshot: Snapshot<z.infer<typeof machine.contracts.self.complete.schema>> = actor.getPersistedSnapshot();
+
+          const snapshot: Snapshot<
+            z.infer<typeof machine.contracts.self.complete.schema>
+          > = actor.getPersistedSnapshot();
           if ((snapshot as any)?.context?.arvo$$?.volatile$$) {
             (
               (snapshot as any)?.context?.arvo$$?.volatile$$
@@ -276,15 +281,20 @@ export default class ArvoOrchestrator<
           }
 
           if (snapshot.output) {
-            enqueueEvent({
-              type: machine.contracts.self.complete.type,
-              data: machine.contracts.self.complete.schema.parse(snapshot.output),
-              to: parsedSubject.execution.initiator,
-            }, false)
+            enqueueEvent(
+              {
+                type: machine.contracts.self.complete.type,
+                data: machine.contracts.self.complete.schema.parse(
+                  snapshot.output,
+                ),
+                to: parsedSubject.execution.initiator,
+              },
+              false,
+            );
           }
 
           if (snapshot.error) {
-            throw snapshot.error
+            throw snapshot.error;
           }
 
           const compressedSnapshot = objectToBase64(
@@ -295,7 +305,7 @@ export default class ArvoOrchestrator<
             Object.entries(result.otelAttributes).forEach(([key, value]) =>
               span.setAttribute(`to_emit.${index}.${key}`, value),
             );
-          })
+          });
           return {
             state: compressedSnapshot,
             events: eventQueue,

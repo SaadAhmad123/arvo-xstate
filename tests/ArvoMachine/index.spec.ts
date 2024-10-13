@@ -1,7 +1,4 @@
-import {
-  setupArvoMachine,
-  createArvoOrchestator,
-} from '../../src';
+import { setupArvoMachine, createArvoOrchestator } from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { z } from 'zod';

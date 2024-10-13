@@ -9,6 +9,7 @@ import {
   ArvoOrchestratorExecuteInput,
   ArvoOrchestratorExecuteOutput,
 } from './ArvoOrchestrator/types';
+import { createSpanFromEvent } from './OpenTelemetry/utils';
 
 export {
   setupArvoMachine,
@@ -18,4 +19,7 @@ export {
   ArvoOrchestratorExecuteInput,
   ArvoOrchestratorExecuteOutput,
   createArvoOrchestator,
+  createSpanFromEvent as createOtelSpanFromEvent
 };
+
+
