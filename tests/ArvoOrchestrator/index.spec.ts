@@ -1,7 +1,13 @@
-import { ArvoErrorSchema, ArvoOrchestrationSubject, createArvoContract, createArvoEventFactory, createArvoOrchestratorContract } from "arvo-core";
-import { z } from "zod";
-import { createArvoOrchestator, setupArvoMachine } from "../../src";
-import { assign, emit } from "xstate";
+import {
+  ArvoErrorSchema,
+  ArvoOrchestrationSubject,
+  createArvoContract,
+  createArvoEventFactory,
+  createArvoOrchestratorContract,
+} from 'arvo-core';
+import { z } from 'zod';
+import { createArvoOrchestator, setupArvoMachine } from '../../src';
+import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 
 describe('ArvoOrchestrator', () => {
@@ -12,7 +18,7 @@ describe('ArvoOrchestrator', () => {
   afterAll(() => {
     telemetrySdkStop();
   });
-  
+
   const testMachineContract = createArvoOrchestratorContract({
     uri: '#/test/machine',
     name: 'test',
@@ -288,11 +294,8 @@ describe('ArvoOrchestrator', () => {
 
   const orchestrator = createArvoOrchestator({
     executionunits: 1,
-    machines: [
-      machineV100,
-      machineV200
-    ]
-  })
+    machines: [machineV100, machineV200],
+  });
 
   test('should initialize correctly', () => {
     expect(orchestrator.source).toBe(testMachineContract.init.type);
@@ -302,7 +305,9 @@ describe('ArvoOrchestrator', () => {
   });
 
   test('should throw error if no machines are provided', () => {
-    expect(() => createArvoOrchestator({ machines: [], executionunits: 1 })).toThrow();
+    expect(() =>
+      createArvoOrchestator({ machines: [], executionunits: 1 }),
+    ).toThrow();
   });
 
   test('should execute increment successfully', () => {
@@ -318,8 +323,8 @@ describe('ArvoOrchestrator', () => {
         subject: eventSubject,
         data: {
           type: 'increment',
-          delta: 1
-        }
+          delta: 1,
+        },
       }),
       state: null,
     });
@@ -327,7 +332,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('success');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe('com.number.increment');
-    expect(result.state).toBeDefined()
+    expect(result.state).toBeDefined();
   });
 
   // test('should handle errors successfully', () => {
@@ -368,9 +373,9 @@ describe('ArvoOrchestrator', () => {
         subject: eventSubject,
         data: {
           type: 'increment',
-          delta: 1
+          delta: 1,
         },
-        to: 'com.com.com'
+        to: 'com.com.com',
       }),
       state: null,
     });
@@ -378,7 +383,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('error');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.state).toBe(null)
+    expect(result.state).toBe(null);
   });
 
   test('should handle errors when wrong event.subject.name is defined', () => {
@@ -394,7 +399,7 @@ describe('ArvoOrchestrator', () => {
         subject: eventSubject,
         data: {
           type: 'increment',
-          delta: 1
+          delta: 1,
         },
       }),
       state: null,
@@ -403,7 +408,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('error');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.state).toBe(null)
+    expect(result.state).toBe(null);
   });
 
   test('should handle errors when wrong event.subject.version is defined', () => {
@@ -419,7 +424,7 @@ describe('ArvoOrchestrator', () => {
         subject: eventSubject,
         data: {
           type: 'increment',
-          delta: 1
+          delta: 1,
         },
       }),
       state: null,
@@ -428,7 +433,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('error');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.state).toBe(null)
+    expect(result.state).toBe(null);
   });
 
   test('should handle errors when wrong event.type is defined when no state is available', () => {
@@ -443,7 +448,7 @@ describe('ArvoOrchestrator', () => {
         source: 'com.test.service',
         subject: eventSubject,
         data: {
-          delta: 1
+          delta: 1,
         },
       }),
       state: null,
@@ -452,7 +457,6 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('error');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.state).toBe(null)
+    expect(result.state).toBe(null);
   });
-
-})
+});

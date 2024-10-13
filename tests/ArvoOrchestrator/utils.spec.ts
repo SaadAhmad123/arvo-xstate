@@ -7,8 +7,12 @@ jest.mock('arvo-core', () => ({
 }));
 
 jest.mock('zlib', () => ({
-  deflateSync: jest.fn((buffer) => Buffer.from(`compressed_${buffer.toString()}`)),
-  inflateSync: jest.fn((buffer) => Buffer.from(buffer.toString().replace('compressed_', ''))),
+  deflateSync: jest.fn((buffer) =>
+    Buffer.from(`compressed_${buffer.toString()}`),
+  ),
+  inflateSync: jest.fn((buffer) =>
+    Buffer.from(buffer.toString().replace('compressed_', '')),
+  ),
 }));
 
 describe('Base64 Utility Functions', () => {
@@ -22,7 +26,9 @@ describe('Base64 Utility Functions', () => {
     it('should convert a valid object to a base64 string', () => {
       const testObject = { name: 'John Doe', age: 30, isStudent: false };
       const result = objectToBase64(testSchema, testObject);
-      expect(result).toBe('Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6MzAsImlzU3R1ZGVudCI6ZmFsc2V9');
+      expect(result).toBe(
+        'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6MzAsImlzU3R1ZGVudCI6ZmFsc2V9',
+      );
     });
 
     it('should throw an error for invalid object', () => {
@@ -55,7 +61,8 @@ describe('Base64 Utility Functions', () => {
 
   describe('base64ToObject', () => {
     it('should convert a valid base64 string to an object', () => {
-      const base64String = 'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6MzAsImlzU3R1ZGVudCI6ZmFsc2V9';
+      const base64String =
+        'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6MzAsImlzU3R1ZGVudCI6ZmFsc2V9';
       const result = base64ToObject(testSchema, base64String);
       expect(result).toEqual({ name: 'John Doe', age: 30, isStudent: false });
     });
@@ -66,7 +73,8 @@ describe('Base64 Utility Functions', () => {
     });
 
     it('should throw an error if decompressed data does not match schema', () => {
-      const invalidDataBase64 = 'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6IjMwIiwiaXNTdHVkZW50IjpmYWxzZX0=';
+      const invalidDataBase64 =
+        'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6IjMwIiwiaXNTdHVkZW50IjpmYWxzZX0=';
       expect(() => base64ToObject(testSchema, invalidDataBase64)).toThrow();
     });
 

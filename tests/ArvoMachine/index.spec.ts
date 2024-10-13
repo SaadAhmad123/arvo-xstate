@@ -291,11 +291,11 @@ describe('ArvoXState', () => {
       });
 
       let output = orchestrator.execute({ event: initEvent, state: null });
-      expect(output.executionStatus).toBe('success')
-      expect(output.events.length).toBe(1)
-      expect(output.events[0].source).toBe("arvo.orc.test")
-      expect(output.events[0].type).toBe("com.number.increment")
-      expect(output.events[0].data.delta).toBe(1)
+      expect(output.executionStatus).toBe('success');
+      expect(output.events.length).toBe(1);
+      expect(output.events[0].source).toBe('arvo.orc.test');
+      expect(output.events[0].type).toBe('com.number.increment');
+      expect(output.events[0].data.delta).toBe(1);
 
       const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
         type: 'evt.number.increment.success',
@@ -309,19 +309,18 @@ describe('ArvoXState', () => {
         tracestate: output.events[0].tracestate ?? undefined,
       });
       output = orchestrator.execute({ event: nextEvent, state: output.state });
-      
-      expect(output.executionStatus).toBe('success')
-      expect(output.events.length).toBe(2)
-      expect(output.events[0].source).toBe("arvo.orc.test")
-      expect(output.events[0].type).toBe("notif.number.update")
-      expect(output.events[0].data.delta).toBe(1)
-      expect(output.events[0].data.type).toBe("increment")
 
-      expect(output.events[1].source).toBe("arvo.orc.test")
-      expect(output.events[1].type).toBe("arvo.orc.test.done")
-      expect(output.events[1].data.final).toBe(1)
-      expect(output.events[1].to).toBe("com.test.service")
+      expect(output.executionStatus).toBe('success');
+      expect(output.events.length).toBe(2);
+      expect(output.events[0].source).toBe('arvo.orc.test');
+      expect(output.events[0].type).toBe('notif.number.update');
+      expect(output.events[0].data.delta).toBe(1);
+      expect(output.events[0].data.type).toBe('increment');
 
+      expect(output.events[1].source).toBe('arvo.orc.test');
+      expect(output.events[1].type).toBe('arvo.orc.test.done');
+      expect(output.events[1].data.final).toBe(1);
+      expect(output.events[1].to).toBe('com.test.service');
     });
 
     it('should throw an error when using "invoke" in machine config', () => {

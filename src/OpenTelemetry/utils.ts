@@ -69,19 +69,19 @@ export function getPackageInfo(): { name: string; version: string } {
  *
  * @param spanName - A descriptive name for the span, indicating the operation being traced.
  *                   Choose a name that clearly identifies the work being performed.
- * 
+ *
  * @param event - The ArvoEvent that triggers the span creation. This event may contain
  *                tracing context (traceparent and tracestate) to link this span to an existing trace.
- * 
+ *
  * @param spanKinds - An object specifying the span's categorization across different tracing contexts:
  * @param spanKinds.kind - OpenTelemetry SpanKind, indicating the span's role in the trace hierarchy
  *                         (e.g., SERVER, CLIENT, INTERNAL).
  * @param spanKinds.openInference - OpenInference span kind, used for AI/ML operation categorization.
  * @param spanKinds.arvoExecution - ArvoExecution span kind, for Arvo-specific execution context labeling.
- * 
+ *
  * @param tracer - The OpenTelemetry Tracer instance to use for creating the span.
  *                 Defaults to ArvoXStateTracer if not provided.
- * 
+ *
  * @returns A new OpenTelemetry Span object that can be used to record operation details,
  *          set attributes, and create child spans.
  *
@@ -91,7 +91,7 @@ export function getPackageInfo(): { name: string; version: string } {
  * - Without a 'traceparent', a new root span is created, potentially starting a new trace.
  * - The function automatically sets OpenInference and ArvoExecution-specific attributes,
  *   enhancing the span's context for specialized analysis.
- * 
+ *
  * @example
  * ```typescript
  * const event: ArvoEvent = createArvoEvent({
@@ -101,13 +101,13 @@ export function getPackageInfo(): { name: string; version: string } {
  *   tracestate: "rojo=00f067aa0ba902b7",
  *   ...
  * });
- * 
+ *
  * const span = createSpanFromEvent("processOrder", event, {
  *   kind: SpanKind.INTERNAL,
  *   openInference: OpenInferenceSpanKind.LLM,
  *   arvoExecution: ArvoExecutionSpanKind.EVENT_HANDLER
  * });
- * 
+ *
  * context.with(trace.setSpan(context.active(), span), () => {
  *  try {
  *    // Perform order processing logic

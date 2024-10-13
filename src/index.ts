@@ -1,3 +1,4 @@
+import ArvoMachine from './ArvoMachine';
 import { setupArvoMachine } from './ArvoMachine/createMachine';
 import {
   ArvoMachineContext,
@@ -14,6 +15,7 @@ import { base64ToObject, objectToBase64 } from './ArvoOrchestrator/utils';
 import { createSpanFromEvent } from './OpenTelemetry/utils';
 
 export {
+  ArvoMachine,
   setupArvoMachine,
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
@@ -26,4 +28,3 @@ export {
   objectToBase64,
   base64ToObject,
 };
-

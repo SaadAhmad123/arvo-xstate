@@ -54,19 +54,339 @@ Arvo leverages XState as its state machine engine for several reasons:
 
 This package provides functions and classes to leverage xstate as state machine engine in the Arvo Event Driven system. The following are the main components:
 
-- [ArvoXState](src/ArvoXState/README.md) exposes XState class with static functions, mimicking XState's API as much as possible.
+- [ArvoMachine](src/ArvoMachine/README.md) is a restricted version of the XState machine. Its primary distinction lies in its prohibition of delayed transitions and invocations, as these tend to introduce asynchronous behavior. Arvo requires state machines to be fully synchronous.
+- [ArvoOrchestrator](src/ArvoOrchestrator/README.md) is a class responsible for interpreting the machine configuration. It calculates the new system state and determines which events to emit based on a particular event execution.
 
 ## Installation
 
 You can install the core package via `npm` or `yarn`
 
 ```bash
-npm install arvo-xstate xstate@5.18.1
+npm install arvo-xstate arvo-core xstate@5.18.1
 ```
 
 ```bash
-yarn add arvo-xstate xstate@5.18.1
+yarn add arvo-xstate arvo-core xstate@5.18.1
 ```
+
+## Arvo - Detailed Usage Guide
+
+This guide provides a step-by-step explanation of how to set up and use an Arvo system, with commentary on each step.
+
+### 1. Define Service Contracts
+
+```typescript
+const incrementServiceContract = createArvoContract({
+  uri: '#/test/service/increment',
+  accepts: {
+    type: 'com.number.increment',
+    schema: z.object({
+      delta: z.number(),
+    }),
+  },
+  emits: {
+    'evt.number.increment.success': z.object({
+      newValue: z.number(),
+    }),
+  },
+});
+
+const decrementServiceContract = createArvoContract({
+  uri: '#/test/service/decrement',
+  accepts: {
+    type: 'com.number.decrement',
+    schema: z.object({
+      delta: z.number(),
+    }),
+  },
+  emits: {
+    'evt.number.decrement.success': z.object({
+      newValue: z.number(),
+    }),
+  },
+});
+
+const numberUpdateNotificationContract = createArvoContract({
+  uri: '#/test/notification/decrement',
+  accepts: {
+    type: 'notif.number.update',
+    schema: z.object({
+      delta: z.number(),
+      type: z.enum(['increment', 'decrement']),
+    }),
+  },
+  emits: {},
+});
+```
+
+**Commentary:** 
+Service contracts are fundamental in Arvo. They define the interface between your system and external services. Each contract specifies:
+- A unique URI for the service
+- The type and schema of events the service accepts
+- The types and schemas of events the service emits
+
+This approach ensures type safety and clear communication boundaries. By defining these contracts upfront, you're creating a robust and self-documenting system architecture.
+
+### 2. Create Machine Contract
+
+```typescript
+const testMachineContract = createArvoOrchestratorContract({
+  uri: '#/test/machine',
+  name: 'test',
+  schema: {
+    init: z.object({
+      delta: z.number(),
+      type: z.enum(['increment', 'decrement']),
+    }),
+    complete: z.object({
+      final: z.number(),
+    }),
+  },
+});
+```
+
+**Commentary:**
+The machine contract defines the interface for your state machine orchestrator. It specifies:
+- A unique URI and name for the machine
+- The schema for initialization events (what data is needed to start the machine)
+- The schema for completion events (what data is produced when the machine finishes)
+
+This contract acts as a blueprint for your machine, ensuring that it receives the correct input and produces the expected output. It's crucial for maintaining consistency across different parts of your system. This is especially useful in case of one orchestrator calling another orchestrator
+
+### 3. Set Up Machine Environment
+
+```typescript
+const setup = setupArvoMachine({
+  contracts: {
+    self: testMachineContract,
+    services: {
+      incrementServiceContract,
+      decrementServiceContract,
+      numberUpdateNotificationContract,
+    },
+  },
+  types: {
+    context: {} as {
+      delta: number;
+      type: 'increment' | 'decrement';
+      errors: z.infer<typeof ArvoErrorSchema>[];
+    },
+  },
+  actions: {
+    log: ({ context, event }) => console.log({ context, event }),
+    assignEventError: assign({
+      errors: ({ context, event }) => [
+        ...context.errors,
+        event.data as z.infer<typeof ArvoErrorSchema>,
+      ],
+    }),
+  },
+  guards: {
+    isIncrement: ({ context }) => context.type === 'increment',
+    isDecrement: ({ context }) => context.type === 'decrement',
+  },
+});
+```
+
+**Commentary:**
+This step creates the environment for your state machine. It's where you bring together all the pieces defined earlier:
+- You specify the machine's own contract (`self`)
+- You list all the service contracts this machine will interact with
+- You define the shape of the machine's context (its internal state)
+- You can define reusable actions and guards
+
+This setup provides a strongly-typed foundation for your machine, enabling autocompletion and type checking in your IDE. It's a powerful way to catch potential issues early in the development process.
+
+### 4. Define Machine Version
+
+```typescript
+const machineV100 = setup.createMachine({
+  version: '1.0.0',
+  id: 'counter',
+  context: ({ input }) => ({
+    ...input,
+    errors: [] as z.infer<typeof ArvoErrorSchema>[],
+  }),
+  initial: 'route',
+  states: {
+    route: {
+      always: [
+        {
+          guard: 'isIncrement',
+          target: 'increment',
+        },
+        {
+          guard: 'isDecrement',
+          target: 'decrement',
+        },
+        {
+          target: 'error',
+          actions: assign({
+            errors: ({ context, event }) => [
+              ...context.errors,
+              {
+                errorName: 'Invalid type',
+                errorMessage: `Invalid operation type => ${context.type}`,
+                errorStack: null,
+              },
+            ],
+          }),
+        },
+      ],
+    },
+    increment: {
+      entry: [
+        emit(({ context }) => ({
+          type: 'com.number.increment',
+          data: {
+            delta: context.delta,
+          },
+        })),
+      ],
+      on: {
+        'evt.number.increment.success': { target: 'notification' },
+        'sys.com.number.increment.error': {
+          target: 'error',
+          actions: [{ type: 'assignEventError' }],
+        },
+      },
+    },
+    decrement: {
+      entry: [
+        emit(({ context }) => ({
+          type: 'com.number.decrement',
+          data: {
+            delta: context.delta,
+          },
+        })),
+      ],
+      on: {
+        'evt.number.decrement.success': { target: 'notification' },
+        'sys.com.number.increment.error': {
+          target: 'error',
+          actions: [{ type: 'assignEventError' }],
+        },
+      },
+    },
+    notification: {
+      entry: [
+        { type: 'log' },
+        {
+          type: 'enqueueArvoEvent',
+          params: ({ context }) => ({
+            type: 'notif.number.update',
+            data: {
+              delta: context.delta,
+              type: context.type,
+            },
+          }),
+        },
+      ],
+      always: { target: 'done' },
+    },
+    done: { type: 'final' },
+    error: { type: 'final' },
+  },
+  output: ({ context }) => ({
+    final: context.delta,
+  }),
+});
+```
+
+**Commentary:**
+Here, you're defining the actual behavior of your state machine. This includes:
+- Version information (useful for managing multiple versions of a machine)
+- An ID for the machine
+- How the initial context is created from the input
+- The states of the machine and transitions between them
+- How the final output is produced from the context
+
+This is where the logic of your system lives. The structure provided by Arvo helps keep this logic organized and manageable, even as it grows in complexity.
+
+### 5. Create Orchestrator
+
+```typescript
+const orchestrator = createArvoOrchestrator({
+  executionunits: 1,
+  machines: [machineV100],
+  opentelemetry: {
+    inheritFrom: 'event',
+  },
+});
+```
+
+**Commentary:**
+The orchestrator is the runtime that executes your state machines. By creating it, you're setting up:
+- How many execution units to use (for concurrency)
+- Which machine versions to include
+- How to handle OpenTelemetry for tracing and monitoring
+
+This step bridges the gap between your machine definitions and their actual execution. It's where your static definitions become a running system.
+
+### 6. Execute Orchestration
+
+```typescript
+const eventSubject = ArvoOrchestrationSubject.new({
+  orchestator: 'arvo.orc.test',
+  version: '1.0.0',
+  initiator: 'com.test.service',
+});
+
+const event = createArvoEventFactory(testMachineContract).accepts({
+  source: 'com.test.service',
+  subject: eventSubject,
+  data: {
+    type: 'increment',
+    delta: 1,
+  },
+});
+
+let { state, events, executionStatus, snapshot } = orchestrator.execute({
+  event: event,
+  state: null,
+});
+```
+
+**Commentary:**
+This is where your system comes to life. You're:
+1. Creating a subject for the orchestration (think of it as a unique identifier for this execution)
+2. Creating an initial event to kick off the orchestration
+3. Executing the orchestrator with this event
+
+The orchestrator returns:
+- The new state of the system
+- Any events that need to be emitted
+- The execution status
+- A snapshot of the current state
+
+This step is crucial because it's where your system actually starts doing work in response to events.
+
+### 7. Handle Subsequent Events
+
+```typescript
+const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
+  type: 'evt.number.increment.success',
+  source: 'com.test.service',
+  subject: eventSubject,
+  data: {
+    newValue: 10,
+  },
+  to: events[0].source,
+  traceparent: events[0].traceparent ?? undefined,
+  tracestate: events[0].tracestate ?? undefined,
+});
+
+{ state, events, executionStatus, snapshot } = orchestrator.execute({ event: nextEvent, state: state });
+```
+
+**Commentary:**
+This final step shows how to continue the orchestration with subsequent events. You're:
+1. Creating a new event (in this case, a response from a service)
+2. Executing the orchestrator again with this new event and the previous state
+
+This process continues until the machine reaches a final state. It's how your system responds to and processes a series of events over time.
+
+By following these steps, you create a robust, type-safe, event-driven system using Arvo. Each step builds on the previous ones, creating a coherent and powerful application architecture.
 
 ## License
 

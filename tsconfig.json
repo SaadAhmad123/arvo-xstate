@@ -16,8 +16,7 @@
   "typedocOptions": {
     "entryPoints": ["src/index.ts"],
     "projectDocuments": [
-      "src/ArvoEventHandler/README.md",
-      "src/MultiArvoEventHandler/README.md",
+      "src/ArvoMachine/README.md",
       "CHANGELOG.md",
       "LICENSE.md"
     ],
