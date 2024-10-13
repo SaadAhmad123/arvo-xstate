@@ -1,6 +1,5 @@
 import {
   setupArvoMachine,
-  ArvoMachineContext,
   createArvoOrchestator,
 } from '../../src';
 import { assign, createActor, emit } from 'xstate';
@@ -10,7 +9,6 @@ import {
   createArvoContract,
   createArvoOrchestratorContract,
   ArvoErrorSchema,
-  createArvoEvent,
   ArvoOrchestrationSubject,
   createArvoEventFactory,
 } from 'arvo-core';
