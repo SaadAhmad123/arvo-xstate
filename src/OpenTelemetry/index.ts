@@ -1,6 +1,5 @@
 import { trace, context, Context, propagation } from '@opentelemetry/api';
 import { getPackageInfo } from './utils';
-import { exceptionToSpan } from 'arvo-core';
 
 const pkg = getPackageInfo();
 
