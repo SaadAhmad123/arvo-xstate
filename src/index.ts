@@ -1,15 +1,21 @@
-import XStateMachineBuilder from './XStateMachineBuilder';
-import ArvoXState from './ArvoXState';
+import { setupArvoMachine } from './ArvoMachine/createMachine';
 import {
-  ArvoMachineVersion,
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
-} from './XStateMachineBuilder/types';
+} from './ArvoMachine/types';
+import ArvoOrchestrator from './ArvoOrchestrator';
+import { createArvoOrchestator } from './ArvoOrchestrator/factory';
+import {
+  ArvoOrchestratorExecuteInput,
+  ArvoOrchestratorExecuteOutput,
+} from './ArvoOrchestrator/types';
 
 export {
-  ArvoXState,
-  XStateMachineBuilder,
+  setupArvoMachine,
   ArvoMachineContext,
-  ArvoMachineVersion,
   EnqueueArvoEventActionParam,
+  ArvoOrchestrator,
+  ArvoOrchestratorExecuteInput,
+  ArvoOrchestratorExecuteOutput,
+  createArvoOrchestator,
 };
