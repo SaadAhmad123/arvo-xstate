@@ -1,4 +1,8 @@
-import { ArvoContract, ArvoOrchestratorContract, ArvoOrchestratorVersion } from 'arvo-core';
+import {
+  ArvoContract,
+  ArvoOrchestratorContract,
+  ArvoOrchestratorVersion,
+} from 'arvo-core';
 import { AnyActorLogic } from 'xstate';
 
 /**

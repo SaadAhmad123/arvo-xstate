@@ -1,4 +1,8 @@
-import { getAllPaths, pathValueToString, PathValue } from '../../../src/utils/object'; // Adjust the import path as needed
+import {
+  getAllPaths,
+  pathValueToString,
+  PathValue,
+} from '../../../src/utils/object'; // Adjust the import path as needed
 
 describe('getAllPaths', () => {
   it('should return correct paths for a simple object', () => {
@@ -33,10 +37,12 @@ describe('getAllPaths', () => {
   it('should handle null values', () => {
     const obj = { a: null, b: 2 };
     const result = getAllPaths(obj);
-    expect(JSON.stringify(result)).toEqual(JSON.stringify([
-      { path: ['b'], value: 2 },
-      { path: ['a'], value: null },
-    ]));
+    expect(JSON.stringify(result)).toEqual(
+      JSON.stringify([
+        { path: ['b'], value: 2 },
+        { path: ['a'], value: null },
+      ]),
+    );
   });
 
   it('should throw an error for invalid input', () => {

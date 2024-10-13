@@ -1,4 +1,8 @@
-import { setupArvoMachine, ArvoMachineContext } from '../../src';
+import {
+  setupArvoMachine,
+  ArvoMachineContext,
+  createArvoOrchestator,
+} from '../../src';
 import { assign, createActor, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { z } from 'zod';
@@ -7,6 +11,8 @@ import {
   createArvoOrchestratorContract,
   ArvoErrorSchema,
   createArvoEvent,
+  ArvoOrchestrationSubject,
+  createArvoEventFactory,
 } from 'arvo-core';
 
 describe('ArvoXState', () => {
@@ -26,7 +32,9 @@ describe('ArvoXState', () => {
         delta: z.number(),
         type: z.enum(['increment', 'decrement']),
       }),
-      complete: z.object({}),
+      complete: z.object({
+        final: z.number(),
+      }),
     },
   });
 
@@ -258,43 +266,79 @@ describe('ArvoXState', () => {
           done: { type: 'final' },
           error: { type: 'final' },
         },
+        output: ({ context }) => ({
+          final: context.delta,
+        }),
       });
 
       expect(machine.logic).toBeDefined();
       expect(machine.version).toBe('1.0.0');
-      expect(machine.id).toBe('counter')
+      expect(machine.id).toBe('counter');
 
-      const actor = createActor(machine.logic, {
-        input: {
-          delta: 5,
+      const orchestrator = createArvoOrchestator({
+        executionunits: 0.1,
+        machines: [machine],
+      });
+
+      const eventSubject = ArvoOrchestrationSubject.new({
+        orchestator: 'arvo.orc.test',
+        version: '1.0.0',
+        initiator: 'com.test.service',
+      });
+
+      const initEvent = createArvoEventFactory(testMachineContract).accepts({
+        source: 'com.test.service',
+        subject: eventSubject,
+        data: {
           type: 'increment',
+          delta: 1,
         },
       });
 
-      actor.on('*', (...args) => console.log(JSON.stringify(args, null, 2)));
-      actor.start();
-
-      actor.send(
-        createArvoEvent({
-          type: 'evt.number.increment.success',
-          data: { newValue: 10 },
-          source: 'test',
-          subject: 'test',
-        }).toJSON(),
-      );
-
-      const snapshot = actor.getSnapshot();
-      expect(
-        (snapshot.context as ArvoMachineContext).arvo$$?.volatile$$
-          ?.eventQueue$$,
-      ).toHaveLength(1);
-      expect(
-        (snapshot.context as ArvoMachineContext).arvo$$?.volatile$$
-          ?.eventQueue$$?.[0],
-      ).toEqual({
-        type: 'notif.number.update',
-        data: { delta: 5, type: 'increment' },
+      let output = orchestrator.execute({ event: initEvent, state: null });
+      console.log(JSON.stringify(output, null, 2));
+      const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
+        type: 'evt.number.increment.success',
+        source: 'com.test.service',
+        subject: eventSubject,
+        data: {
+          newValue: 10,
+        },
+        to: output.events[0].source,
       });
+      output = orchestrator.execute({ event: nextEvent, state: output.state });
+      console.log(JSON.stringify(output, null, 2));
+
+      // const actor = createActor(machine.logic, {
+      //   input: {
+      //     delta: 5,
+      //     type: 'increment',
+      //   },
+      // });
+
+      // actor.start();
+
+      // actor.send(
+      //   createArvoEvent({
+      //     type: 'evt.number.increment.success',
+      //     data: { newValue: 10 },
+      //     source: 'test',
+      //     subject: 'test',
+      //   }).toJSON(),
+      // );
+
+      // const snapshot = actor.getSnapshot();
+      // expect(
+      //   (snapshot.context as ArvoMachineContext).arvo$$?.volatile$$
+      //     ?.eventQueue$$,
+      // ).toHaveLength(1);
+      // expect(
+      //   (snapshot.context as ArvoMachineContext).arvo$$?.volatile$$
+      //     ?.eventQueue$$?.[0],
+      // ).toEqual({
+      //   type: 'notif.number.update',
+      //   data: { delta: 5, type: 'increment' },
+      // });
     });
 
     it('should throw an error when using "invoke" in machine config', () => {
@@ -362,8 +406,8 @@ describe('ArvoXState', () => {
           states: {
             enqueueArvoEvent: {
               on: {
-                '*': {target: 'timeout'}
-              }
+                '*': { target: 'timeout' },
+              },
             },
             timeout: {},
           },

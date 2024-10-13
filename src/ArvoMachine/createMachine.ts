@@ -326,7 +326,7 @@ export function setupArvoMachine<
     {}, // No actors
     {}, // No children map
     TActions & {
-      enqueueArvoEvent: InferServiceContract<TServiceContracts>['emitted'];
+      enqueueArvoEvent: EnqueueArvoEventActionParam;
     },
     TGuards,
     never, // No delays
@@ -364,7 +364,7 @@ export function setupArvoMachine<
       ToProvidedActor<{}, {}>,
       ToParameterizedObject<
         TActions & {
-          enqueueArvoEvent: InferServiceContract<TServiceContracts>['emitted'];
+          enqueueArvoEvent: EnqueueArvoEventActionParam;
         }
       >,
       ToParameterizedObject<TGuards>,
@@ -410,14 +410,14 @@ export function setupArvoMachine<
               strategy for delayed actions.
             `);
       }
-      if (type === "enqueueArvoEvent") {
+      if (type === 'enqueueArvoEvent') {
         return cleanString(`
           Error: Unsupported 'enqueueArvoEvent' configuration
 
           Location: ${location('enqueueArvoEvent')}
 
           The action name 'enqueueArvoEvent' is reserved for internal use in the Arvo system.
-        `)
+        `);
       }
     };
 
@@ -429,7 +429,9 @@ export function setupArvoMachine<
         throw new Error(createConfigErrorMessage('after', item.path));
       }
       if (item.path.includes('enqueueArvoEvent')) {
-        throw new Error(createConfigErrorMessage('enqueueArvoEvent', item.path));
+        throw new Error(
+          createConfigErrorMessage('enqueueArvoEvent', item.path),
+        );
       }
     }
 
