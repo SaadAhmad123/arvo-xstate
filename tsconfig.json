@@ -17,6 +17,7 @@
     "entryPoints": ["src/index.ts"],
     "projectDocuments": [
       "src/ArvoMachine/README.md",
+      "src/ArvoOrchestrator/README.md",
       "CHANGELOG.md",
       "LICENSE.md"
     ],
