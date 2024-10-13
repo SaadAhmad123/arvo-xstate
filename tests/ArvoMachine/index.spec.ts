@@ -2,7 +2,7 @@ import {
   setupArvoMachine,
   createArvoOrchestator,
 } from '../../src';
-import { assign, createActor, emit } from 'xstate';
+import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { z } from 'zod';
 import {
