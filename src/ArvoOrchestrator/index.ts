@@ -116,18 +116,21 @@ export default class ArvoOrchestrator<
    * This method is the core of the orchestrator, handling state transitions and event emissions.
    *
    * Execution process:
-   * 1. Validates the incoming event against the orchestrator's configuration.
-   * 2. Selects the appropriate machine based on the event's version.
-   * 3. Creates or resumes an actor (state machine instance) based on the presence of existing state.
-   * 4. Processes the event through the actor, triggering state transitions.
-   * 5. Collects and validates events emitted by the actor during processing.
-   * 6. Handles any output or error in the final snapshot.
-   * 7. Persists the final state of the actor after processing.
-   * 8. Returns the execution results, including new state and emitted events.
+   * 1. Sets up OpenTelemetry tracing based on the provided configuration.
+   * 2. Validates the incoming event against the orchestrator's configuration.
+   * 3. Selects the appropriate machine based on the event's version.
+   * 4. Creates or resumes an actor (state machine instance) based on the presence of existing state.
+   * 5. Processes the event through the actor, triggering state transitions.
+   * 6. Collects and validates events emitted by the actor during processing.
+   * 7. Handles any output or error in the final snapshot.
+   * 8. Persists the final state of the actor after processing.
+   * 9. Returns the execution results, including new state and emitted events.
    *
    * @param input - Execution input
    * @param input.event - Event triggering this execution, must be directed to this orchestrator
    * @param input.state - Current state of the orchestrator, if any. If not provided, a new orchestration is initiated
+   * @param input.opentelemetry - Configuration for OpenTelemetry tracing. Defaults to inheriting from the execution environment
+   * @param input.opentelemetry.inheritFrom - Specifies whether to inherit the span context from 'event' or 'execution'
    *
    * @returns Execution output
    * @returns output.state - New state of the orchestrator, compressed and encoded as a string
@@ -140,12 +143,19 @@ export default class ArvoOrchestrator<
    * @throws Error if an emitted event doesn't match its contract (in strict mode)
    *
    * @remarks
-   * - Uses OpenTelemetry for tracing and error reporting.
+   * - Uses OpenTelemetry for tracing and error reporting. The tracing behavior can be configured
+   *   using the `opentelemetry` parameter:
+   *   - If `inheritFrom` is set to 'event', the span context is extracted from the event's
+   *     traceparent and tracestate fields.
+   *   - If `inheritFrom` is set to 'execution' (default), the span context is inherited from
+   *     the function execution environment.
    * - Handles both 'emit' (strict) and 'enqueueArvoEvent' (non-strict) event emissions.
    * - Processes volatile context (e.g., temporary event queue) before persisting state.
    * - If the final snapshot contains an output, creates and enqueues a completion event.
    * - If the final snapshot contains an error, throws that error to trigger error handling.
    * - In case of errors, generates and returns a system error event instead of the normal output.
+   * - OpenTelemetry attributes are set on the span for both processed and emitted events,
+   *   providing detailed tracing information throughout the execution process.
    */
   public execute({
     event,
