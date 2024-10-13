@@ -271,7 +271,7 @@ export default class ArvoOrchestrator<
             (
               (snapshot as any)?.context?.arvo$$?.volatile$$
                 ?.eventQueue$$ as EnqueueArvoEventActionParam[]
-            ).map((item) => enqueueEvent(item, false));
+            ).forEach((item) => enqueueEvent(item, false));
             delete (snapshot as any).context.arvo$$.volatile$$;
           }
 
