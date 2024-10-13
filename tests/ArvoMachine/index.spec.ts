@@ -291,7 +291,12 @@ describe('ArvoXState', () => {
       });
 
       let output = orchestrator.execute({ event: initEvent, state: null });
-      console.log(JSON.stringify(output, null, 2));
+      expect(output.executionStatus).toBe('success')
+      expect(output.events.length).toBe(1)
+      expect(output.events[0].source).toBe("arvo.orc.test")
+      expect(output.events[0].type).toBe("com.number.increment")
+      expect(output.events[0].data.delta).toBe(1)
+
       const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
         type: 'evt.number.increment.success',
         source: 'com.test.service',
@@ -300,40 +305,23 @@ describe('ArvoXState', () => {
           newValue: 10,
         },
         to: output.events[0].source,
+        traceparent: output.events[0].traceparent ?? undefined,
+        tracestate: output.events[0].tracestate ?? undefined,
       });
       output = orchestrator.execute({ event: nextEvent, state: output.state });
-      console.log(JSON.stringify(output, null, 2));
+      
+      expect(output.executionStatus).toBe('success')
+      expect(output.events.length).toBe(2)
+      expect(output.events[0].source).toBe("arvo.orc.test")
+      expect(output.events[0].type).toBe("notif.number.update")
+      expect(output.events[0].data.delta).toBe(1)
+      expect(output.events[0].data.type).toBe("increment")
 
-      // const actor = createActor(machine.logic, {
-      //   input: {
-      //     delta: 5,
-      //     type: 'increment',
-      //   },
-      // });
+      expect(output.events[1].source).toBe("arvo.orc.test")
+      expect(output.events[1].type).toBe("arvo.orc.test.done")
+      expect(output.events[1].data.final).toBe(1)
+      expect(output.events[1].to).toBe("com.test.service")
 
-      // actor.start();
-
-      // actor.send(
-      //   createArvoEvent({
-      //     type: 'evt.number.increment.success',
-      //     data: { newValue: 10 },
-      //     source: 'test',
-      //     subject: 'test',
-      //   }).toJSON(),
-      // );
-
-      // const snapshot = actor.getSnapshot();
-      // expect(
-      //   (snapshot.context as ArvoMachineContext).arvo$$?.volatile$$
-      //     ?.eventQueue$$,
-      // ).toHaveLength(1);
-      // expect(
-      //   (snapshot.context as ArvoMachineContext).arvo$$?.volatile$$
-      //     ?.eventQueue$$?.[0],
-      // ).toEqual({
-      //   type: 'notif.number.update',
-      //   data: { delta: 5, type: 'increment' },
-      // });
     });
 
     it('should throw an error when using "invoke" in machine config', () => {

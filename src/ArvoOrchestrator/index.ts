@@ -24,7 +24,7 @@ import { createSpanFromEvent } from '../OpenTelemetry/utils';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
-import { xstatePersistanceSchema } from './schema';
+import { XStatePersistanceSchema } from './schema';
 import { ArvoXStateTracer } from '../OpenTelemetry';
 
 /**
@@ -130,7 +130,7 @@ export default class ArvoOrchestrator<
    * @param input.event - Event triggering this execution, must be directed to this orchestrator
    * @param input.state - Current state of the orchestrator, if any. If not provided, a new orchestration is initiated
    * @param input.opentelemetry - Configuration for OpenTelemetry tracing. Defaults to inheriting from the execution environment
-   * @param input.opentelemetry.inheritFrom - Specifies whether to inherit the span context from 'event' or 'execution'
+   * @param input.opentelemetry.inheritFrom - Specifies whether to inherit the span context from 'event' or 'execution'. Default is 'event'
    *
    * @returns Execution output
    * @returns output.state - New state of the orchestrator, compressed and encoded as a string
@@ -160,7 +160,7 @@ export default class ArvoOrchestrator<
   public execute({
     event,
     state,
-    opentelemetry = { inheritFrom: 'execution' },
+    opentelemetry = { inheritFrom: 'event' },
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
     const spanName = `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`;
     const defaultSpanAttr = {
@@ -266,7 +266,7 @@ export default class ArvoOrchestrator<
             actor.start();
           } else {
             const existingSnapshot = base64ToObject(
-              xstatePersistanceSchema,
+              XStatePersistanceSchema,
               state,
             );
             actor = createActor(machine.logic, {
@@ -308,7 +308,7 @@ export default class ArvoOrchestrator<
           }
 
           const compressedSnapshot = objectToBase64(
-            xstatePersistanceSchema,
+            XStatePersistanceSchema,
             snapshot as any,
           );
           eventQueue.forEach((result, index) => {
@@ -320,7 +320,7 @@ export default class ArvoOrchestrator<
             state: compressedSnapshot,
             events: eventQueue,
             executionStatus: 'success',
-            snapshot: snapshot as z.infer<typeof xstatePersistanceSchema>,
+            snapshot: snapshot as z.infer<typeof XStatePersistanceSchema>,
           };
         } catch (error) {
           exceptionToSpan(error as Error);

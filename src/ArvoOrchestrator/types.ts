@@ -7,7 +7,7 @@ import {
 import ArvoMachine from '../ArvoMachine';
 import { AnyActorLogic } from 'xstate';
 import { z } from 'zod';
-import { xstatePersistanceSchema } from './schema';
+import { XStatePersistanceSchema } from './schema';
 
 /**
  * Interface representing an Arvo Orchestrator.
@@ -156,5 +156,5 @@ export type ArvoOrchestratorExecuteOutput = {
    * The snapshot of the execution. This is the uncompressed and un-encoded
    * version of the value in the field 'state'
    */
-  snapshot: z.infer<typeof xstatePersistanceSchema> | null;
+  snapshot: z.infer<typeof XStatePersistanceSchema> | null;
 };
