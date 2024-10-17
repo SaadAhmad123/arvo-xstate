@@ -27,7 +27,7 @@ describe('Base64 Utility Functions', () => {
       const testObject = { name: 'John Doe', age: 30, isStudent: false };
       const result = objectToBase64(testSchema, testObject);
       expect(result).toBe(
-        'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6MzAsImlzU3R1ZGVudCI6ZmFsc2V9',
+        'eJyrVspLzE1VslLyys/IU3DJT1XSUUpMBwoYG+goZRYHl5SmpOaVKFmlJeYUp9YCAE0FDtU=',
       );
     });
 
@@ -40,7 +40,7 @@ describe('Base64 Utility Functions', () => {
       const emptySchema = z.object({});
       const emptyObject = {};
       const result = objectToBase64(emptySchema, emptyObject);
-      expect(result).toBe('Y29tcHJlc3NlZF97fQ==');
+      expect(result).toBe('eJyrrgUAAXUA+Q==');
     });
 
     it('should handle complex nested objects', () => {
@@ -62,7 +62,7 @@ describe('Base64 Utility Functions', () => {
   describe('base64ToObject', () => {
     it('should convert a valid base64 string to an object', () => {
       const base64String =
-        'Y29tcHJlc3NlZF97Im5hbWUiOiJKb2huIERvZSIsImFnZSI6MzAsImlzU3R1ZGVudCI6ZmFsc2V9';
+        'eJyrVspLzE1VslLyys/IU3DJT1XSUUpMBwoYG+goZRYHl5SmpOaVKFmlJeYUp9YCAE0FDtU=';
       const result = base64ToObject(testSchema, base64String);
       expect(result).toEqual({ name: 'John Doe', age: 30, isStudent: false });
     });
@@ -80,7 +80,7 @@ describe('Base64 Utility Functions', () => {
 
     it('should handle empty objects', () => {
       const emptySchema = z.object({});
-      const emptyObjectBase64 = 'Y29tcHJlc3NlZF97fQ==';
+      const emptyObjectBase64 = 'eJyrrgUAAXUA+Q==';
       const result = base64ToObject(emptySchema, emptyObjectBase64);
       expect(result).toEqual({});
     });
