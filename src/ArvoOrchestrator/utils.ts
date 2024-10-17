@@ -1,5 +1,5 @@
 import { cleanString } from 'arvo-core';
-import * as zlib from 'zlib';
+import * as zlib from 'node:zlib';
 import { z } from 'zod';
 
 /**

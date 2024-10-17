@@ -23,9 +23,28 @@ Key features of Arvo include:
 
 Whether you're building a small microservice or a large-scale distributed system, my hope with Arvo is to offers you some of the tools and patterns to help you succeed in the world of event-driven architecture.
 
+## Arvo suite
+
+Arvo is a collection of libraries which allows you to build the event driven system in the Arvo pattern. However, if you feel you don't have to use them or you can use them as you see fit.
+
+| Scope       | NPM                                                                | Github                                                                | Documentation                                                                |
+| ------------ | ------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------- |
+| Orchestration      | https://www.npmjs.com/package/arvo-xstate?activeTab=readme | https://github.com/SaadAhmad123/arvo-xstate | https://saadahmad123.github.io/arvo-xstate/index.html |
+| Core       | https://www.npmjs.com/package/arvo-core?activeTab=readme                | https://github.com/SaadAhmad123/arvo-core | https://saadahmad123.github.io/arvo-core/index.html |
+| Event Handling | https://www.npmjs.com/package/arvo-event-handler?activeTab=readme      | https://github.com/SaadAhmad123/arvo-event-handler | https://saadahmad123.github.io/arvo-event-handler/index.html |
+
 # Arvo - XState
 
 Arvo's event-driven system requires an orchestration mechanism capable of emitting events based on predefined rules. Arvo utilizes a state machine approach, where orchestration is defined in the form of a state chart. This state chart is then interpreted by a state machine engine to calculate the next events to emit and the resulting system state.
+
+## Documentation & Resources
+
+| Source       | Link                                                              |
+| ------------ | ----------------------------------------------------------------- |
+| Package      | https://www.npmjs.com/package/arvo-xstate?activeTab=readme |
+| Github       | https://github.com/SaadAhmad123/arvo-xstate                |
+| Documenation | https://saadahmad123.github.io/arvo-xstate/index.html      |
+
 
 ## Core Concept
 
