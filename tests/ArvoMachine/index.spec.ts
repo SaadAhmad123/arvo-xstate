@@ -285,12 +285,13 @@ describe('ArvoXState', () => {
         source: 'com.test.service',
         subject: eventSubject,
         data: {
+          parentSubject$$: null,
           type: 'increment',
           delta: 1,
         },
       });
 
-      let output = orchestrator.execute({ event: initEvent, state: null });
+      let output = orchestrator.execute({ event: initEvent, state: null, parentSubject: null });
       expect(output.executionStatus).toBe('success');
       expect(output.events.length).toBe(1);
       expect(output.events[0].source).toBe('arvo.orc.test');
@@ -308,7 +309,7 @@ describe('ArvoXState', () => {
         traceparent: output.events[0].traceparent ?? undefined,
         tracestate: output.events[0].tracestate ?? undefined,
       });
-      output = orchestrator.execute({ event: nextEvent, state: output.state });
+      output = orchestrator.execute({ event: nextEvent, state: output.state, parentSubject: null });
 
       expect(output.executionStatus).toBe('success');
       expect(output.events.length).toBe(2);

@@ -112,7 +112,7 @@ export default class ArvoOrchestrator<
   }
 
   /**
-   * Executes the orchestrator based on the given event and state.
+   * Executes the orchestrator based on the given event, state, and parent subject.
    * This method is the core of the orchestrator, handling state transitions and event emissions.
    *
    * Execution process:
@@ -124,11 +124,12 @@ export default class ArvoOrchestrator<
    * 6. Collects and validates events emitted by the actor during processing.
    * 7. Handles any output or error in the final snapshot.
    * 8. Persists the final state of the actor after processing.
-   * 9. Returns the execution results, including new state and emitted events.
+   * 9. Returns the execution results, including new state, emitted events, and subject information.
    *
    * @param input - Execution input
    * @param input.event - Event triggering this execution, must be directed to this orchestrator
    * @param input.state - Current state of the orchestrator, if any. If not provided, a new orchestration is initiated
+   * @param input.parentSubject - Subject of the parent orchestration or process. If null, this is treated as a root orchestration
    * @param input.opentelemetry - Configuration for OpenTelemetry tracing. Defaults to inheriting from the execution environment
    * @param input.opentelemetry.inheritFrom - Specifies whether to inherit the span context from 'event' or 'execution'. Default is 'event'
    *
@@ -137,6 +138,8 @@ export default class ArvoOrchestrator<
    * @returns output.events - Array of events emitted during the execution
    * @returns output.executionStatus - Status of the execution ('success' or 'error')
    * @returns output.snapshot - Raw snapshot of the actor's state after execution
+   * @returns output.subject - Subject of the current orchestration execution
+   * @returns output.parentSubject - Subject of the parent orchestration or process (null for root orchestrations)
    *
    * @throws Error for invalid events (wrong destination or unsupported version)
    * @throws Error for initialization with an incorrect event type
@@ -144,11 +147,7 @@ export default class ArvoOrchestrator<
    *
    * @remarks
    * - Uses OpenTelemetry for tracing and error reporting. The tracing behavior can be configured
-   *   using the `opentelemetry` parameter:
-   *   - If `inheritFrom` is set to 'event', the span context is extracted from the event's
-   *     traceparent and tracestate fields.
-   *   - If `inheritFrom` is set to 'execution' (default), the span context is inherited from
-   *     the function execution environment.
+   *   using the `opentelemetry` parameter.
    * - Handles both 'emit' (strict) and 'enqueueArvoEvent' (non-strict) event emissions.
    * - Processes volatile context (e.g., temporary event queue) before persisting state.
    * - If the final snapshot contains an output, creates and enqueues a completion event.
@@ -156,10 +155,43 @@ export default class ArvoOrchestrator<
    * - In case of errors, generates and returns a system error event instead of the normal output.
    * - OpenTelemetry attributes are set on the span for both processed and emitted events,
    *   providing detailed tracing information throughout the execution process.
+   * - The `parentSubject` parameter is crucial for maintaining the orchestration hierarchy:
+   *   - For root orchestrations (null parentSubject), the original subject is preserved.
+   *   - For child orchestrations, error and completion events are routed back to the parent process.
+   * - The execution ensures proper event routing based on the orchestration hierarchy:
+   *   - Completion events for child orchestrations are sent to the parent subject.
+   *   - System error events are always sent to the original initiator of the orchestration.
+   *
+   * @warning Potential Stray Events
+   * Developers should be aware of potential stray events that may be created during execution:
+   * 
+   * 1. Orphaned Events: If the `to` field is not explicitly set in emitted events, the event type 
+   *    is used as the default destination. This may lead to events being sent to unintended recipients 
+   *    if the type doesn't correspond to a valid destination.
+   * 
+   * 2. Misrouted Completion Events: For child orchestrations, completion events are sent to the 
+   *    parent subject. If the parent subject is not properly maintained or becomes invalid, these 
+   *    events may be misrouted or lost.
+   * 
+   * 3. Unhandled Error Events: While system error events are always sent to the original initiator, 
+   *    other error events emitted during execution may not follow the same routing rules and could 
+   *    potentially be sent to unexpected destinations.
+   * 
+   * 4. Events with Invalid Contracts: When using non-strict event emission (via 'enqueueArvoEvent'), 
+   *    events may be created that do not conform to any known contract. These events might be 
+   *    difficult to handle or interpret by receiving systems.
+   * 
+   * 5. Duplicate Events: In complex orchestrations, especially those with loops or recursive 
+   *    structures, there's a risk of creating duplicate events. This can lead to unnecessary 
+   *    processing or confusion in event handling systems.
+   * 
+   * To mitigate these issues, ensure proper error handling, validate event destinations, and 
+   * carefully manage the orchestration hierarchy and subject routing throughout the execution process.
    */
   public execute({
     event,
     state,
+    parentSubject,
     opentelemetry = { inheritFrom: 'event' },
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
     const spanName = `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`;
@@ -172,7 +204,6 @@ export default class ArvoOrchestrator<
       opentelemetry.inheritFrom === 'event'
         ? createSpanFromEvent(spanName, event, defaultSpanAttr)
         : ArvoXStateTracer.startSpan(spanName, defaultSpanAttr);
-
     return context.with(
       trace.setSpan(context.active(), span),
       (): ArvoOrchestratorExecuteOutput => {
@@ -181,6 +212,7 @@ export default class ArvoOrchestrator<
         );
         const otelSpanHeaders = currentOpenTelemetryHeaders();
         const eventQueue: ArvoEvent[] = [];
+        let orchestrationInitSource: string = event.source
         try {
           if (event.to !== this.source) {
             throw new Error(
@@ -188,6 +220,7 @@ export default class ArvoOrchestrator<
             );
           }
           const parsedSubject = ArvoOrchestrationSubject.parse(event.subject);
+          orchestrationInitSource = parsedSubject.execution.initiator;
           if (parsedSubject.orchestrator.name !== this.source) {
             throw new Error(
               `Invalid event subject: The orchestrator name in the parsed subject (${parsedSubject.orchestrator.name}) does not match the expected source (${this.source}). Please verify the event originator's configuration.`,
@@ -233,7 +266,7 @@ export default class ArvoOrchestrator<
                 traceparent: otelSpanHeaders.traceparent ?? undefined,
                 tracestate: otelSpanHeaders.tracestate ?? undefined,
                 source: this.source,
-                subject: event.subject,
+                subject: emittedEvent.subject ?? event.subject,
                 // It must be explicitly mentioned in the execute tsdocs that the if the
                 // machine logic does not emit the 'to' field then the 'type' is used by
                 // default
@@ -255,10 +288,11 @@ export default class ArvoOrchestrator<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
+            const {parentSubject$$, ...eventData} = this.machines[0].contracts.self.init.schema.parse(
+              event.data,
+            )
             actor = createActor(machine.logic, {
-              input: this.machines[0].contracts.self.init.schema.parse(
-                event.data,
-              ),
+              input: eventData,
             });
             actor.on('*', (event: EnqueueArvoEventActionParam) =>
               enqueueEvent(event, true),
@@ -293,6 +327,7 @@ export default class ArvoOrchestrator<
           if (snapshot.output) {
             enqueueEvent(
               {
+                subject: parentSubject ?? undefined,
                 type: machine.contracts.self.complete.type,
                 data: machine.contracts.self.complete.schema.parse(
                   snapshot.output,
@@ -321,6 +356,8 @@ export default class ArvoOrchestrator<
             events: eventQueue,
             executionStatus: 'success',
             snapshot: snapshot as z.infer<typeof XStatePersistanceSchema>,
+            subject: event.subject,
+            parentSubject: parentSubject
           };
         } catch (error) {
           exceptionToSpan(error as Error);
@@ -332,10 +369,10 @@ export default class ArvoOrchestrator<
             this.machines[0].contracts.self,
           ).systemError({
             source: this.source,
-            subject: event.subject,
+            subject: parentSubject ?? event.subject,
             // The system error must always go back to
-            // the source
-            to: event.source,
+            // the source with initiated it
+            to: orchestrationInitSource,
             error: error as Error,
             executionunits: this.executionunits,
             traceparent: otelSpanHeaders.traceparent ?? undefined,
@@ -350,6 +387,8 @@ export default class ArvoOrchestrator<
             events: [result],
             state: state,
             snapshot: null,
+            subject: event.subject,
+            parentSubject: parentSubject
           };
         } finally {
           span.end();
