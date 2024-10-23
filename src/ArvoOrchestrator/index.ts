@@ -192,7 +192,7 @@ export default class ArvoOrchestrator<
     event,
     state,
     parentSubject,
-    opentelemetry = { inheritFrom: 'event' },
+    opentelemetry = { inheritFrom: 'event', tracer: ArvoXStateTracer },
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
     const spanName = `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`;
     const defaultSpanAttr = {
@@ -202,8 +202,8 @@ export default class ArvoOrchestrator<
     };
     const span =
       opentelemetry.inheritFrom === 'event'
-        ? createSpanFromEvent(spanName, event, defaultSpanAttr)
-        : ArvoXStateTracer.startSpan(spanName, defaultSpanAttr);
+        ? createSpanFromEvent(spanName, event, defaultSpanAttr, opentelemetry?.tracer ?? ArvoXStateTracer)
+        : (opentelemetry?.tracer ?? ArvoXStateTracer).startSpan(spanName, defaultSpanAttr);
     return context.with(
       trace.setSpan(context.active(), span),
       (): ArvoOrchestratorExecuteOutput => {

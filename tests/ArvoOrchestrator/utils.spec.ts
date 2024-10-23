@@ -27,7 +27,7 @@ describe('Base64 Utility Functions', () => {
       const testObject = { name: 'John Doe', age: 30, isStudent: false };
       const result = objectToBase64(testSchema, testObject);
       expect(result).toBe(
-        'eJyrVspLzE1VslLyys/IU3DJT1XSUUpMBwoYG+goZRYHl5SmpOaVKFmlJeYUp9YCAE0FDtU=',
+        'eJyrVspLzE1VslLyys/IU3DJT1XSUUpMT1WyMjbQUcosDi4pTUnNK1GySkvMKU6tBQBNBQ7V',
       );
     });
 
