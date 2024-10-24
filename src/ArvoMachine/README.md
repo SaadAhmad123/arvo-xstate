@@ -132,7 +132,7 @@ class ArvoMachine<
   TVersion extends ArvoOrchestratorVersion,
   TSelfContract extends ArvoOrchestratorContract,
   TServiceContract extends Record<string, ArvoContract>,
-  TLogic extends AnyActorLogic
+  TLogic extends AnyActorLogic,
 > {
   constructor(
     public readonly id: TId,
@@ -141,7 +141,7 @@ class ArvoMachine<
       self: TSelfContract;
       services: TServiceContract;
     },
-    public readonly logic: TLogic
+    public readonly logic: TLogic,
   ) {}
 }
 ```
@@ -178,14 +178,17 @@ In the Arvo system orchestration, there are two primary methods for emitting eve
 The 'emit' function is used to emit events that are defined by the service contracts.
 
 #### Key Features:
+
 - Provides strict schema validation on the event data
 - Ensures type safety by adhering to the defined contract
 - Helps catch potential errors at compile-time
 
 #### When to Use:
+
 Use 'emit' when you're emitting events that are explicitly defined in your service contracts. This is the preferred method for most cases as it provides an additional layer of safety and validation.
 
 #### Example:
+
 ```typescript
 import { emit } from 'xstate';
 
@@ -196,16 +199,16 @@ const llmMachine = setupArvoMachine({
   states: {
     someState: {
       entry: [
-        emit(({context}) => ({
+        emit(({ context }) => ({
           type: 'com.openai.completions',
           data: {
             request: context.request,
           },
-        }))
+        })),
       ],
       // ... other state config
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -214,19 +217,22 @@ const llmMachine = setupArvoMachine({
 The 'enqueueArvoEvent' action is used to emit events that are not defined by the service contracts.
 
 #### Key Features:
+
 - Skips strict schema validation on the event data
 - Allows for more flexible event emission
 - Useful for dynamic or runtime-determined events
 
 #### When to Use:
+
 Use 'enqueueArvoEvent' when you need to emit events that are not explicitly defined in your service contracts. This might be necessary for more dynamic scenarios or when dealing with external systems that don't have predefined contracts.
 
 #### Example:
+
 ```typescript
 const llmMachine = setupArvoMachine({
   // ... other configuration
   actions: {
-    emitDynamicEvent: ({context}) => ({
+    emitDynamicEvent: ({ context }) => ({
       type: 'enqueueArvoEvent',
       params: {
         type: 'com.dynamic.event',
@@ -242,12 +248,13 @@ const llmMachine = setupArvoMachine({
     someState: {
       entry: ['emitDynamicEvent'],
       // ... other state config
-    }
-  }
+    },
+  },
 });
 ```
 
 ### Best Practices:
+
 1. Always prefer 'emit' when possible, as it provides better type safety and validation.
 2. Use 'enqueueArvoEvent' sparingly and only when dealing with truly dynamic or external events.
 3. When using 'enqueueArvoEvent', consider adding runtime checks to ensure the emitted events still meet your system's requirements.

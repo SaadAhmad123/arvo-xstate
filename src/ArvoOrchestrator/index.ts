@@ -25,7 +25,7 @@ import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
-import { ArvoXStateTracer } from '../OpenTelemetry';
+import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
 
 /**
  * ArvoOrchestrator manages the execution of ArvoMachines and handles orchestration events.
@@ -164,35 +164,38 @@ export default class ArvoOrchestrator<
    *
    * @warning Potential Stray Events
    * Developers should be aware of potential stray events that may be created during execution:
-   * 
-   * 1. Orphaned Events: If the `to` field is not explicitly set in emitted events, the event type 
-   *    is used as the default destination. This may lead to events being sent to unintended recipients 
+   *
+   * 1. Orphaned Events: If the `to` field is not explicitly set in emitted events, the event type
+   *    is used as the default destination. This may lead to events being sent to unintended recipients
    *    if the type doesn't correspond to a valid destination.
-   * 
-   * 2. Misrouted Completion Events: For child orchestrations, completion events are sent to the 
-   *    parent subject. If the parent subject is not properly maintained or becomes invalid, these 
+   *
+   * 2. Misrouted Completion Events: For child orchestrations, completion events are sent to the
+   *    parent subject. If the parent subject is not properly maintained or becomes invalid, these
    *    events may be misrouted or lost.
-   * 
-   * 3. Unhandled Error Events: While system error events are always sent to the original initiator, 
-   *    other error events emitted during execution may not follow the same routing rules and could 
+   *
+   * 3. Unhandled Error Events: While system error events are always sent to the original initiator,
+   *    other error events emitted during execution may not follow the same routing rules and could
    *    potentially be sent to unexpected destinations.
-   * 
-   * 4. Events with Invalid Contracts: When using non-strict event emission (via 'enqueueArvoEvent'), 
-   *    events may be created that do not conform to any known contract. These events might be 
+   *
+   * 4. Events with Invalid Contracts: When using non-strict event emission (via 'enqueueArvoEvent'),
+   *    events may be created that do not conform to any known contract. These events might be
    *    difficult to handle or interpret by receiving systems.
-   * 
-   * 5. Duplicate Events: In complex orchestrations, especially those with loops or recursive 
-   *    structures, there's a risk of creating duplicate events. This can lead to unnecessary 
+   *
+   * 5. Duplicate Events: In complex orchestrations, especially those with loops or recursive
+   *    structures, there's a risk of creating duplicate events. This can lead to unnecessary
    *    processing or confusion in event handling systems.
-   * 
-   * To mitigate these issues, ensure proper error handling, validate event destinations, and 
+   *
+   * To mitigate these issues, ensure proper error handling, validate event destinations, and
    * carefully manage the orchestration hierarchy and subject routing throughout the execution process.
    */
   public execute({
     event,
     state,
     parentSubject,
-    opentelemetry = { inheritFrom: 'event', tracer: ArvoXStateTracer },
+    opentelemetry = {
+      inheritFrom: 'event',
+      tracer: fetchOpenTelemetryTracer(),
+    },
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
     const spanName = `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`;
     const defaultSpanAttr = {
@@ -200,10 +203,11 @@ export default class ArvoOrchestrator<
       openInference: OpenInferenceSpanKind.CHAIN,
       arvoExecution: ArvoExecutionSpanKind.COMMANDER,
     };
+    const tracer = opentelemetry?.tracer ?? fetchOpenTelemetryTracer();
     const span =
       opentelemetry.inheritFrom === 'event'
-        ? createSpanFromEvent(spanName, event, defaultSpanAttr, opentelemetry?.tracer ?? ArvoXStateTracer)
-        : (opentelemetry?.tracer ?? ArvoXStateTracer).startSpan(spanName, defaultSpanAttr);
+        ? createSpanFromEvent(spanName, event, defaultSpanAttr, tracer)
+        : tracer.startSpan(spanName, defaultSpanAttr);
     return context.with(
       trace.setSpan(context.active(), span),
       (): ArvoOrchestratorExecuteOutput => {
@@ -212,7 +216,7 @@ export default class ArvoOrchestrator<
         );
         const otelSpanHeaders = currentOpenTelemetryHeaders();
         const eventQueue: ArvoEvent[] = [];
-        let orchestrationInitSource: string = event.source
+        let orchestrationInitSource: string = event.source;
         try {
           if (event.to !== this.source) {
             throw new Error(
@@ -288,9 +292,8 @@ export default class ArvoOrchestrator<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
-            const {parentSubject$$, ...eventData} = this.machines[0].contracts.self.init.schema.parse(
-              event.data,
-            )
+            const { parentSubject$$, ...eventData } =
+              this.machines[0].contracts.self.init.schema.parse(event.data);
             actor = createActor(machine.logic, {
               input: eventData,
             });
@@ -357,7 +360,7 @@ export default class ArvoOrchestrator<
             executionStatus: 'success',
             snapshot: snapshot as z.infer<typeof XStatePersistanceSchema>,
             subject: event.subject,
-            parentSubject: parentSubject
+            parentSubject: parentSubject,
           };
         } catch (error) {
           exceptionToSpan(error as Error);
@@ -388,7 +391,7 @@ export default class ArvoOrchestrator<
             state: state,
             snapshot: null,
             subject: event.subject,
-            parentSubject: parentSubject
+            parentSubject: parentSubject,
           };
         } finally {
           span.end();

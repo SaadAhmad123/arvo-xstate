@@ -8,7 +8,7 @@ import {
 } from 'arvo-core';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ArvoXStateTracer, extractContext } from '.';
+import { extractContext, fetchOpenTelemetryTracer } from '.';
 
 /**
  * Represents the structure of a package.json file.
@@ -44,7 +44,10 @@ interface PackageJson {
  * const { name, version } = getPackageInfo();
  * console.log(`Package: ${name}, Version: ${version}`);
  */
-export function getPackageInfo(): { name: string; version: string } {
+export function getPackageInfo(defaultName: string): {
+  name: string;
+  version: string;
+} {
   try {
     // Read the package.json file
     const packageJsonPath = path.resolve(__dirname, '../../package.json');
@@ -56,7 +59,7 @@ export function getPackageInfo(): { name: string; version: string } {
     return { name, version };
   } catch (error) {
     console.error('Error reading package.json:', error);
-    return { name: 'Unknown', version: 'Unknown' };
+    return { name: defaultName, version: 'Unknown' };
   }
 }
 
@@ -130,7 +133,7 @@ export const createSpanFromEvent = (
     openInference: OpenInferenceSpanKind;
     arvoExecution: ArvoExecutionSpanKind;
   },
-  tracer: Tracer = ArvoXStateTracer,
+  tracer: Tracer = fetchOpenTelemetryTracer(),
 ): Span => {
   const spanOptions: SpanOptions = {
     kind: spanKinds.kind,

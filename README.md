@@ -27,11 +27,11 @@ Whether you're building a small microservice or a large-scale distributed system
 
 Arvo is a collection of libraries which allows you to build the event driven system in the Arvo pattern. However, if you feel you don't have to use them or you can use them as you see fit.
 
-| Scope       | NPM                                                                | Github                                                                | Documentation                                                                |
-| ------------ | ------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------- |
-| Orchestration      | https://www.npmjs.com/package/arvo-xstate?activeTab=readme | https://github.com/SaadAhmad123/arvo-xstate | https://saadahmad123.github.io/arvo-xstate/index.html |
-| Core       | https://www.npmjs.com/package/arvo-core?activeTab=readme                | https://github.com/SaadAhmad123/arvo-core | https://saadahmad123.github.io/arvo-core/index.html |
-| Event Handling | https://www.npmjs.com/package/arvo-event-handler?activeTab=readme      | https://github.com/SaadAhmad123/arvo-event-handler | https://saadahmad123.github.io/arvo-event-handler/index.html |
+| Scope          | NPM                                                               | Github                                             | Documentation                                                |
+| -------------- | ----------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| Orchestration  | https://www.npmjs.com/package/arvo-xstate?activeTab=readme        | https://github.com/SaadAhmad123/arvo-xstate        | https://saadahmad123.github.io/arvo-xstate/index.html        |
+| Core           | https://www.npmjs.com/package/arvo-core?activeTab=readme          | https://github.com/SaadAhmad123/arvo-core          | https://saadahmad123.github.io/arvo-core/index.html          |
+| Event Handling | https://www.npmjs.com/package/arvo-event-handler?activeTab=readme | https://github.com/SaadAhmad123/arvo-event-handler | https://saadahmad123.github.io/arvo-event-handler/index.html |
 
 # Arvo - XState
 
@@ -39,12 +39,11 @@ Arvo's event-driven system requires an orchestration mechanism capable of emitti
 
 ## Documentation & Resources
 
-| Source       | Link                                                              |
-| ------------ | ----------------------------------------------------------------- |
+| Source       | Link                                                       |
+| ------------ | ---------------------------------------------------------- |
 | Package      | https://www.npmjs.com/package/arvo-xstate?activeTab=readme |
 | Github       | https://github.com/SaadAhmad123/arvo-xstate                |
 | Documenation | https://saadahmad123.github.io/arvo-xstate/index.html      |
-
 
 ## Core Concept
 
@@ -138,8 +137,9 @@ const numberUpdateNotificationContract = createArvoContract({
 });
 ```
 
-**Commentary:** 
+**Commentary:**
 Service contracts are fundamental in Arvo. They define the interface between your system and external services. Each contract specifies:
+
 - A unique URI for the service
 - The type and schema of events the service accepts
 - The types and schemas of events the service emits
@@ -166,6 +166,7 @@ const testMachineContract = createArvoOrchestratorContract({
 
 **Commentary:**
 The machine contract defines the interface for your state machine orchestrator. It specifies:
+
 - A unique URI and name for the machine
 - The schema for initialization events (what data is needed to start the machine)
 - The schema for completion events (what data is produced when the machine finishes)
@@ -209,6 +210,7 @@ const setup = setupArvoMachine({
 
 **Commentary:**
 This step creates the environment for your state machine. It's where you bring together all the pieces defined earlier:
+
 - You specify the machine's own contract (`self`)
 - You list all the service contracts this machine will interact with
 - You define the shape of the machine's context (its internal state)
@@ -314,6 +316,7 @@ const machineV100 = setup.createMachine({
 
 **Commentary:**
 Here, you're defining the actual behavior of your state machine. This includes:
+
 - Version information (useful for managing multiple versions of a machine)
 - An ID for the machine
 - How the initial context is created from the input
@@ -336,6 +339,7 @@ const orchestrator = createArvoOrchestrator({
 
 **Commentary:**
 The orchestrator is the runtime that executes your state machines. By creating it, you're setting up:
+
 - How many execution units to use (for concurrency)
 - Which machine versions to include
 - How to handle OpenTelemetry for tracing and monitoring
@@ -368,11 +372,13 @@ let { state, events, executionStatus, snapshot } = orchestrator.execute({
 
 **Commentary:**
 This is where your system comes to life. You're:
+
 1. Creating a subject for the orchestration (think of it as a unique identifier for this execution)
 2. Creating an initial event to kick off the orchestration
 3. Executing the orchestrator with this event
 
 The orchestrator returns:
+
 - The new state of the system
 - Any events that need to be emitted
 - The execution status
@@ -400,6 +406,7 @@ const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
 
 **Commentary:**
 This final step shows how to continue the orchestration with subsequent events. You're:
+
 1. Creating a new event (in this case, a response from a service)
 2. Executing the orchestrator again with this new event and the previous state
 

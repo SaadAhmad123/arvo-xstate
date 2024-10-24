@@ -20,5 +20,5 @@ export type ExecutionOpenTelemetryConfiguration = {
    * Optional OpenTelemetry tracer instance to use for creating spans.
    * If not provided, a default tracer may be used depending on the implementation.
    */
-  tracer?: Tracer;
+  tracer: Tracer | null;
 };

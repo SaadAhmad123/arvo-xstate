@@ -44,6 +44,7 @@ The `createArvoOrchestrator` function and `ArvoOrchestrator` class are used toge
 ### Setting up an Orchestrator
 
 1. Define your ArvoMachines:
+
    ```typescript
    const machine1 = setupArvoMachine({...}).createMachine({...});
    const machine2 = setupArvoMachine({...}).createMachine({...});
@@ -72,7 +73,7 @@ const result = orchestrator.execute({
 if (result.executionStatus === 'success') {
   // Process emitted events
   result.events.forEach(handleEvent);
-  
+
   // Store new state for next execution
   saveState(result.state);
 } else {

@@ -335,8 +335,8 @@ describe('ArvoOrchestrator', () => {
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe('com.number.increment');
     expect(result.state).toBeDefined();
-    expect(result.parentSubject).toBe(null)
-    expect(result.subject).toBe(eventSubject)
+    expect(result.parentSubject).toBe(null);
+    expect(result.subject).toBe(eventSubject);
   });
 
   // test('should handle errors successfully', () => {
@@ -393,7 +393,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('error');
     expect(result.events).toHaveLength(1);
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.events[0].subject).toBe(eventSubject)
+    expect(result.events[0].subject).toBe(eventSubject);
     expect(result.state).toBe(null);
   });
 
@@ -446,7 +446,7 @@ describe('ArvoOrchestrator', () => {
     });
 
     expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1); 
+    expect(result.events).toHaveLength(1);
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
     expect(result.state).toBe(null);
   });
@@ -473,12 +473,12 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('error');
     expect(result.events).toHaveLength(1);
     expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.events[0].to).toBe("com.test.service")
-    expect(result.events[0].subject).toBe(eventSubject)
+    expect(result.events[0].to).toBe('com.test.service');
+    expect(result.events[0].subject).toBe(eventSubject);
     expect(result.state).toBe(null);
   });
 
-  test("should have a complete successfull orchestration", () => {
+  test('should have a complete successfull orchestration', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
       version: '1.0.0',
@@ -492,22 +492,21 @@ describe('ArvoOrchestrator', () => {
         subject: eventSubject,
         data: {
           parentSubject$$: null,
-          type: "increment",
-          delta: 1
+          type: 'increment',
+          delta: 1,
         },
       }),
       state: null,
     });
 
-    expect(result.events.length).toBe(1)
-    expect(result.events[0].type).toBe('com.number.increment')
-    expect(result.events[0].subject).toBe(eventSubject)
-    expect(result.subject).toBe(eventSubject)
-    expect(result.parentSubject).toBe(null)
-    expect(result.events[0].to).toBe('com.number.increment')
-    expect(result.events[0].data.delta).toBe(1)
-    expect(result.state).toBeDefined()
-
+    expect(result.events.length).toBe(1);
+    expect(result.events[0].type).toBe('com.number.increment');
+    expect(result.events[0].subject).toBe(eventSubject);
+    expect(result.subject).toBe(eventSubject);
+    expect(result.parentSubject).toBe(null);
+    expect(result.events[0].to).toBe('com.number.increment');
+    expect(result.events[0].data.delta).toBe(1);
+    expect(result.state).toBeDefined();
 
     result = orchestrator.execute({
       parentSubject: null,
@@ -518,35 +517,33 @@ describe('ArvoOrchestrator', () => {
         source: 'com.number.increment',
         to: 'arvo.orc.test',
         data: {
-          newValue: 1
-        }
-      })
-    })
+          newValue: 1,
+        },
+      }),
+    });
 
-    expect(result.events.length).toBe(2)
-    expect(result.subject).toBe(eventSubject)
-    expect(result.parentSubject).toBe(null)
-    expect(result.events[0].type).toBe('notif.number.update')
-    expect(result.events[0].to).toBe('notif.number.update')
-    expect(result.events[0].subject).toBe(eventSubject)
-    expect(result.events[0].data.type).toBe('increment')
-    expect(result.events[0].data.delta).toBe(1)
+    expect(result.events.length).toBe(2);
+    expect(result.subject).toBe(eventSubject);
+    expect(result.parentSubject).toBe(null);
+    expect(result.events[0].type).toBe('notif.number.update');
+    expect(result.events[0].to).toBe('notif.number.update');
+    expect(result.events[0].subject).toBe(eventSubject);
+    expect(result.events[0].data.type).toBe('increment');
+    expect(result.events[0].data.delta).toBe(1);
 
+    expect(result.events[1].type).toBe('arvo.orc.test.done');
+    expect(result.events[1].to).toBe('com.test.service');
+    expect(result.events[1].subject).toBe(eventSubject);
+    expect(result.events[1].source).toBe('arvo.orc.test');
+    expect(result.events[1].data.final).toBe(1);
+  });
 
-    expect(result.events[1].type).toBe('arvo.orc.test.done')
-    expect(result.events[1].to).toBe('com.test.service')
-    expect(result.events[1].subject).toBe(eventSubject)
-    expect(result.events[1].source).toBe('arvo.orc.test')
-    expect(result.events[1].data.final).toBe(1)
-
-  })
-
-  test("should have a complete successfull child orchestration", () => {
+  test('should have a complete successfull child orchestration', () => {
     const parentSubject = ArvoOrchestrationSubject.new({
       orchestator: 'com.test.service',
       version: '1.0.0',
-      initiator: "com.test.saad"
-    })
+      initiator: 'com.test.saad',
+    });
 
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
@@ -561,22 +558,21 @@ describe('ArvoOrchestrator', () => {
         subject: eventSubject,
         data: {
           parentSubject$$: parentSubject,
-          type: "increment",
-          delta: 1
+          type: 'increment',
+          delta: 1,
         },
       }),
       state: null,
     });
 
-    expect(result.events.length).toBe(1)
-    expect(result.events[0].type).toBe('com.number.increment')
-    expect(result.events[0].subject).toBe(eventSubject)
-    expect(result.subject).toBe(eventSubject)
-    expect(result.parentSubject).toBe(parentSubject)
-    expect(result.events[0].to).toBe('com.number.increment')
-    expect(result.events[0].data.delta).toBe(1)
-    expect(result.state).toBeDefined()
-
+    expect(result.events.length).toBe(1);
+    expect(result.events[0].type).toBe('com.number.increment');
+    expect(result.events[0].subject).toBe(eventSubject);
+    expect(result.subject).toBe(eventSubject);
+    expect(result.parentSubject).toBe(parentSubject);
+    expect(result.events[0].to).toBe('com.number.increment');
+    expect(result.events[0].data.delta).toBe(1);
+    expect(result.state).toBeDefined();
 
     result = orchestrator.execute({
       parentSubject: result.parentSubject,
@@ -587,28 +583,26 @@ describe('ArvoOrchestrator', () => {
         source: 'com.number.increment',
         to: 'arvo.orc.test',
         data: {
-          newValue: 1
-        }
-      })
-    })
+          newValue: 1,
+        },
+      }),
+    });
 
-    expect(result.events.length).toBe(2)
-    expect(result.subject).toBe(eventSubject)
-    expect(result.parentSubject).toBe(parentSubject)
-    expect(result.events[0].type).toBe('notif.number.update')
-    expect(result.events[0].to).toBe('notif.number.update')
-    expect(result.events[0].subject).toBe(eventSubject)
-    expect(result.events[0].data.type).toBe('increment')
-    expect(result.events[0].data.delta).toBe(1)
+    expect(result.events.length).toBe(2);
+    expect(result.subject).toBe(eventSubject);
+    expect(result.parentSubject).toBe(parentSubject);
+    expect(result.events[0].type).toBe('notif.number.update');
+    expect(result.events[0].to).toBe('notif.number.update');
+    expect(result.events[0].subject).toBe(eventSubject);
+    expect(result.events[0].data.type).toBe('increment');
+    expect(result.events[0].data.delta).toBe(1);
 
+    expect(result.events[1].type).toBe('arvo.orc.test.done');
+    expect(result.events[1].to).toBe('com.test.service');
+    expect(result.events[1].subject).toBe(parentSubject);
+    expect(result.events[1].source).toBe('arvo.orc.test');
+    expect(result.events[1].data.final).toBe(1);
 
-    expect(result.events[1].type).toBe('arvo.orc.test.done')
-    expect(result.events[1].to).toBe('com.test.service')
-    expect(result.events[1].subject).toBe(parentSubject)
-    expect(result.events[1].source).toBe('arvo.orc.test')
-    expect(result.events[1].data.final).toBe(1)
-
-    console.log(result.snapshot)
-
-  })
+    console.log(result.snapshot);
+  });
 });
