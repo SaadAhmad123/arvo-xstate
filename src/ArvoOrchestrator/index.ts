@@ -20,12 +20,11 @@ import {
 } from 'arvo-core';
 import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
-import { createSpanFromEvent } from '../OpenTelemetry/utils';
+import { createOtelSpan } from 'arvo-event-handler';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
-import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
 
 /**
  * ArvoOrchestrator manages the execution of ArvoMachines and handles orchestration events.
@@ -192,22 +191,18 @@ export default class ArvoOrchestrator<
     event,
     state,
     parentSubject,
-    opentelemetry = {
-      inheritFrom: 'event',
-      tracer: fetchOpenTelemetryTracer(),
-    },
+    opentelemetry
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
-    const spanName = `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`;
-    const defaultSpanAttr = {
-      kind: SpanKind.INTERNAL,
-      openInference: OpenInferenceSpanKind.CHAIN,
-      arvoExecution: ArvoExecutionSpanKind.COMMANDER,
-    };
-    const tracer = opentelemetry?.tracer ?? fetchOpenTelemetryTracer();
-    const span =
-      opentelemetry.inheritFrom === 'event'
-        ? createSpanFromEvent(spanName, event, defaultSpanAttr, tracer)
-        : tracer.startSpan(spanName, defaultSpanAttr);
+    const span = createOtelSpan({
+      spanName: `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`,
+      spanKinds: {
+        kind: SpanKind.INTERNAL,
+        openInference: OpenInferenceSpanKind.CHAIN,
+        arvoExecution: ArvoExecutionSpanKind.COMMANDER,
+      },
+      event: event,
+      opentelemetryConfig: opentelemetry
+    })
     return context.with(
       trace.setSpan(context.active(), span),
       (): ArvoOrchestratorExecuteOutput => {

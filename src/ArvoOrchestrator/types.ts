@@ -8,7 +8,7 @@ import ArvoMachine from '../ArvoMachine';
 import { AnyActorLogic } from 'xstate';
 import { z } from 'zod';
 import { XStatePersistanceSchema } from './schema';
-import { ExecutionOpenTelemetryConfiguration } from '../types';
+import { OpenTelemetryConfig } from 'arvo-event-handler';
 
 /**
  * Interface representing an Arvo Orchestrator.
@@ -117,10 +117,8 @@ export type ArvoOrchestratorExecuteInput = {
    * In the context of ArvoOrchestrator, OpenTelemetry is used to trace
    * the execution flow, measure performance, and provide insights into
    * the behavior of the orchestration process.
-   *
-   * @optional
    */
-  opentelemetry?: ExecutionOpenTelemetryConfiguration;
+  opentelemetry?: OpenTelemetryConfig
 };
 
 /**

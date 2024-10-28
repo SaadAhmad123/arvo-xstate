@@ -12,7 +12,6 @@ import {
   ArvoOrchestratorExecuteOutput,
 } from './ArvoOrchestrator/types';
 import { base64ToObject, objectToBase64 } from './ArvoOrchestrator/utils';
-import { createSpanFromEvent } from './OpenTelemetry/utils';
 
 export {
   ArvoMachine,
@@ -23,7 +22,6 @@ export {
   ArvoOrchestratorExecuteInput,
   ArvoOrchestratorExecuteOutput,
   createArvoOrchestator,
-  createSpanFromEvent as createOtelSpanFromEvent,
   XStatePersistanceSchema,
   objectToBase64,
   base64ToObject,

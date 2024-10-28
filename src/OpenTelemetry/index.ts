@@ -1,4 +1,4 @@
-import { trace, context, Context, propagation } from '@opentelemetry/api';
+import { trace } from '@opentelemetry/api';
 import { getPackageInfo } from './utils';
 
 /**
@@ -7,16 +7,4 @@ import { getPackageInfo } from './utils';
 export const fetchOpenTelemetryTracer = () => {
   const pkg = getPackageInfo('arvo-xstate');
   return trace.getTracer(pkg.name, pkg.version);
-};
-
-// Helper function to extract context from traceparent and tracestate
-export const extractContext = (
-  traceparent: string,
-  tracestate: string | null,
-): Context => {
-  const extractedContext = propagation.extract(context.active(), {
-    traceparent,
-    tracestate: tracestate ?? undefined,
-  });
-  return extractedContext;
 };
