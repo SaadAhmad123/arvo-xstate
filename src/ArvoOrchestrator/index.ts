@@ -25,6 +25,7 @@ import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
+import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
 
 /**
  * ArvoOrchestrator manages the execution of ArvoMachines and handles orchestration events.
@@ -201,7 +202,10 @@ export default class ArvoOrchestrator<
         arvoExecution: ArvoExecutionSpanKind.COMMANDER,
       },
       event: event,
-      opentelemetryConfig: opentelemetry
+      opentelemetryConfig: opentelemetry ?? {
+        inheritFrom: 'event',
+        tracer: fetchOpenTelemetryTracer()
+      }
     })
     return context.with(
       trace.setSpan(context.active(), span),
