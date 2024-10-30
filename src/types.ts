@@ -1,1 +1,3 @@
-export type Version = `${number}.${number}.${number}`;
+import { ArvoOrchestratorVersion } from "arvo-core";
+
+export type Version = ArvoOrchestratorVersion;

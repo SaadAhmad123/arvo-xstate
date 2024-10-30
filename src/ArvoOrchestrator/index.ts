@@ -22,10 +22,11 @@ import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
 import { createOtelSpan } from 'arvo-event-handler';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import { base64ToObject, objectToBase64 } from './utils';
+import { base64ToObject, findLatestVersion, isSemanticVersion, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
 import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
+import { Version } from '../types';
 
 /**
  * ArvoOrchestrator manages the execution of ArvoMachines and handles orchestration events.
@@ -108,6 +109,16 @@ export default class ArvoOrchestrator<
           'ArvoOrchestrator initialization failed: Inconsistent self contracts detected. All machines must have the same self contract for a particular orchestrator.',
         );
       }
+      if (!isSemanticVersion(item.version)) {
+        throw new Error(
+          `The machine=${item.id} version must be a semantic version like 0.0.1. The provided is ${item.version}`
+        )
+      }
+      if (item.version === ArvoOrchestrationSubject.WildCardMachineVersion) {
+        throw new Error(
+          `The machine=${item.id} version cannot be ${item.version} as this is supposed to be a wild card version`
+        )
+      }
     }
   }
 
@@ -187,6 +198,12 @@ export default class ArvoOrchestrator<
    *
    * To mitigate these issues, ensure proper error handling, validate event destinations, and
    * carefully manage the orchestration hierarchy and subject routing throughout the execution process.
+   * 
+   * @remarks
+   * Version Selection:
+   * If the subject contains the wildcard version (0.0.0), the orchestrator automatically
+   * selects the latest available version from its machines. This allows for automatic version
+   * resolution without explicitly specifying a particular version number.
    */
   public execute({
     event,
@@ -229,8 +246,13 @@ export default class ArvoOrchestrator<
               `Invalid event subject: The orchestrator name in the parsed subject (${parsedSubject.orchestrator.name}) does not match the expected source (${this.source}). Please verify the event originator's configuration.`,
             );
           }
+
+          let versionToUse = parsedSubject.orchestrator.version;
+          if (versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion) {
+            versionToUse = findLatestVersion(this.machines.map(item => item.version))
+          }
           const machine = this.machines.filter(
-            (item) => item.version === parsedSubject.orchestrator.version,
+            (item) => item.version === versionToUse,
           )[0];
           if (!machine) {
             throw new Error(
