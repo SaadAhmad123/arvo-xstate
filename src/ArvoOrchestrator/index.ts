@@ -313,10 +313,10 @@ export default class ArvoOrchestrator<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
-            const { parentSubject$$, ...eventData } =
-              this.machines[0].contracts.self.init.schema.parse(event.data);
+            
+            this.machines[0].contracts.self.init.schema.parse(event.data);
             actor = createActor(machine.logic, {
-              input: eventData,
+              input: event.toJSON() as any
             });
             actor.on('*', (event: EnqueueArvoEventActionParam) =>
               enqueueEvent(event, true),

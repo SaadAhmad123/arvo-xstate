@@ -178,7 +178,7 @@ describe('ArvoXState', () => {
         version: '1.0.0',
         id: 'counter',
         context: ({ input }) => ({
-          ...input,
+          ...input.data,
           errors: [] as z.infer<typeof ArvoErrorSchema>[],
         }),
         initial: 'route',
@@ -340,7 +340,7 @@ describe('ArvoXState', () => {
           version: '1.0.0',
           id: 'counter',
           context: ({ input }) => ({
-            ...input,
+            ...input.data,
             errors: [],
           }),
           initial: 'idle',
@@ -366,7 +366,7 @@ describe('ArvoXState', () => {
           version: '1.0.0',
           id: 'counter',
           context: ({ input }) => ({
-            ...input,
+            ...input.data,
             errors: [],
           }),
           initial: 'idle',
@@ -390,7 +390,7 @@ describe('ArvoXState', () => {
           version: '1.0.0',
           id: 'counter',
           context: ({ input }) => ({
-            ...input,
+            ...input.data,
             errors: [],
           }),
           initial: 'enqueueArvoEvent',

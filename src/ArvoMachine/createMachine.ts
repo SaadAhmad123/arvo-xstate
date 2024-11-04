@@ -21,6 +21,7 @@ import {
   InferArvoContract,
   InferArvoOrchestratorContract,
   ArvoOrchestratorVersion,
+  ArvoEvent,
 } from 'arvo-core';
 import { getAllPaths } from '../utils/object';
 import { z } from 'zod';
@@ -370,13 +371,16 @@ export function setupArvoMachine<
       ToParameterizedObject<TGuards>,
       never,
       TTag,
-      InferArvoOrchestratorContract<TSelfContract>['init']['data'],
+      InferArvoOrchestratorContract<TSelfContract>['init'],
       InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
       InferServiceContract<TServiceContracts>['emitted'],
       TMeta
     >,
   >(
-    config: TConfig & { version: ArvoOrchestratorVersion; id: string },
+    config: TConfig & { 
+      id: string
+      version: ArvoOrchestratorVersion; 
+    },
   ) => {
     const createConfigErrorMessage = (
       type: 'invoke' | 'after' | 'enqueueArvoEvent',
@@ -435,7 +439,9 @@ export function setupArvoMachine<
       }
     }
 
-    const machine = systemSetup.createMachine(config as any);
+    const machine = systemSetup.createMachine({
+      ...config as any
+    });
     return new ArvoMachine(config.id, config.version, param.contracts, machine);
   };
   return { createMachine };
