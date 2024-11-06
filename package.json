@@ -1,6 +1,6 @@
 {
   "name": "arvo-xstate",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "This package allows you to use xstate Actors and State Machines to act as orchestrators in an Arvo Event Driven System",
   "main": "dist/index.js",
   "scripts": {

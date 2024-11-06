@@ -128,7 +128,7 @@ export function findLatestVersion(
 
   return versions.reduce((latest, current) => {
     return isVersionGreater(current, latest) ? current : latest;
-  });
+  }, versions[0]);
 }
 
 /**
