@@ -31,7 +31,7 @@ type InferServiceContract<T extends Record<string, ArvoContract>> = {
   // All the events that can be emitted by the orchestrator
   emitted: {
     [K in keyof T]: EnqueueArvoEventActionParam<
-      z.infer<T[K]['accepts']['schema']>,
+      z.input<T[K]['accepts']['schema']>,
       T[K]['accepts']['type']
     >;
   }[keyof T];
@@ -40,8 +40,8 @@ type InferServiceContract<T extends Record<string, ArvoContract>> = {
   events: {
     [K in keyof T]: InferArvoContract<T[K]>['emittableEvents'];
   }[keyof T];
-};
 
+};
 /**
  * Establishes the foundation for creating Arvo-compatible state machines.
  *
