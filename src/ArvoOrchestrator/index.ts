@@ -288,6 +288,7 @@ export default class ArvoOrchestrator<
               {
                 ...eventData,
                 data: verifiedData,
+                dataschema: eventContract?.uri ?? undefined,
                 traceparent: otelSpanHeaders.traceparent ?? undefined,
                 tracestate: otelSpanHeaders.tracestate ?? undefined,
                 source: this.source,
