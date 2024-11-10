@@ -22,7 +22,12 @@ import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
 import { createOtelSpan } from 'arvo-event-handler';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import { base64ToObject, findLatestVersion, isSemanticVersion, objectToBase64 } from './utils';
+import {
+  base64ToObject,
+  findLatestVersion,
+  isSemanticVersion,
+  objectToBase64,
+} from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
 import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
@@ -111,13 +116,13 @@ export default class ArvoOrchestrator<
       }
       if (!isSemanticVersion(item.version)) {
         throw new Error(
-          `The machine=${item.id} version must be a semantic version like 0.0.1. The provided is ${item.version}`
-        )
+          `The machine=${item.id} version must be a semantic version like 0.0.1. The provided is ${item.version}`,
+        );
       }
       if (item.version === ArvoOrchestrationSubject.WildCardMachineVersion) {
         throw new Error(
-          `The machine=${item.id} version cannot be ${item.version} as this is supposed to be a wild card version`
-        )
+          `The machine=${item.id} version cannot be ${item.version} as this is supposed to be a wild card version`,
+        );
       }
     }
   }
@@ -198,7 +203,7 @@ export default class ArvoOrchestrator<
    *
    * To mitigate these issues, ensure proper error handling, validate event destinations, and
    * carefully manage the orchestration hierarchy and subject routing throughout the execution process.
-   * 
+   *
    * @remarks
    * Version Selection:
    * If the subject contains the wildcard version (0.0.0), the orchestrator automatically
@@ -209,7 +214,7 @@ export default class ArvoOrchestrator<
     event,
     state,
     parentSubject,
-    opentelemetry
+    opentelemetry,
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
     const span = createOtelSpan({
       spanName: `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`,
@@ -221,9 +226,9 @@ export default class ArvoOrchestrator<
       event: event,
       opentelemetryConfig: opentelemetry ?? {
         inheritFrom: 'event',
-        tracer: fetchOpenTelemetryTracer()
-      }
-    })
+        tracer: fetchOpenTelemetryTracer(),
+      },
+    });
     return context.with(
       trace.setSpan(context.active(), span),
       (): ArvoOrchestratorExecuteOutput => {
@@ -248,8 +253,12 @@ export default class ArvoOrchestrator<
           }
 
           let versionToUse = parsedSubject.orchestrator.version;
-          if (versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion) {
-            versionToUse = findLatestVersion(this.machines.map(item => item.version))
+          if (
+            versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion
+          ) {
+            versionToUse = findLatestVersion(
+              this.machines.map((item) => item.version),
+            );
           }
           const machine = this.machines.filter(
             (item) => item.version === versionToUse,
@@ -314,10 +323,10 @@ export default class ArvoOrchestrator<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
-            
+
             this.machines[0].contracts.self.init.schema.parse(event.data);
             actor = createActor(machine.logic, {
-              input: event.toJSON() as any
+              input: event.toJSON() as any,
             });
             actor.on('*', (event: EnqueueArvoEventActionParam) =>
               enqueueEvent(event, true),

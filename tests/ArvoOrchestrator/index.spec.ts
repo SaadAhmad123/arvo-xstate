@@ -112,7 +112,7 @@ describe('ArvoOrchestrator', () => {
     id: 'counter',
     context: ({ input }) => ({
       ...input.data,
-      errors: [] as z.infer<typeof ArvoErrorSchema>[], 
+      errors: [] as z.infer<typeof ArvoErrorSchema>[],
     }),
     initial: 'route',
     states: {

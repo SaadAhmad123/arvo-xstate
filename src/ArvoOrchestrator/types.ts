@@ -118,7 +118,7 @@ export type ArvoOrchestratorExecuteInput = {
    * the execution flow, measure performance, and provide insights into
    * the behavior of the orchestration process.
    */
-  opentelemetry?: OpenTelemetryConfig
+  opentelemetry?: OpenTelemetryConfig;
 };
 
 /**

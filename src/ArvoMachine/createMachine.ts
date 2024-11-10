@@ -372,14 +372,14 @@ export function setupArvoMachine<
       never,
       TTag,
       InferArvoOrchestratorContract<TSelfContract>['init'],
-      InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
+      z.input<TSelfContract['complete']['schema']>,
       InferServiceContract<TServiceContracts>['emitted'],
       TMeta
     >,
   >(
-    config: TConfig & { 
-      id: string
-      version: ArvoOrchestratorVersion; 
+    config: TConfig & {
+      id: string;
+      version: ArvoOrchestratorVersion;
     },
   ) => {
     const createConfigErrorMessage = (
@@ -440,7 +440,7 @@ export function setupArvoMachine<
     }
 
     const machine = systemSetup.createMachine({
-      ...config as any
+      ...(config as any),
     });
     return new ArvoMachine(config.id, config.version, param.contracts, machine);
   };

@@ -76,22 +76,18 @@ export const base64ToObject = <TSchema extends z.ZodTypeAny>(
   }
 };
 
-
 /**
  * Compares two semantic versions and determines if the first version is greater than the second.
- * 
+ *
  * @param version1 - First semantic version to compare
  * @param version2 - Second semantic version to compare
  * @returns True if version1 is greater than version2, false otherwise
- * 
+ *
  * @example
  * isVersionGreater('2.0.0', '1.9.9') // returns true
  * isVersionGreater('1.2.3', '1.2.4') // returns false
  */
-function isVersionGreater(
-  version1: Version,
-  version2: Version
-): boolean {
+function isVersionGreater(version1: Version, version2: Version): boolean {
   const [major1, minor1, patch1] = version1.split('.').map(Number);
   const [major2, minor2, patch2] = version2.split('.').map(Number);
 
@@ -103,25 +99,23 @@ function isVersionGreater(
 /**
  * Finds the latest (highest) semantic version from a list of versions.
  * Versions must follow the format 'major.minor.patch' where each component is a number.
- * 
+ *
  * @param versions - Array of semantic versions to compare
  * @returns The latest semantic version from the list
  * @throws Error if the versions array is empty
- * 
+ *
  * @example
  * ```typescript
  * const versions = ['1.0.0', '2.0.0', '1.9.9', '2.1.0'];
  * const latest = findLatestVersion(versions);
  * console.log(latest); // '2.1.0'
- * 
+ *
  * // With type safety
  * const typedVersions: `${number}.${number}.${number}`[] = ['1.0.0', '2.0.0'];
  * const latestTyped = findLatestVersion(typedVersions);
  * ```
  */
-export function findLatestVersion(
-  versions: Version[]
-): Version {
+export function findLatestVersion(versions: Version[]): Version {
   if (versions.length === 0) {
     throw new Error('Cannot find latest version from empty array');
   }
@@ -133,10 +127,10 @@ export function findLatestVersion(
 
 /**
  * Type guard to check if a string is a valid semantic version in the format 'number.number.number'.
- * 
+ *
  * @param version - String to check if it's a valid semantic version
  * @returns True if the string is a valid semantic version, false otherwise
- * 
+ *
  * @example
  * ```typescript
  * const version = '1.0.0';
@@ -146,11 +140,9 @@ export function findLatestVersion(
  * }
  * ```
  */
-export function isSemanticVersion(
-  version: Version
-): version is Version {
+export function isSemanticVersion(version: Version): version is Version {
   if (!/^\d+\.\d+\.\d+$/.test(version)) return false;
-  
+
   const [major, minor, patch] = version.split('.').map(Number);
   return (
     Number.isInteger(major) &&
