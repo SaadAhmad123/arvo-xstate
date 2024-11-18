@@ -601,7 +601,9 @@ describe('ArvoOrchestrator', () => {
     expect(result.events[1].to).toBe('com.test.service');
     expect(result.events[1].subject).toBe(parentSubject);
     expect(result.events[1].source).toBe('arvo.orc.test');
+    expect(result.events[1].dataschema).toBe(testMachineContract.uri);
     expect(result.events[1].data.final).toBe(1);
+    
 
     console.log(result.snapshot);
   });

@@ -297,7 +297,7 @@ export default class ArvoOrchestrator<
               {
                 ...eventData,
                 data: verifiedData,
-                dataschema: eventContract?.uri ?? undefined,
+                dataschema: emittedEvent?.dataschema ?? eventContract?.uri ?? undefined,
                 traceparent: otelSpanHeaders.traceparent ?? undefined,
                 tracestate: otelSpanHeaders.tracestate ?? undefined,
                 source: this.source,
@@ -363,6 +363,7 @@ export default class ArvoOrchestrator<
               {
                 subject: parentSubject ?? undefined,
                 type: machine.contracts.self.complete.type,
+                dataschema: machine.contracts.self.uri,
                 data: machine.contracts.self.complete.schema.parse(
                   snapshot.output,
                 ),
