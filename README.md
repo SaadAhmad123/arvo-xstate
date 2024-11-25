@@ -35,7 +35,7 @@ Arvo is a collection of libraries which allows you to build the event driven sys
 
 # Arvo - XState
 
-Arvo's event-driven system requires an orchestration mechanism capable of emitting events based on predefined rules. Arvo utilizes a state machine approach, where orchestration is defined in the form of a state chart. This state chart is then interpreted by a state machine engine to calculate the next events to emit and the resulting system state.
+Arvo's event-driven system requires an orchestration mechanism capable of emitting events based on predefined rules. Arvo utilizes a state machine approach, where orchestration is defined in the form of a state chart. This state chart is then interpreted by a state machine engine to calculate the next events to emit and the resulting system state. It should be noted that this package does not impose a storage solution and it is upto the implementation to choose the best storage for events and state snapshots.
 
 ## Documentation & Resources
 
@@ -57,7 +57,36 @@ const { newSystemState, eventsToEmit } = stateMachineEngine(
 );
 ```
 
-To achieve this, the engine must execute events synchronously and provide the new system state along with events that need to be emitted.
+To achieve this, the engine must execute events synchronously and provide the new system state along with events that need to be emitted. 
+
+## Event-Driven Patterns and Arvo-XState Implementation
+
+Arvo-XState's foundation is built on pure functional principles where state transitions are deterministic and side-effect free. This fundamental characteristic leads to natural, emergent support for sophisticated event-driven patterns without additional complexity. Just as pure functions naturally support composition, memoization, and parallelization, Arvo-XState's functional core naturally enables these enterprise patterns through its basic operation rather than through bolt-on features.
+
+### Event Sourcing
+Arvo-XState's foundation is built on the principle of deterministic state transitions, making it naturally suited for event sourcing. The state machine approach means every state change is triggered by an event, and these events form a complete history. When Arvo-XState processes an event, it maintains a clear sequence of what happened and why. Since the state machine is deterministic, replaying these events will always produce the same result, which is the cornerstone of event sourcing. The system's state at any point can be reconstructed by replaying events up to that moment, providing a reliable audit trail and debugging capabilities.
+
+### CQRS (Command Query Responsibility Segregation)
+The architecture of Arvo-XState naturally separates commands and queries through its state machine design. Commands that modify state are handled through explicit state transitions, while the current state can be queried without affecting these transitions. This separation happens because Arvo-XState maintains a clear boundary between state changes (through events) and state reads. The orchestrator can emit different events for reads versus writes, allowing systems to handle them differently. This natural separation makes it straightforward to implement different storage and scaling strategies for reads and writes.
+
+### Saga Pattern
+Arvo-XState's state machine approach is well-suited for implementing sagas because it can model complex, long-running transactions as a series of state transitions. The state machine can track the progress of a distributed transaction and manage compensation actions if something fails. Since Arvo-XState maintains the current state and understands the sequence of events, it can coordinate the necessary steps to maintain consistency across different services. If a step fails, the state machine knows exactly where it was in the process and can trigger the appropriate compensation actions.
+
+### Event Choreography
+The event-driven nature of Arvo-XState makes it an excellent fit for event choreography. Services can interact through events without being tightly coupled with each other, and the state machine ensures proper coordination. For a reliable operation, the Arvo tries manage this coupliung between service via `ArvoContracts`. With this approach, the services are not tightly coupled rather they are bound by a domain wide contract. The state machine acts as a natural coordinator, ensuring events flow in the right sequence without requiring central orchestration.
+
+### Dead Letter Pattern
+The deterministic nature of Arvo-XState's state machine makes it suitable for implementing dead letter queues. When events fail to process, the state machine can transition to error states and emit specific events for the dead letter queue. Since the state machine knows exactly what state it was in when the failure occurred, it can provide rich context about what went wrong. This makes it easier to implement retry mechanisms and handle failed events appropriately.
+
+### Materialized Views
+Arvo-XState's ability to emit events based on state transitions makes it effective for maintaining materialized views. As the state machine processes events and changes state, it can emit events specifically designed to update materialized views. The deterministic nature of the state machine ensures that views stay consistent with the underlying state, and the event-driven approach means views can be updated in real-time as changes occur.
+
+### Event Replay
+The deterministic nature of Arvo-XState makes it perfect for event replay scenarios. Since state transitions are purely functional (given the same input event and current state, they always produce the same output), replaying events will consistently reproduce the same system state. This makes it possible to debug issues, verify system behavior, or recover from failures by replaying the event stream.
+
+### Event Streaming
+Arvo-XState's architecture makes it well-suited for event streaming scenarios. The state machine can process events as they arrive, maintaining state and emitting new events based on state transitions. The deterministic nature of the state machine means events are processed consistently, and the state machine can handle high volumes of events while maintaining system integrity. The ability to emit events based on state transitions means the system can participate in larger event streaming architectures while maintaining clear state management.
+
 
 ## XState Integration
 
