@@ -131,46 +131,52 @@ This guide provides a step-by-step explanation of how to set up and use an Arvo 
 
 ```typescript
 const incrementServiceContract = createArvoContract({
-  uri: '#/test/service/increment',
-  accepts: {
+    uri: '#/test/service/increment',
     type: 'com.number.increment',
-    schema: z.object({
-      delta: z.number(),
-    }),
-  },
-  emits: {
-    'evt.number.increment.success': z.object({
-      newValue: z.number(),
-    }),
-  },
-});
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.increment.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
+    },
+  });
 
-const decrementServiceContract = createArvoContract({
-  uri: '#/test/service/decrement',
-  accepts: {
+  const decrementServiceContract = createArvoContract({
+    uri: '#/test/service/decrement',
     type: 'com.number.decrement',
-    schema: z.object({
-      delta: z.number(),
-    }),
-  },
-  emits: {
-    'evt.number.decrement.success': z.object({
-      newValue: z.number(),
-    }),
-  },
-});
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.decrement.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
+    },
+  });
 
-const numberUpdateNotificationContract = createArvoContract({
-  uri: '#/test/notification/decrement',
-  accepts: {
+  const numberUpdateNotificationContract = createArvoContract({
+    uri: '#/test/notification/decrement',
     type: 'notif.number.update',
-    schema: z.object({
-      delta: z.number(),
-      type: z.enum(['increment', 'decrement']),
-    }),
-  },
-  emits: {},
-});
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        emits: {},
+      },
+    },
+  });
 ```
 
 **Commentary:**
@@ -186,18 +192,20 @@ This approach ensures type safety and clear communication boundaries. By definin
 
 ```typescript
 const testMachineContract = createArvoOrchestratorContract({
-  uri: '#/test/machine',
-  name: 'test',
-  schema: {
-    init: z.object({
-      delta: z.number(),
-      type: z.enum(['increment', 'decrement']),
-    }),
-    complete: z.object({
-      final: z.number(),
-    }),
-  },
-});
+    uri: '#/test/machine',
+    type: 'test',
+    versions: {
+      '0.0.1': {
+        init: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        complete: z.object({
+          final: z.number(),
+        }),
+      },
+    },
+  });
 ```
 
 **Commentary:**
@@ -214,12 +222,12 @@ This contract acts as a blueprint for your machine, ensuring that it receives th
 ```typescript
 const setup = setupArvoMachine({
   contracts: {
-    self: testMachineContract,
-    services: {
-      incrementServiceContract,
-      decrementServiceContract,
-      numberUpdateNotificationContract,
-    },
+    self: testMachineContract.version('0.0.1'),
+          services: {
+            increment: incrementServiceContract.version('0.0.1'),
+            decrement: decrementServiceContract.version('0.0.1'),
+            notification: numberUpdateNotificationContract.version('0.0.1'),
+          },
   },
   types: {
     context: {} as {
@@ -258,7 +266,7 @@ This setup provides a strongly-typed foundation for your machine, enabling autoc
 
 ```typescript
 const machineV100 = setup.createMachine({
-  version: '1.0.0',
+  version: '0.0.1',
   id: 'counter',
   context: ({ input }) => ({
     ...input,
@@ -365,8 +373,11 @@ This is where the logic of your system lives. The structure provided by Arvo hel
 
 ```typescript
 const orchestrator = createArvoOrchestrator({
+  contract: testMachineContract,
   executionunits: 1,
-  machines: [machineV100],
+  machines: {
+    '0.0.1': machineV100,
+  },
   opentelemetry: {
     inheritFrom: 'event',
   },
@@ -387,11 +398,11 @@ This step bridges the gap between your machine definitions and their actual exec
 ```typescript
 const eventSubject = ArvoOrchestrationSubject.new({
   orchestator: 'arvo.orc.test',
-  version: '1.0.0',
+  version: '0.0.1',
   initiator: 'com.test.service',
 });
 
-const event = createArvoEventFactory(testMachineContract).accepts({
+const event = createArvoEventFactory(testMachineContract.version('0.0.1)).accepts({
   source: 'com.test.service',
   subject: eventSubject,
   data: {
@@ -425,7 +436,7 @@ This step is crucial because it's where your system actually starts doing work i
 ### 7. Handle Subsequent Events
 
 ```typescript
-const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
+const nextEvent = createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
   type: 'evt.number.increment.success',
   source: 'com.test.service',
   subject: eventSubject,
