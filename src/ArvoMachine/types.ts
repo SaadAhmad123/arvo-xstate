@@ -5,7 +5,8 @@ import {
   UnknownActorLogic,
   Invert,
 } from 'xstate';
-import { ArvoEventData, CloudEventExtension } from 'arvo-core';
+import { ArvoContract, ArvoEventData, ArvoOrchestratorEventTypeGen, ArvoSemanticVersion, CloudEventExtension, InferVersionedArvoContract, VersionedArvoContract } from 'arvo-core';
+import { z } from 'zod';
 
 /**
  * Represents an extended context for Arvo XState machines, including additional properties
@@ -203,3 +204,61 @@ export type ToProvidedActor<
               : string | undefined;
         };
       }>;
+
+/**
+ * Infers emittable events from a versioned Arvo contract.
+ * 
+ * @template T - Versioned Arvo contract type
+ * 
+ * @remarks
+ * Extracts all possible events that can be emitted by a contract,
+ * including system error events.
+ */
+export type InferEmittableEventsFromVersionedArvoContract<
+  T extends VersionedArvoContract<ArvoContract, ArvoSemanticVersion>,
+> =
+  | {
+      [K in keyof InferVersionedArvoContract<T>['emits']]: InferVersionedArvoContract<T>['emits'][K];
+    }[keyof InferVersionedArvoContract<T>['emits']]
+  | InferVersionedArvoContract<T>['systemError'];
+
+/**
+ * Extracts the orchestrator type from an event type string.
+ * 
+ * @template T - Event type string
+ * 
+ * @remarks
+ * Parses the specific orchestrator type from a fully qualified event type string.
+ */
+export type ExtractOrchestratorType<T extends string> =
+  T extends `${typeof ArvoOrchestratorEventTypeGen.prefix}.${infer Type}` ? Type : never;
+
+/**
+ * Infers the complete service contract from a record of versioned Arvo contracts.
+ * 
+ * @template T - Record of versioned Arvo contracts
+ * 
+ * @remarks
+ * Generates a comprehensive type definition including both emitted and received events
+ * for all services in the contract.
+ * 
+ * @property emitted - Events that can be emitted by the orchestrator
+ * @property events - Events that can be received by the orchestrator
+ */
+export type InferServiceContract<
+  T extends Record<
+    string,
+    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
+  >,
+> = {
+  emitted: {
+    [K in keyof T]: EnqueueArvoEventActionParam<
+      z.input<T[K]['accepts']['schema']>,
+      T[K]['accepts']['type']
+    >;
+  }[keyof T];
+
+  events: {
+    [K in keyof T]: InferEmittableEventsFromVersionedArvoContract<T[K]>;
+  }[keyof T];
+};

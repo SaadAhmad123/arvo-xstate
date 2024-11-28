@@ -53,8 +53,12 @@ The `createArvoOrchestrator` function and `ArvoOrchestrator` class are used toge
 2. Create the orchestrator:
    ```typescript
    const orchestrator = createArvoOrchestrator({
+     contract: orchestratorContract,
      executionunits: 2,
-     machines: [machine1, machine2],
+     machines: {
+      '0.0.1': machine1,
+      '0.0.2': machine2,
+     },
    });
    ```
 
@@ -88,8 +92,12 @@ The orchestrator can manage multiple versions of your workflow:
 
 ```typescript
 const orchestrator = createArvoOrchestrator({
-  executionunits: 1,
-  machines: [machineV1, machineV2],
+  contract: orchestratorContract,
+  executionunits: 2,
+  machines: {
+    '0.0.1': machine1,
+    '0.0.2': machine2,
+  },
 });
 ```
 

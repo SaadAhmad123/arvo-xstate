@@ -6,7 +6,7 @@ import {
   createArvoOrchestratorContract,
 } from 'arvo-core';
 import { z } from 'zod';
-import { createArvoOrchestator, setupArvoMachine } from '../../src';
+import { createArvoOrchestrator, setupArvoMachine } from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 
@@ -603,7 +603,6 @@ describe('ArvoOrchestrator', () => {
     expect(result.events[1].source).toBe('arvo.orc.test');
     expect(result.events[1].dataschema).toBe(testMachineContract.uri);
     expect(result.events[1].data.final).toBe(1);
-    
 
     console.log(result.snapshot);
   });

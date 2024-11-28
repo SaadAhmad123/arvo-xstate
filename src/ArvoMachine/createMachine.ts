@@ -13,35 +13,22 @@ import {
   EnqueueArvoEventActionParam,
   ToParameterizedObject,
   ToProvidedActor,
+  InferServiceContract,
+  ExtractOrchestratorType
 } from './types';
 import {
   ArvoContract,
   ArvoOrchestratorContract,
   cleanString,
-  InferArvoContract,
-  InferArvoOrchestratorContract,
-  ArvoOrchestratorVersion,
-  ArvoEvent,
+  VersionedArvoContract,
+  InferVersionedArvoContract,
+  ArvoSemanticVersion,
+  ArvoOrchestratorEventTypeGen,
 } from 'arvo-core';
 import { getAllPaths } from '../utils/object';
 import { z } from 'zod';
 import ArvoMachine from '.';
 
-type InferServiceContract<T extends Record<string, ArvoContract>> = {
-  // All the events that can be emitted by the orchestrator
-  emitted: {
-    [K in keyof T]: EnqueueArvoEventActionParam<
-      z.input<T[K]['accepts']['schema']>,
-      T[K]['accepts']['type']
-    >;
-  }[keyof T];
-
-  // All the events that can be recieved by the orchestrator
-  events: {
-    [K in keyof T]: InferArvoContract<T[K]>['emittableEvents'];
-  }[keyof T];
-
-};
 /**
  * Establishes the foundation for creating Arvo-compatible state machines.
  *
@@ -84,31 +71,35 @@ type InferServiceContract<T extends Record<string, ArvoContract>> = {
  * // Define the LLM orchestrator contract
  * const llmContract = createArvoOrchestratorContract({
  *   uri: `#/orchestrators/llm/`,
- *   name: 'llm',
- *   schema: {
- *     init: z.object({
- *       request: z.string(),
- *       llm: z.enum(['gpt-4', 'gpt-4o']),
- *     }),
- *     complete: z.object({
- *       response: z.string(),
- *     })
+ *   type: 'llm',
+ *   versions: {
+ *     '0.0.1': {
+ *       init: z.object({
+ *         request: z.string(),
+ *         llm: z.enum(['gpt-4', 'gpt-4o']),
+ *       }),
+ *       complete: z.object({
+ *         response: z.string(),
+ *       })
+ *     }
  *   }
  * })
  *
  * // Define the OpenAI service contract
  * const openAiContract = createArvoContract({
  *   uri: `#/services/openai`,
- *   accepts: {
- *     type: 'com.openai.completions',
- *     schema: z.object({
- *       request: z.string(),
- *     })
- *   },
- *   emits: {
- *     'evt.openai.completions.success': z.object({
- *       response: z.string(),
- *     })
+ *   type: 'com.openai.completions',
+ *   versions: {
+ *     '0.0.1': {
+ *       accepts: z.object({
+ *         request: z.string()
+ *       }),
+ *       emits: {
+ *         'evt.openai.completions.success': z.object({
+ *           response: z.string(),
+ *         })
+ *       }
+ *     }
  *   }
  * })
  *
@@ -117,9 +108,9 @@ type InferServiceContract<T extends Record<string, ArvoContract>> = {
  * // Set up the Arvo machine
  * const llmMachine = setupArvoMachine({
  *   contracts: {
- *     self: llmContract,
+ *     self: llmContract.version('0.0.1'),
  *     services: {
- *       openAiContract,
+ *       openAiContract.version('0.0.1'),
  *     }
  *   },
  *   types: {
@@ -173,10 +164,10 @@ type InferServiceContract<T extends Record<string, ArvoContract>> = {
  *       ],
  *       on: {
  *         'evt.openai.completions.success': {
- *            actions: [
- *               assign({response: ({event}) => event.response})
- *            ],
- *            target: 'done'
+ *           actions: [
+ *             assign({response: ({event}) => event.response})
+ *           ],
+ *           target: 'done'
  *         },
  *         'sys.com.openai.completions.error': {
  *           actions: [
@@ -204,8 +195,14 @@ type InferServiceContract<T extends Record<string, ArvoContract>> = {
  */
 export function setupArvoMachine<
   TContext extends MachineContext,
-  TSelfContract extends ArvoOrchestratorContract,
-  TServiceContracts extends Record<string, ArvoContract>,
+  TSelfContract extends VersionedArvoContract<
+    ArvoOrchestratorContract,
+    ArvoSemanticVersion
+  >,
+  TServiceContracts extends Record<
+    string,
+    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
+  >,
   TActions extends Record<
     string,
     ParameterizedObject['params'] | undefined
@@ -232,8 +229,12 @@ export function setupArvoMachine<
       InferServiceContract<TServiceContracts>['events'],
       {},
       TTag,
-      InferArvoOrchestratorContract<TSelfContract>['init']['data'],
-      InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
+      InferVersionedArvoContract<TSelfContract>['accepts']['data'],
+      InferVersionedArvoContract<TSelfContract>['emits'][ReturnType<
+        typeof ArvoOrchestratorEventTypeGen.complete<
+          ExtractOrchestratorType<TSelfContract['accepts']['type']>
+        >
+      >]['data'],
       InferServiceContract<TServiceContracts>['emitted'],
       TMeta
     >,
@@ -332,8 +333,12 @@ export function setupArvoMachine<
     TGuards,
     never, // No delays
     TTag,
-    InferArvoOrchestratorContract<TSelfContract>['init']['data'],
-    InferArvoOrchestratorContract<TSelfContract>['complete']['data'],
+    InferVersionedArvoContract<TSelfContract>['accepts']['data'],
+    InferVersionedArvoContract<TSelfContract>['emits'][ReturnType<
+      typeof ArvoOrchestratorEventTypeGen.complete<
+        ExtractOrchestratorType<TSelfContract['accepts']['type']>
+      >
+    >]['data'],
     InferServiceContract<TServiceContracts>['emitted'],
     TMeta
   >({
@@ -371,15 +376,21 @@ export function setupArvoMachine<
       ToParameterizedObject<TGuards>,
       never,
       TTag,
-      InferArvoOrchestratorContract<TSelfContract>['init'],
-      z.input<TSelfContract['complete']['schema']>,
+      InferVersionedArvoContract<TSelfContract>['accepts'],
+      z.input<
+        TSelfContract['emits'][ReturnType<
+          typeof ArvoOrchestratorEventTypeGen.complete<
+            ExtractOrchestratorType<TSelfContract['accepts']['type']>
+          >
+        >]
+      >,
       InferServiceContract<TServiceContracts>['emitted'],
       TMeta
     >,
   >(
     config: TConfig & {
       id: string;
-      version: ArvoOrchestratorVersion;
+      version?: TSelfContract['version'];
     },
   ) => {
     const createConfigErrorMessage = (
@@ -442,7 +453,18 @@ export function setupArvoMachine<
     const machine = systemSetup.createMachine({
       ...(config as any),
     });
-    return new ArvoMachine(config.id, config.version, param.contracts, machine);
+    return new ArvoMachine<
+      string,
+      TSelfContract['version'],
+      TSelfContract,
+      TServiceContracts,
+      typeof machine
+    >(
+      config.id,
+      config.version ?? param.contracts.self.version,
+      param.contracts,
+      machine,
+    );
   };
   return { createMachine };
 }

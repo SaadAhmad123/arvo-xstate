@@ -1,62 +1,61 @@
 import {
   ArvoContract,
   ArvoOrchestratorContract,
-  ArvoOrchestratorVersion,
+  ArvoSemanticVersion,
+  VersionedArvoContract,
 } from 'arvo-core';
 import { AnyActorLogic } from 'xstate';
 
 /**
  * Represents an ArvoMachine object that can be consumed by an Arvo orchestrator.
- *
- * @description
  * ArvoMachine encapsulates the logic and metadata required for an Arvo-compatible
  * state machine. It combines XState's actor logic with Arvo-specific contracts
  * and versioning information.
- *
- * @note
- * It is strongly recomended to use `setupArvoMachine(...).createMachine(...)`
- * instead of creating this object directly.
- * ```
+ * 
+ * @remarks
+ * It is strongly recommended to use `setupArvoMachine(...).createMachine(...)`
+ * instead of creating this object directly. The setup function provides additional
+ * type safety and validation that helps prevent runtime errors.
  */
 export default class ArvoMachine<
   TId extends string,
-  TVersion extends ArvoOrchestratorVersion,
-  TSelfContract extends ArvoOrchestratorContract,
-  TServiceContract extends Record<string, ArvoContract>,
+  TVersion extends ArvoSemanticVersion,
+  TSelfContract extends VersionedArvoContract<
+    ArvoOrchestratorContract,
+    TVersion
+  >,
+  TServiceContract extends Record<
+    string,
+    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
+  >,
   TLogic extends AnyActorLogic,
 > {
+  
   /**
    * Creates a new ArvoMachine instance.
-   *
-   * @param id - A unique identifier for the machine.
-   * @param version - The version of the machine, following semantic versioning.
-   * @param contracts - An object containing the self contract and service contracts.
-   * @param logic - The XState actor logic defining the machine's behavior.
+   * 
+   * @param id - A unique identifier for the machine. This ID must be unique within
+   *            the scope of an orchestrator and is used for routing and logging.
+   * 
+   * @param version - The semantic version of the machine. Must follow semver format
+   *                and match the version specified in the contract.
+   * 
+   * @param contracts - Configuration object containing contract definitions
+   * @param contracts.self - The contract defining this machine's interface and capabilities
+   * @param contracts.services - Record of contracts for services this machine can interact with
+   * 
+   * @param logic - The XState actor logic that defines the machine's behavior,
+   *               including states, transitions, and actions.
+   * 
+   * @throws {Error} When contracts are invalid or incompatible with the specified version
    */
   constructor(
-    /**
-     * A unique identifier for the machine.
-     */
     public readonly id: TId,
-
-    /**
-     * The version of the machine, following semantic versioning.
-     */
     public readonly version: TVersion,
-
-    /**
-     * An object containing the self contract and service contracts.
-     * @property {TSelfContract} self - The contract defining the machine's interface.
-     * @property {TServiceContract} services - A record of service contracts the machine interacts with.
-     */
     public readonly contracts: {
       self: TSelfContract;
       services: TServiceContract;
     },
-
-    /**
-     * The XState actor logic defining the machine's behavior.
-     */
     public readonly logic: TLogic,
   ) {}
 }
