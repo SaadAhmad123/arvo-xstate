@@ -354,10 +354,10 @@ describe('ArvoOrchestrator', () => {
 
   test('should throw error if no machines are provided', () => {
     expect(() =>
-      createArvoOrchestrator({ 
+      createArvoOrchestrator({
         contract: testMachineContract,
         executionunits: 1,
-        machines: {} as any,  
+        machines: {} as any,
       }),
     ).toThrow();
   });
@@ -371,7 +371,9 @@ describe('ArvoOrchestrator', () => {
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.1'),
+      ).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -386,7 +388,9 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('success');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe('com.number.increment');
-    expect(result.events[0].dataschema).toBe(`${incrementServiceContract.uri}/0.0.1`)
+    expect(result.events[0].dataschema).toBe(
+      `${incrementServiceContract.uri}/0.0.1`,
+    );
     expect(result.state).toBeDefined();
     expect(result.parentSubject).toBe(null);
     expect(result.subject).toBe(eventSubject);
@@ -430,7 +434,9 @@ describe('ArvoOrchestrator', () => {
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract.version('0.0.2')).accepts({
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.2'),
+      ).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -459,7 +465,9 @@ describe('ArvoOrchestrator', () => {
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract.version('0.0.2')).accepts({
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.2'),
+      ).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -477,7 +485,6 @@ describe('ArvoOrchestrator', () => {
     expect(result.state).toBe(null);
   });
 
-
   test('should handle errors when wrong event.type is defined when no state is available', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
@@ -487,7 +494,9 @@ describe('ArvoOrchestrator', () => {
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).accepts({
+      event: createArvoEventFactory(
+        incrementServiceContract.version('0.0.1'),
+      ).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -514,7 +523,9 @@ describe('ArvoOrchestrator', () => {
 
     let result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.1'),
+      ).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -538,7 +549,9 @@ describe('ArvoOrchestrator', () => {
     result = orchestrator.execute({
       parentSubject: null,
       state: result.state,
-      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
+      event: createArvoEventFactory(
+        incrementServiceContract.version('0.0.1'),
+      ).emits({
         type: 'evt.number.increment.success',
         subject: result.events[0].subject,
         source: 'com.number.increment',
@@ -580,7 +593,9 @@ describe('ArvoOrchestrator', () => {
 
     let result = orchestrator.execute({
       parentSubject: parentSubject,
-      event: createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.1'),
+      ).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -604,7 +619,9 @@ describe('ArvoOrchestrator', () => {
     result = orchestrator.execute({
       parentSubject: result.parentSubject,
       state: result.state,
-      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
+      event: createArvoEventFactory(
+        incrementServiceContract.version('0.0.1'),
+      ).emits({
         type: 'evt.number.increment.success',
         subject: result.events[0].subject,
         source: 'com.number.increment',
@@ -628,7 +645,9 @@ describe('ArvoOrchestrator', () => {
     expect(result.events[1].to).toBe('com.test.service');
     expect(result.events[1].subject).toBe(parentSubject);
     expect(result.events[1].source).toBe('arvo.orc.test');
-    expect(result.events[1].dataschema).toBe(`${testMachineContract.uri}/0.0.1`);
+    expect(result.events[1].dataschema).toBe(
+      `${testMachineContract.uri}/0.0.1`,
+    );
     expect(result.events[1].data.final).toBe(1);
 
     console.log(result.snapshot);

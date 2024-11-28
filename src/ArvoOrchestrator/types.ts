@@ -14,7 +14,7 @@ import { OpenTelemetryConfig } from 'arvo-event-handler';
 /**
  * Core interface for an Arvo Orchestrator, responsible for managing and coordinating
  * multiple state machines in a type-safe manner.
- * 
+ *
  * The orchestrator handles versioning, state management, and coordination between
  * multiple ArvoMachine instances. It ensures type safety across different versions
  * of the orchestration contract.
@@ -36,10 +36,10 @@ export interface IArvoOrchestrator<
 
   /**
    * Collection of versioned state machines managed by this orchestrator.
-   * 
+   *
    * Each version corresponds to a specific implementation of the orchestrator's
    * contract, allowing for backward compatibility and gradual upgrades.
-   * 
+   *
    * @remarks
    * The type mapping ensures that each machine version correctly implements
    * its corresponding contract version, maintaining type safety across versions.
@@ -52,12 +52,12 @@ export interface IArvoOrchestrator<
       Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
       AnyActorLogic
     >;
-  }
+  };
 }
 
 /**
  * Input parameters for executing an Arvo Orchestrator.
- * 
+ *
  * @remarks
  * This type defines all necessary information needed to start or continue
  * an orchestration execution cycle. It supports both new orchestrations
@@ -66,7 +66,7 @@ export interface IArvoOrchestrator<
 export type ArvoOrchestratorExecuteInput = {
   /**
    * The triggering event for this execution cycle.
-   * 
+   *
    * Contains the payload and metadata needed to drive the orchestration process.
    * The event's type and data should match the orchestrator's contract specifications.
    */
@@ -74,7 +74,7 @@ export type ArvoOrchestratorExecuteInput = {
 
   /**
    * Compressed state representation of the orchestrator.
-   * 
+   *
    * @remarks
    * - Stored as a base64-encoded zipped string for efficient transmission
    * - Null indicates a new orchestration should be initialized
@@ -84,7 +84,7 @@ export type ArvoOrchestratorExecuteInput = {
 
   /**
    * Identifier of the parent orchestration process.
-   * 
+   *
    * @remarks
    * Critical for nested orchestrations and event routing:
    * - Null represents a root-level orchestration
@@ -94,7 +94,7 @@ export type ArvoOrchestratorExecuteInput = {
    *   2. State management and retrieval
    *   3. Error and completion event propagation
    *   4. Maintaining process hierarchies
-   * 
+   *
    * @example
    * Storage structure for state management:
    * ```
@@ -109,7 +109,7 @@ export type ArvoOrchestratorExecuteInput = {
 
   /**
    * Optional OpenTelemetry configuration for observability.
-   * 
+   *
    * @remarks
    * Enables distributed tracing, metrics collection, and logging across
    * the orchestration process. Useful for monitoring performance,
@@ -120,7 +120,7 @@ export type ArvoOrchestratorExecuteInput = {
 
 /**
  * Output produced by an Arvo Orchestrator execution cycle.
- * 
+ *
  * @remarks
  * Encapsulates all results and side effects of an orchestration execution,
  * including state changes, emitted events, and execution status.
@@ -128,7 +128,7 @@ export type ArvoOrchestratorExecuteInput = {
 export type ArvoOrchestratorExecuteOutput = {
   /**
    * Unique identifier for this orchestration execution.
-   * 
+   *
    * @remarks
    * - Matches the subject from the triggering event
    * - Used for:
@@ -141,7 +141,7 @@ export type ArvoOrchestratorExecuteOutput = {
 
   /**
    * Reference to the parent orchestration's identifier.
-   * 
+   *
    * @remarks
    * - Null for root orchestrations
    * - Used for:
@@ -154,7 +154,7 @@ export type ArvoOrchestratorExecuteOutput = {
 
   /**
    * Compressed state after execution completion.
-   * 
+   *
    * @remarks
    * - Base64-encoded zipped string of the orchestrator's state
    * - Null if the orchestration has completed or failed
@@ -164,7 +164,7 @@ export type ArvoOrchestratorExecuteOutput = {
 
   /**
    * Collection of events generated during execution.
-   * 
+   *
    * @remarks
    * Events represent state transitions, decisions, or other significant
    * occurrences during the orchestration process.
@@ -173,7 +173,7 @@ export type ArvoOrchestratorExecuteOutput = {
 
   /**
    * Final status of the execution cycle.
-   * 
+   *
    * @remarks
    * - 'success': Orchestration completed normally
    * - 'error': Orchestration encountered an error
@@ -182,7 +182,7 @@ export type ArvoOrchestratorExecuteOutput = {
 
   /**
    * Uncompressed state representation.
-   * 
+   *
    * @remarks
    * Raw state data before compression and encoding.
    * Useful for debugging and direct state inspection.

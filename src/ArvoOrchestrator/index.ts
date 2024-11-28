@@ -33,10 +33,10 @@ import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
  * ArvoOrchestrator is a sophisticated state machine orchestration system that manages
  * versioned workflow execution in distributed environments. It coordinates multiple
  * ArvoMachines, handles event routing, and maintains state across executions.
- * 
+ *
  * @template TSelfContract - The contract type that defines the orchestrator's capabilities,
  *                          event schemas, and version specifications. Must extend ArvoOrchestratorContract.
- * 
+ *
  * @example
  * ```typescript
  * const orchestrator = createArvoOrchestrator({
@@ -55,13 +55,13 @@ export default class ArvoOrchestrator<
   /** Contract defining the orchestrator's capabilities and supported versions */
   public readonly contract: TSelfContract;
 
-  /** 
-   * Unique identifier for this orchestrator instance, derived from the contract type 
+  /**
+   * Unique identifier for this orchestrator instance, derived from the contract type
    * Used for event routing and orchestration identification
    */
   public readonly source: TSelfContract['type'];
 
-  /** 
+  /**
    * Resource limit for execution cycles
    * Prevents infinite loops and ensures resource constraints are respected
    */
@@ -70,7 +70,7 @@ export default class ArvoOrchestrator<
   /**
    * Version-keyed collection of state machines implementing the orchestrator's logic
    * Each version represents a different implementation of the contract specifications
-   * 
+   *
    * @remarks
    * - Keys are semantic versions (e.g., '1.0.0', '2.0.0')
    * - Values are ArvoMachine instances that implement the corresponding contract version
@@ -84,13 +84,13 @@ export default class ArvoOrchestrator<
       Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
       AnyActorLogic
     >;
-  }
+  };
 
   /**
    * Creates a new ArvoOrchestrator instance with the specified configuration.
-   * 
+   *
    * @param param - Configuration object implementing IArvoOrchestrator interface
-   * 
+   *
    * @throws {Error} If:
    * - Required machines for contract versions are missing
    * - Machines have inconsistent self contracts
@@ -101,9 +101,13 @@ export default class ArvoOrchestrator<
     this.source = this.contract.type;
     this.machines = param.machines;
     this.executionunits = param.executionunits;
-    for (const item of Object.keys(this.contract.versions) as ArvoSemanticVersion[]) {
+    for (const item of Object.keys(
+      this.contract.versions,
+    ) as ArvoSemanticVersion[]) {
       if (!this.machines[item]) {
-        throw new Error(`The contract (uri=${this.contract.uri}) requires the machine of version '${item}' to be implemented`)
+        throw new Error(
+          `The contract (uri=${this.contract.uri}) requires the machine of version '${item}' to be implemented`,
+        );
       }
       if (this.source !== this.machines[item].contracts.self.accepts.type) {
         throw new Error(
@@ -136,7 +140,7 @@ export default class ArvoOrchestrator<
    * 7. Handles any output or error in the final snapshot.
    * 8. Persists the final state of the actor after processing.
    * 9. Returns the execution results, including new state, emitted events, and subject information.
-   * 
+   *
    * ## Remarks:
    * - Uses OpenTelemetry for tracing and error reporting
    * - Handles both strict and non-strict event emissions
@@ -210,7 +214,7 @@ export default class ArvoOrchestrator<
               Object.values(this.machines).map((item) => item.version),
             );
           }
-          const machine = this.machines[versionToUse]
+          const machine = this.machines[versionToUse];
           if (!machine) {
             throw new Error(
               `Unsupported version: No machine found for orchestrator ${this.source} with version '${parsedSubject.orchestrator.version}'. Please check the supported versions and update your request.`,
@@ -280,7 +284,9 @@ export default class ArvoOrchestrator<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
-            this.contract.version(versionToUse).accepts.schema.parse(event.data);
+            this.contract
+              .version(versionToUse)
+              .accepts.schema.parse(event.data);
             actor = createActor(machine.logic, {
               input: event.toJSON() as any,
             });
@@ -355,7 +361,7 @@ export default class ArvoOrchestrator<
             message: (error as Error).message,
           });
           const result = createArvoEventFactory(
-            this.contract.version('any')
+            this.contract.version('any'),
           ).systemError({
             source: this.source,
             subject: parentSubject ?? event.subject,

@@ -14,7 +14,7 @@ import {
   ToParameterizedObject,
   ToProvidedActor,
   InferServiceContract,
-  ExtractOrchestratorType
+  ExtractOrchestratorType,
 } from './types';
 import {
   ArvoContract,

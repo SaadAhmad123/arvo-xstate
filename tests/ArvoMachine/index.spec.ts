@@ -285,8 +285,8 @@ describe('ArvoXState', () => {
         contract: testMachineContract,
         executionunits: 0.1,
         machines: {
-          '0.0.1': machine
-        }
+          '0.0.1': machine,
+        },
       });
 
       const eventSubject = ArvoOrchestrationSubject.new({
@@ -317,7 +317,9 @@ describe('ArvoXState', () => {
       expect(output.events[0].source).toBe('arvo.orc.test');
       expect(output.events[0].type).toBe('com.number.increment');
       expect(output.events[0].data.delta).toBe(1);
-      expect(output.events[0].dataschema).toBe(`${incrementServiceContract.uri}/0.0.1`)
+      expect(output.events[0].dataschema).toBe(
+        `${incrementServiceContract.uri}/0.0.1`,
+      );
 
       const nextEvent = createArvoEventFactory(
         incrementServiceContract.version('0.0.1'),
@@ -344,13 +346,17 @@ describe('ArvoXState', () => {
       expect(output.events[0].type).toBe('notif.number.update');
       expect(output.events[0].data.delta).toBe(1);
       expect(output.events[0].data.type).toBe('increment');
-      expect(output.events[0].dataschema).toBe(`${numberUpdateNotificationContract.uri}/0.0.1`)
+      expect(output.events[0].dataschema).toBe(
+        `${numberUpdateNotificationContract.uri}/0.0.1`,
+      );
 
       expect(output.events[1].source).toBe('arvo.orc.test');
       expect(output.events[1].type).toBe('arvo.orc.test.done');
       expect(output.events[1].data.final).toBe(1);
       expect(output.events[1].to).toBe('com.test.service');
-      expect(output.events[1].dataschema).toBe(`${testMachineContract.uri}/0.0.1`)
+      expect(output.events[1].dataschema).toBe(
+        `${testMachineContract.uri}/0.0.1`,
+      );
     });
 
     it('should throw an error when using "invoke" in machine config', () => {

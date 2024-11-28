@@ -56,8 +56,8 @@ The `createArvoOrchestrator` function and `ArvoOrchestrator` class are used toge
      contract: orchestratorContract,
      executionunits: 2,
      machines: {
-      '0.0.1': machine1,
-      '0.0.2': machine2,
+       '0.0.1': machine1,
+       '0.0.2': machine2,
      },
    });
    ```

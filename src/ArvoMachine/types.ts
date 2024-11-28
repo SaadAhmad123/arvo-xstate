@@ -5,7 +5,15 @@ import {
   UnknownActorLogic,
   Invert,
 } from 'xstate';
-import { ArvoContract, ArvoEventData, ArvoOrchestratorEventTypeGen, ArvoSemanticVersion, CloudEventExtension, InferVersionedArvoContract, VersionedArvoContract } from 'arvo-core';
+import {
+  ArvoContract,
+  ArvoEventData,
+  ArvoOrchestratorEventTypeGen,
+  ArvoSemanticVersion,
+  CloudEventExtension,
+  InferVersionedArvoContract,
+  VersionedArvoContract,
+} from 'arvo-core';
 import { z } from 'zod';
 
 /**
@@ -207,9 +215,9 @@ export type ToProvidedActor<
 
 /**
  * Infers emittable events from a versioned Arvo contract.
- * 
+ *
  * @template T - Versioned Arvo contract type
- * 
+ *
  * @remarks
  * Extracts all possible events that can be emitted by a contract,
  * including system error events.
@@ -224,24 +232,26 @@ export type InferEmittableEventsFromVersionedArvoContract<
 
 /**
  * Extracts the orchestrator type from an event type string.
- * 
+ *
  * @template T - Event type string
- * 
+ *
  * @remarks
  * Parses the specific orchestrator type from a fully qualified event type string.
  */
 export type ExtractOrchestratorType<T extends string> =
-  T extends `${typeof ArvoOrchestratorEventTypeGen.prefix}.${infer Type}` ? Type : never;
+  T extends `${typeof ArvoOrchestratorEventTypeGen.prefix}.${infer Type}`
+    ? Type
+    : never;
 
 /**
  * Infers the complete service contract from a record of versioned Arvo contracts.
- * 
+ *
  * @template T - Record of versioned Arvo contracts
- * 
+ *
  * @remarks
  * Generates a comprehensive type definition including both emitted and received events
  * for all services in the contract.
- * 
+ *
  * @property emitted - Events that can be emitted by the orchestrator
  * @property events - Events that can be received by the orchestrator
  */

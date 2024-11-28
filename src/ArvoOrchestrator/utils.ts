@@ -86,7 +86,10 @@ export const base64ToObject = <TSchema extends z.ZodTypeAny>(
  * isVersionGreater('2.0.0', '1.9.9') // returns true
  * isVersionGreater('1.2.3', '1.2.4') // returns false
  */
-function isVersionGreater(version1: ArvoSemanticVersion, version2: ArvoSemanticVersion): boolean {
+function isVersionGreater(
+  version1: ArvoSemanticVersion,
+  version2: ArvoSemanticVersion,
+): boolean {
   const [major1, minor1, patch1] = version1.split('.').map(Number);
   const [major2, minor2, patch2] = version2.split('.').map(Number);
 
@@ -114,7 +117,9 @@ function isVersionGreater(version1: ArvoSemanticVersion, version2: ArvoSemanticV
  * const latestTyped = findLatestVersion(typedVersions);
  * ```
  */
-export function findLatestVersion(versions: ArvoSemanticVersion[]): ArvoSemanticVersion {
+export function findLatestVersion(
+  versions: ArvoSemanticVersion[],
+): ArvoSemanticVersion {
   if (versions.length === 0) {
     throw new Error('Cannot find latest version from empty array');
   }
@@ -139,7 +144,9 @@ export function findLatestVersion(versions: ArvoSemanticVersion[]): ArvoSemantic
  * }
  * ```
  */
-export function isSemanticVersion(version: ArvoSemanticVersion): version is ArvoSemanticVersion {
+export function isSemanticVersion(
+  version: ArvoSemanticVersion,
+): version is ArvoSemanticVersion {
   if (!/^\d+\.\d+\.\d+$/.test(version)) return false;
 
   const [major, minor, patch] = version.split('.').map(Number);
