@@ -5,7 +5,7 @@ import {
   EnqueueArvoEventActionParam,
 } from './ArvoMachine/types';
 import ArvoOrchestrator from './ArvoOrchestrator';
-import { createArvoOrchestator } from './ArvoOrchestrator/factory';
+import { createArvoOrchestrator } from './ArvoOrchestrator/factory';
 import { XStatePersistanceSchema } from './ArvoOrchestrator/schema';
 import {
   ArvoOrchestratorExecuteInput,
@@ -21,7 +21,7 @@ export {
   ArvoOrchestrator,
   ArvoOrchestratorExecuteInput,
   ArvoOrchestratorExecuteOutput,
-  createArvoOrchestator,
+  createArvoOrchestrator,
   XStatePersistanceSchema,
   objectToBase64,
   base64ToObject,

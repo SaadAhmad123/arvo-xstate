@@ -30,10 +30,10 @@ This document provides detailed information about three core components of the A
 ```typescript
 const setup = setupArvoMachine({
   contracts: {
-    self: selfContract,
+    self: selfContract.version('0.0.1'),
     services: {
-      serviceContract1,
-      serviceContract2,
+      serviceContract1.version('0.0.1'),
+      serviceContract2.version('0.0.1'),
     },
   },
   types: {
@@ -80,7 +80,6 @@ An object containing the `createMachine` function.
 ```typescript
 const machine = setup.createMachine({
   id: 'myMachine',
-  version: '1.0.0',
   context: ({ input }) => ({
     // Initial context based on input
   }),
@@ -123,35 +122,6 @@ An `ArvoMachine` instance.
 - Combines XState's actor logic with Arvo-specific contracts
 - Includes versioning information
 - Designed to be consumed by an Arvo orchestrator
-
-### Structure
-
-```typescript
-class ArvoMachine<
-  TId extends string,
-  TVersion extends ArvoOrchestratorVersion,
-  TSelfContract extends ArvoOrchestratorContract,
-  TServiceContract extends Record<string, ArvoContract>,
-  TLogic extends AnyActorLogic,
-> {
-  constructor(
-    public readonly id: TId,
-    public readonly version: TVersion,
-    public readonly contracts: {
-      self: TSelfContract;
-      services: TServiceContract;
-    },
-    public readonly logic: TLogic,
-  ) {}
-}
-```
-
-### Properties
-
-- `id`: A unique identifier for the machine
-- `version`: The version of the machine, following semantic versioning
-- `contracts`: An object containing the self contract and service contracts
-- `logic`: The XState actor logic defining the machine's behavior
 
 ### Usage
 

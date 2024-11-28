@@ -11,117 +11,107 @@ import {
   ArvoExecutionSpanKind,
   ArvoOrchestrationSubject,
   ArvoOrchestratorContract,
-  ArvoOrchestratorVersion,
+  ArvoSemanticVersion,
   createArvoEvent,
   createArvoEventFactory,
   currentOpenTelemetryHeaders,
   exceptionToSpan,
   OpenInferenceSpanKind,
+  parseEventDataSchema,
+  VersionedArvoContract,
 } from 'arvo-core';
 import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
 import { createOtelSpan } from 'arvo-event-handler';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import {
-  base64ToObject,
-  findLatestVersion,
-  isSemanticVersion,
-  objectToBase64,
-} from './utils';
+import { base64ToObject, findLatestVersion, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
 import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
-import { Version } from '../types';
 
 /**
- * ArvoOrchestrator manages the execution of ArvoMachines and handles orchestration events.
- * It provides a framework for managing complex workflows and state machines in a distributed system.
+ * ArvoOrchestrator is a sophisticated state machine orchestration system that manages
+ * versioned workflow execution in distributed environments. It coordinates multiple
+ * ArvoMachines, handles event routing, and maintains state across executions.
  *
- * @template TUri - The URI type for the orchestrator, uniquely identifying it in the system.
- * @template TInitType - The initialization event type for the orchestrator.
- * @template TInit - Zod schema for validating initialization data.
- * @template TCompleteType - The completion event type for the orchestrator.
- * @template TComplete - Zod schema for validating completion data.
- * @template TServiceContracts - Record of ArvoContracts for services this orchestrator interacts with.
- * @template TLogic - The type of XState actor logic used in the orchestrator.
+ * @template TSelfContract - The contract type that defines the orchestrator's capabilities,
+ *                          event schemas, and version specifications. Must extend ArvoOrchestratorContract.
+ *
+ * @example
+ * ```typescript
+ * const orchestrator = createArvoOrchestrator({
+ *   contract: myContract,
+ *   executionunits: 0.1,
+ *   machines: {
+ *     '1.0.0': machineV1,
+ *     '2.0.0': machineV2
+ *   }
+ * });
+ * ```
  */
 export default class ArvoOrchestrator<
-  TUri extends string = string,
-  TInitType extends string = string,
-  TInit extends z.ZodTypeAny = z.ZodTypeAny,
-  TCompleteType extends string = string,
-  TComplete extends z.ZodTypeAny = z.ZodTypeAny,
-  TServiceContracts extends Record<string, ArvoContract> = Record<
-    string,
-    ArvoContract
-  >,
-  TLogic extends AnyActorLogic = AnyActorLogic,
+  TSelfContract extends ArvoOrchestratorContract,
 > {
-  /** The source identifier for the orchestrator */
-  public readonly source: TInitType;
+  /** Contract defining the orchestrator's capabilities and supported versions */
+  public readonly contract: TSelfContract;
 
-  /** The number of execution units for the orchestrator */
+  /**
+   * Unique identifier for this orchestrator instance, derived from the contract type
+   * Used for event routing and orchestration identification
+   */
+  public readonly source: TSelfContract['type'];
+
+  /**
+   * Resource limit for execution cycles
+   * Prevents infinite loops and ensures resource constraints are respected
+   */
   public readonly executionunits: number;
 
   /**
-   * The array of ArvoMachines managed by this orchestrator.
-   * Each machine represents a different version of the orchestrator's logic.
+   * Version-keyed collection of state machines implementing the orchestrator's logic
+   * Each version represents a different implementation of the contract specifications
+   *
+   * @remarks
+   * - Keys are semantic versions (e.g., '1.0.0', '2.0.0')
+   * - Values are ArvoMachine instances that implement the corresponding contract version
+   * - Enables backward compatibility and gradual upgrades
    */
-  public readonly machines: ArvoMachine<
-    string,
-    ArvoOrchestratorVersion,
-    ArvoOrchestratorContract<TUri, TInitType, TInit, TCompleteType, TComplete>,
-    TServiceContracts,
-    TLogic
-  >[];
+  public readonly machines: {
+    [V in keyof TSelfContract['versions'] & ArvoSemanticVersion]: ArvoMachine<
+      string,
+      V,
+      VersionedArvoContract<TSelfContract, V>,
+      Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
+      AnyActorLogic
+    >;
+  };
 
   /**
-   * Constructs a new ArvoOrchestrator instance.
+   * Creates a new ArvoOrchestrator instance with the specified configuration.
    *
-   * @param param - The configuration parameters for the orchestrator
-   * @throws Error if no machines are provided or if machines have inconsistent self contracts
+   * @param param - Configuration object implementing IArvoOrchestrator interface
+   *
+   * @throws {Error} If:
+   * - Required machines for contract versions are missing
+   * - Machines have inconsistent self contracts
+   * - Contract validation fails
    */
-  constructor(
-    param: IArvoOrchestrator<
-      TUri,
-      TInitType,
-      TInit,
-      TCompleteType,
-      TComplete,
-      TServiceContracts,
-      TLogic
-    >,
-  ) {
-    if (param.machines.length === 0) {
-      throw new Error(
-        'ArvoOrchestrator initialization failed: No machines provided. At least one machine must be defined for the Arvo orchestrator.',
-      );
-    }
-
+  constructor(param: IArvoOrchestrator<TSelfContract>) {
+    this.contract = param.contract;
+    this.source = this.contract.type;
     this.machines = param.machines;
     this.executionunits = param.executionunits;
-    this.source = param.machines[0].contracts.self.init.type;
-    const representativeMachine = this.machines[0];
-    const representativeMachineSelfContractJson: string = JSON.stringify(
-      representativeMachine.contracts.self.toJsonSchema(),
-    );
-    for (const item of this.machines) {
-      if (
-        JSON.stringify(item.contracts.self.toJsonSchema()) !==
-        representativeMachineSelfContractJson
-      ) {
+    for (const item of Object.keys(
+      this.contract.versions,
+    ) as ArvoSemanticVersion[]) {
+      if (!this.machines[item]) {
+        throw new Error(
+          `The contract (uri=${this.contract.uri}) requires the machine of version '${item}' to be implemented`,
+        );
+      }
+      if (this.source !== this.machines[item].contracts.self.accepts.type) {
         throw new Error(
           'ArvoOrchestrator initialization failed: Inconsistent self contracts detected. All machines must have the same self contract for a particular orchestrator.',
-        );
-      }
-      if (!isSemanticVersion(item.version)) {
-        throw new Error(
-          `The machine=${item.id} version must be a semantic version like 0.0.1. The provided is ${item.version}`,
-        );
-      }
-      if (item.version === ArvoOrchestrationSubject.WildCardMachineVersion) {
-        throw new Error(
-          `The machine=${item.id} version cannot be ${item.version} as this is supposed to be a wild card version`,
         );
       }
     }
@@ -131,84 +121,46 @@ export default class ArvoOrchestrator<
    * Executes the orchestrator based on the given event, state, and parent subject.
    * This method is the core of the orchestrator, handling state transitions and event emissions.
    *
-   * Execution process:
+   * @param input - Execution input parameters
+   * @param input.event - Event triggering this execution
+   * @param input.state - Current state (null for new orchestration)
+   * @param input.parentSubject - Parent orchestration ID (null for root orchestration)
+   * @param input.opentelemetry - OpenTelemetry configuration (defaults to environment)
+   *
+   * @returns {ArvoOrchestratorExecuteOutput} Execution results
+   * @throws {Error} For invalid events, versions, or contract violations
+   *
+   * ## Execution process:
    * 1. Sets up OpenTelemetry tracing based on the provided configuration.
    * 2. Validates the incoming event against the orchestrator's configuration.
    * 3. Selects the appropriate machine based on the event's version.
-   * 4. Creates or resumes an actor (state machine instance) based on the presence of existing state.
+   * 4. Creates or resumes an actor (state machine instance) based on existing state.
    * 5. Processes the event through the actor, triggering state transitions.
    * 6. Collects and validates events emitted by the actor during processing.
    * 7. Handles any output or error in the final snapshot.
    * 8. Persists the final state of the actor after processing.
    * 9. Returns the execution results, including new state, emitted events, and subject information.
    *
-   * @param input - Execution input
-   * @param input.event - Event triggering this execution, must be directed to this orchestrator
-   * @param input.state - Current state of the orchestrator, if any. If not provided, a new orchestration is initiated
-   * @param input.parentSubject - Subject of the parent orchestration or process. If null, this is treated as a root orchestration
-   * @param input.opentelemetry - Configuration for OpenTelemetry tracing. Defaults to inheriting from the execution environment
-   * @param input.opentelemetry.inheritFrom - Specifies whether to inherit the span context from 'event' or 'execution'. Default is 'event'
+   * ## Remarks:
+   * - Uses OpenTelemetry for tracing and error reporting
+   * - Handles both strict and non-strict event emissions
+   * - Manages volatile context before state persistence
+   * - Routes completion events to parent orchestrations
+   * - Routes system errors to original initiator
+   * - Supports automatic version selection with wildcard (0.0.0)
    *
-   * @returns Execution output
-   * @returns output.state - New state of the orchestrator, compressed and encoded as a string
-   * @returns output.events - Array of events emitted during the execution
-   * @returns output.executionStatus - Status of the execution ('success' or 'error')
-   * @returns output.snapshot - Raw snapshot of the actor's state after execution
-   * @returns output.subject - Subject of the current orchestration execution
-   * @returns output.parentSubject - Subject of the parent orchestration or process (null for root orchestrations)
+   * ## Potential Issues:
+   * 1. Orphaned Events: Default routing uses event type if 'to' is unset
+   * 2. Misrouted Events: Verify parent subject validity for completion events
+   * 3. Error Events: Custom errors may need explicit routing rules
+   * 4. Contract Validation: Non-strict events may lack proper contracts
+   * 5. Event Duplication: Watch for loops in complex orchestrations
    *
-   * @throws Error for invalid events (wrong destination or unsupported version)
-   * @throws Error for initialization with an incorrect event type
-   * @throws Error if an emitted event doesn't match its contract (in strict mode)
-   *
-   * @remarks
-   * - Uses OpenTelemetry for tracing and error reporting. The tracing behavior can be configured
-   *   using the `opentelemetry` parameter.
-   * - Handles both 'emit' (strict) and 'enqueueArvoEvent' (non-strict) event emissions.
-   * - Processes volatile context (e.g., temporary event queue) before persisting state.
-   * - If the final snapshot contains an output, creates and enqueues a completion event.
-   * - If the final snapshot contains an error, throws that error to trigger error handling.
-   * - In case of errors, generates and returns a system error event instead of the normal output.
-   * - OpenTelemetry attributes are set on the span for both processed and emitted events,
-   *   providing detailed tracing information throughout the execution process.
-   * - The `parentSubject` parameter is crucial for maintaining the orchestration hierarchy:
-   *   - For root orchestrations (null parentSubject), the original subject is preserved.
-   *   - For child orchestrations, error and completion events are routed back to the parent process.
-   * - The execution ensures proper event routing based on the orchestration hierarchy:
-   *   - Completion events for child orchestrations are sent to the parent subject.
-   *   - System error events are always sent to the original initiator of the orchestration.
-   *
-   * @warning Potential Stray Events
-   * Developers should be aware of potential stray events that may be created during execution:
-   *
-   * 1. Orphaned Events: If the `to` field is not explicitly set in emitted events, the event type
-   *    is used as the default destination. This may lead to events being sent to unintended recipients
-   *    if the type doesn't correspond to a valid destination.
-   *
-   * 2. Misrouted Completion Events: For child orchestrations, completion events are sent to the
-   *    parent subject. If the parent subject is not properly maintained or becomes invalid, these
-   *    events may be misrouted or lost.
-   *
-   * 3. Unhandled Error Events: While system error events are always sent to the original initiator,
-   *    other error events emitted during execution may not follow the same routing rules and could
-   *    potentially be sent to unexpected destinations.
-   *
-   * 4. Events with Invalid Contracts: When using non-strict event emission (via 'enqueueArvoEvent'),
-   *    events may be created that do not conform to any known contract. These events might be
-   *    difficult to handle or interpret by receiving systems.
-   *
-   * 5. Duplicate Events: In complex orchestrations, especially those with loops or recursive
-   *    structures, there's a risk of creating duplicate events. This can lead to unnecessary
-   *    processing or confusion in event handling systems.
-   *
-   * To mitigate these issues, ensure proper error handling, validate event destinations, and
-   * carefully manage the orchestration hierarchy and subject routing throughout the execution process.
-   *
-   * @remarks
-   * Version Selection:
-   * If the subject contains the wildcard version (0.0.0), the orchestrator automatically
-   * selects the latest available version from its machines. This allows for automatic version
-   * resolution without explicitly specifying a particular version number.
+   * ###  To mitigate:
+   * - Validate event destinations
+   * - Maintain clear orchestration hierarchy
+   * - Implement proper error handling
+   * - Monitor for routing issues
    */
   public execute({
     event,
@@ -217,7 +169,7 @@ export default class ArvoOrchestrator<
     opentelemetry,
   }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
     const span = createOtelSpan({
-      spanName: `ArvoOrchestrator<${this.machines[0].contracts.self.uri}>.execute<${event.type}>`,
+      spanName: `ArvoOrchestrator<${this.contract.uri}>.execute<${event.type}>`,
       spanKinds: {
         kind: SpanKind.INTERNAL,
         openInference: OpenInferenceSpanKind.CHAIN,
@@ -252,17 +204,17 @@ export default class ArvoOrchestrator<
             );
           }
 
-          let versionToUse = parsedSubject.orchestrator.version;
+          let versionToUse: ArvoSemanticVersion =
+            parseEventDataSchema(event)?.version ??
+            parsedSubject.orchestrator.version;
           if (
             versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion
           ) {
             versionToUse = findLatestVersion(
-              this.machines.map((item) => item.version),
+              Object.values(this.machines).map((item) => item.version),
             );
           }
-          const machine = this.machines.filter(
-            (item) => item.version === versionToUse,
-          )[0];
+          const machine = this.machines[versionToUse];
           if (!machine) {
             throw new Error(
               `Unsupported version: No machine found for orchestrator ${this.source} with version '${parsedSubject.orchestrator.version}'. Please check the supported versions and update your request.`,
@@ -281,9 +233,11 @@ export default class ArvoOrchestrator<
             strict: boolean = true,
           ) => {
             const { __extensions, data, ...eventData } = emittedEvent;
-            const eventContract: ArvoContract | undefined = Object.values(
-              machine.contracts.services,
-            ).filter((item) => item.accepts.type === eventData.type)[0];
+            const eventContract:
+              | VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
+              | undefined = Object.values(machine.contracts.services).filter(
+              (item) => item.accepts.type === eventData.type,
+            )[0];
             let verifiedData = data;
             if (strict) {
               if (!eventContract) {
@@ -293,11 +247,18 @@ export default class ArvoOrchestrator<
               }
               verifiedData = eventContract.accepts.schema.parse(verifiedData);
             }
+            let dataschema: string | undefined = undefined;
+            if (emittedEvent?.dataschema) {
+              dataschema = emittedEvent.dataschema;
+            } else if (eventContract?.uri && eventContract?.version) {
+              dataschema = `${eventContract.uri}/${eventContract.version}`;
+            }
+
             const arvoEvent = createArvoEvent(
               {
                 ...eventData,
                 data: verifiedData,
-                dataschema: emittedEvent?.dataschema ?? eventContract?.uri ?? undefined,
+                dataschema: dataschema,
                 traceparent: otelSpanHeaders.traceparent ?? undefined,
                 tracestate: otelSpanHeaders.tracestate ?? undefined,
                 source: this.source,
@@ -323,8 +284,9 @@ export default class ArvoOrchestrator<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
-
-            this.machines[0].contracts.self.init.schema.parse(event.data);
+            this.contract
+              .version(versionToUse)
+              .accepts.schema.parse(event.data);
             actor = createActor(machine.logic, {
               input: event.toJSON() as any,
             });
@@ -347,9 +309,7 @@ export default class ArvoOrchestrator<
             actor.send(event.toJSON() as any);
           }
 
-          const snapshot: Snapshot<
-            z.infer<typeof machine.contracts.self.complete.schema>
-          > = actor.getPersistedSnapshot();
+          const snapshot: Snapshot<any> = actor.getPersistedSnapshot();
           if ((snapshot as any)?.context?.arvo$$?.volatile$$) {
             (
               (snapshot as any)?.context?.arvo$$?.volatile$$
@@ -362,9 +322,9 @@ export default class ArvoOrchestrator<
             enqueueEvent(
               {
                 subject: parentSubject ?? undefined,
-                type: machine.contracts.self.complete.type,
-                dataschema: machine.contracts.self.uri,
-                data: machine.contracts.self.complete.schema.parse(
+                type: Object.keys(machine.contracts.self.emits)[0],
+                dataschema: `${machine.contracts.self.uri}/${machine.contracts.self.version}`,
+                data: Object.values(machine.contracts.self.emits)[0].parse(
                   snapshot.output,
                 ),
                 to: parsedSubject.execution.initiator,
@@ -401,7 +361,7 @@ export default class ArvoOrchestrator<
             message: (error as Error).message,
           });
           const result = createArvoEventFactory(
-            this.machines[0].contracts.self,
+            this.contract.version('any'),
           ).systemError({
             source: this.source,
             subject: parentSubject ?? event.subject,
@@ -439,6 +399,6 @@ export default class ArvoOrchestrator<
    * @returns The ArvoContractRecord for system errors
    */
   public get systemErrorSchema(): ArvoContractRecord {
-    return this.machines[0].contracts.self.systemError;
+    return this.contract.version('any').systemError;
   }
 }

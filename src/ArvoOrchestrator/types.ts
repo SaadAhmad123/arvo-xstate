@@ -1,8 +1,9 @@
 import {
   ArvoContract,
-  ArvoOrchestratorVersion,
+  ArvoSemanticVersion,
   ArvoOrchestratorContract,
   ArvoEvent,
+  VersionedArvoContract,
 } from 'arvo-core';
 import ArvoMachine from '../ArvoMachine';
 import { AnyActorLogic } from 'xstate';
@@ -11,198 +12,180 @@ import { XStatePersistanceSchema } from './schema';
 import { OpenTelemetryConfig } from 'arvo-event-handler';
 
 /**
- * Interface representing an Arvo Orchestrator.
+ * Core interface for an Arvo Orchestrator, responsible for managing and coordinating
+ * multiple state machines in a type-safe manner.
  *
- * @template TUri - The type for the URI of the orchestrator.
- * @template TInitType - The type for the initialization type string.
- * @template TInit - The Zod schema type for initialization data.
- * @template TCompleteType - The type for the completion type string.
- * @template TComplete - The Zod schema type for completion data.
- * @template TServiceContracts - A record of service contracts, each adhering to ArvoContract.
- * @template TLogic - The type of actor logic used in the state machine, extending AnyActorLogic from XState.
+ * The orchestrator handles versioning, state management, and coordination between
+ * multiple ArvoMachine instances. It ensures type safety across different versions
+ * of the orchestration contract.
+ *
+ * @template TSelfContract Extends ArvoOrchestratorContract - Defines the contract
+ * that this orchestrator implements, including supported versions and their specifications
  */
 export interface IArvoOrchestrator<
-  TUri extends string,
-  TInitType extends string,
-  TInit extends z.ZodTypeAny,
-  TCompleteType extends string,
-  TComplete extends z.ZodTypeAny,
-  TServiceContracts extends Record<string, ArvoContract>,
-  TLogic extends AnyActorLogic,
+  TSelfContract extends ArvoOrchestratorContract,
 > {
+  /** The contract defining the orchestrator's capabilities and supported versions */
+  contract: TSelfContract;
+
   /**
-   * The number of execution units available to the orchestrator.
-   * This likely represents a resource limit or capacity measure.
+   * Resource limit defining the maximum number of execution units available.
+   * Used to prevent infinite loops and ensure resource constraints are respected.
    */
   executionunits: number;
 
   /**
-   * An array of ArvoMachine instances that the orchestrator manages.
-   * Each machine is typed with specific parameters to ensure type safety
-   * and consistency across the orchestration process.
+   * Collection of versioned state machines managed by this orchestrator.
+   *
+   * Each version corresponds to a specific implementation of the orchestrator's
+   * contract, allowing for backward compatibility and gradual upgrades.
+   *
+   * @remarks
+   * The type mapping ensures that each machine version correctly implements
+   * its corresponding contract version, maintaining type safety across versions.
    */
-  machines: ArvoMachine<
-    string,
-    ArvoOrchestratorVersion,
-    ArvoOrchestratorContract<TUri, TInitType, TInit, TCompleteType, TComplete>,
-    TServiceContracts,
-    TLogic
-  >[];
+  machines: {
+    [V in keyof TSelfContract['versions'] & ArvoSemanticVersion]: ArvoMachine<
+      string,
+      V,
+      VersionedArvoContract<TSelfContract, V>,
+      Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
+      AnyActorLogic
+    >;
+  };
 }
 
 /**
- * Type definition for the input required to execute an Arvo Orchestrator.
+ * Input parameters for executing an Arvo Orchestrator.
+ *
+ * @remarks
+ * This type defines all necessary information needed to start or continue
+ * an orchestration execution cycle. It supports both new orchestrations
+ * and continuation of existing ones through state management.
  */
 export type ArvoOrchestratorExecuteInput = {
   /**
-   * The event which triggers the orchestrator execution cycle.
-   * This event likely contains data or instructions that guide
-   * the orchestration process.
+   * The triggering event for this execution cycle.
+   *
+   * Contains the payload and metadata needed to drive the orchestration process.
+   * The event's type and data should match the orchestrator's contract specifications.
    */
   event: ArvoEvent;
 
   /**
-   * The current state of the orchestrator.
+   * Compressed state representation of the orchestrator.
    *
-   * This is a zipped base64 string representation of the existing state
-   * of the orchestrator. If the state is NULL,
-   * the orchestrator assumes a fresh orchestration and creates a new state.
-   *
-   * The use of a zipped base64 string allows for efficient storage and
-   * transmission of potentially complex state data.
+   * @remarks
+   * - Stored as a base64-encoded zipped string for efficient transmission
+   * - Null indicates a new orchestration should be initialized
+   * - When provided, represents the previous state to resume from
    */
   state: string | null;
 
   /**
-   * The subject field value of the parent orchestration or process.
+   * Identifier of the parent orchestration process.
    *
-   * This field plays a crucial role in maintaining the hierarchical structure and routing
-   * of events within a multi-level orchestration system:
+   * @remarks
+   * Critical for nested orchestrations and event routing:
+   * - Null represents a root-level orchestration
+   * - Non-null indicates a child orchestration
+   * - Used for:
+   *   1. Event routing in hierarchical orchestrations
+   *   2. State management and retrieval
+   *   3. Error and completion event propagation
+   *   4. Maintaining process hierarchies
    *
-   * 1. Hierarchy:
-   *    - If null: Indicates this is a root orchestration execution.
-   *    - If provided: Signifies this is a child execution within a larger orchestration hierarchy.
-   *
-   * 2. Event Routing:
-   *    - For child executions, error events and completion events will have their subject
-   *      set to this parentSubject value.
-   *    - This ensures that events are correctly routed back to the process initiator
-   *      and can be reconciled with the parent process.
-   *
-   * 3. State Management:
-   *    - It's recommended to store the parentSubject and the current execution's subject
-   *      together in a key-value format for efficient state tracking and retrieval.
-   *
-   * 4. Data Structure Example:
-   *    | Hash Key (subject)     | Range Key (parentSubject) | State                           |
-   *    |------------------------|---------------------------|-------------------------------- |
-   *    | current event subject  | parentSubject value       | orchestration state (as string) |
-   *
-   * 5. Root vs Child Execution:
-   *    - Root Execution: parentSubject is null, and the original subject is preserved.
-   *    - Child Execution: parentSubject is set, allowing for proper event routing and hierarchy tracking.
-   *
-   * This design facilitates complex, nested orchestrations while maintaining clear
-   * parent-child relationships and ensuring correct event routing throughout the system.
+   * @example
+   * Storage structure for state management:
+   * ```
+   * {
+   *   subject: "current-execution-id",
+   *   parentSubject: "parent-execution-id",
+   *   state: "compressed-state-data"
+   * }
+   * ```
    */
   parentSubject: string | null;
 
   /**
-   * Configuration for OpenTelemetry integration.
+   * Optional OpenTelemetry configuration for observability.
    *
-   * OpenTelemetry is an observability framework for cloud-native software,
-   * providing a collection of tools, APIs, and SDKs for distributed tracing,
-   * metrics collection, and logging.
-   *
-   * In the context of ArvoOrchestrator, OpenTelemetry is used to trace
-   * the execution flow, measure performance, and provide insights into
-   * the behavior of the orchestration process.
+   * @remarks
+   * Enables distributed tracing, metrics collection, and logging across
+   * the orchestration process. Useful for monitoring performance,
+   * debugging, and understanding system behavior.
    */
   opentelemetry?: OpenTelemetryConfig;
 };
 
 /**
- * Type definition for the output produced by executing an Arvo Orchestrator.
- * This type encapsulates the result of an orchestration execution cycle.
+ * Output produced by an Arvo Orchestrator execution cycle.
+ *
+ * @remarks
+ * Encapsulates all results and side effects of an orchestration execution,
+ * including state changes, emitted events, and execution status.
  */
 export type ArvoOrchestratorExecuteOutput = {
   /**
-   * The subject of the current orchestration execution.
+   * Unique identifier for this orchestration execution.
    *
-   * This field represents the unique identifier for the current orchestration execution.
-   * It is identical to the subject field in the triggering event.
-   *
-   * Significance:
-   * 1. Identification: Uniquely identifies this specific orchestration execution within the system.
-   * 2. Correlation: Allows for correlation between the input event and the execution output.
-   * 3. Traceability: Enables tracking of the orchestration execution across different components or services.
-   * 4. State Management: Can be used as a key for storing and retrieving the orchestration state.
-   * 5. Event Routing: For root orchestrations, this subject is used for routing completion or error events.
-   *
-   * Note: In a hierarchical orchestration structure, this subject represents the current level,
-   * while the parentSubject (if present) represents the level above.
+   * @remarks
+   * - Matches the subject from the triggering event
+   * - Used for:
+   *   1. Correlation between input and output
+   *   2. State storage and retrieval
+   *   3. Event routing
+   *   4. Execution tracing
    */
   subject: string;
 
   /**
-   * The subject of the parent orchestration or process.
+   * Reference to the parent orchestration's identifier.
    *
-   * This field is a passthrough from the input, representing the subject of the parent
-   * orchestration or process that initiated this execution.
-   *
-   * Significance:
-   * 1. Hierarchy:
-   *    - If null: Indicates this is a root orchestration execution.
-   *    - If present: Signifies this is a child execution within a larger orchestration hierarchy.
-   * 2. Event Routing:
-   *    - For child executions, this value is used as the subject for error and completion events,
-   *      ensuring they are correctly routed back to the parent process.
-   * 3. Context Preservation: Maintains the context of the orchestration hierarchy across executions.
-   * 4. State Management:
-   *    - Facilitates efficient storage and retrieval of orchestration states in a nested structure.
-   *    - Enables reconstruction of the full orchestration tree if needed.
-   * 5. Debugging and Monitoring: Allows for tracing the execution path through multiple levels of orchestration.
-   *
-   * Note: The combination of subject and parentSubject provides a complete picture of the
-   * orchestration's position within the overall process hierarchy.
+   * @remarks
+   * - Null for root orchestrations
+   * - Used for:
+   *   1. Maintaining orchestration hierarchies
+   *   2. Event routing to parent processes
+   *   3. State management in nested structures
+   *   4. Debugging and monitoring complex workflows
    */
   parentSubject: string | null;
 
   /**
-   * The encoded state of the orchestration after execution.
+   * Compressed state after execution completion.
    *
-   * This is a zipped base64 string representation of the updated state
-   * of the orchestrator.
-   *
-   * This state can be used as input for subsequent execution cycles,
-   * allowing for continuity in long-running or multi-step orchestrations.
+   * @remarks
+   * - Base64-encoded zipped string of the orchestrator's state
+   * - Null if the orchestration has completed or failed
+   * - Used as input for subsequent execution cycles
    */
   state: string | null;
 
   /**
-   * An array of events emitted by the orchestration during execution.
+   * Collection of events generated during execution.
    *
-   * These events represent significant occurrences or state changes
-   * that happened during the orchestration process.
+   * @remarks
+   * Events represent state transitions, decisions, or other significant
+   * occurrences during the orchestration process.
    */
   events: ArvoEvent[];
 
   /**
-   * The execution status of the orchestration.
+   * Final status of the execution cycle.
    *
-   * Indicates whether the orchestration execution completed successfully
-   * or encountered an error. This allows consumers of the orchestrator
-   * to quickly determine if the execution proceeded as expected or if
-   * error handling and recovery steps may be necessary.
-   *
-   * - 'success': Indicates that the orchestration completed without errors.
-   * - 'error': Indicates that an error occurred during orchestration execution.
+   * @remarks
+   * - 'success': Orchestration completed normally
+   * - 'error': Orchestration encountered an error
    */
   executionStatus: 'success' | 'error';
 
   /**
-   * The snapshot of the execution. This is the uncompressed and un-encoded
-   * version of the value in the field 'state'
+   * Uncompressed state representation.
+   *
+   * @remarks
+   * Raw state data before compression and encoding.
+   * Useful for debugging and direct state inspection.
    */
   snapshot: z.infer<typeof XStatePersistanceSchema> | null;
 };

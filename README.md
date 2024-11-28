@@ -57,36 +57,43 @@ const { newSystemState, eventsToEmit } = stateMachineEngine(
 );
 ```
 
-To achieve this, the engine must execute events synchronously and provide the new system state along with events that need to be emitted. 
+To achieve this, the engine must execute events synchronously and provide the new system state along with events that need to be emitted.
 
 ## Event-Driven Patterns and Arvo-XState Implementation
 
 Arvo-XState's foundation is built on pure functional principles where state transitions are deterministic and side-effect free. This fundamental characteristic leads to natural, emergent support for sophisticated event-driven patterns without additional complexity. Just as pure functions naturally support composition, memoization, and parallelization, Arvo-XState's functional core naturally enables these enterprise patterns through its basic operation rather than through bolt-on features.
 
 ### Event Sourcing
+
 Arvo-XState's foundation is built on the principle of deterministic state transitions, making it naturally suited for event sourcing. The state machine approach means every state change is triggered by an event, and these events form a complete history. When Arvo-XState processes an event, it maintains a clear sequence of what happened and why. Since the state machine is deterministic, replaying these events will always produce the same result, which is the cornerstone of event sourcing. The system's state at any point can be reconstructed by replaying events up to that moment, providing a reliable audit trail and debugging capabilities.
 
 ### CQRS (Command Query Responsibility Segregation)
+
 The architecture of Arvo-XState naturally separates commands and queries through its state machine design. Commands that modify state are handled through explicit state transitions, while the current state can be queried without affecting these transitions. This separation happens because Arvo-XState maintains a clear boundary between state changes (through events) and state reads. The orchestrator can emit different events for reads versus writes, allowing systems to handle them differently. This natural separation makes it straightforward to implement different storage and scaling strategies for reads and writes.
 
 ### Saga Pattern
+
 Arvo-XState's state machine approach is well-suited for implementing sagas because it can model complex, long-running transactions as a series of state transitions. The state machine can track the progress of a distributed transaction and manage compensation actions if something fails. Since Arvo-XState maintains the current state and understands the sequence of events, it can coordinate the necessary steps to maintain consistency across different services. If a step fails, the state machine knows exactly where it was in the process and can trigger the appropriate compensation actions.
 
 ### Event Choreography
+
 The event-driven nature of Arvo-XState makes it an excellent fit for event choreography. Services can interact through events without being tightly coupled with each other, and the state machine ensures proper coordination. For a reliable operation, the Arvo tries manage this coupliung between service via `ArvoContracts`. With this approach, the services are not tightly coupled rather they are bound by a domain wide contract. The state machine acts as a natural coordinator, ensuring events flow in the right sequence without requiring central orchestration.
 
 ### Dead Letter Pattern
+
 The deterministic nature of Arvo-XState's state machine makes it suitable for implementing dead letter queues. When events fail to process, the state machine can transition to error states and emit specific events for the dead letter queue. Since the state machine knows exactly what state it was in when the failure occurred, it can provide rich context about what went wrong. This makes it easier to implement retry mechanisms and handle failed events appropriately.
 
 ### Materialized Views
+
 Arvo-XState's ability to emit events based on state transitions makes it effective for maintaining materialized views. As the state machine processes events and changes state, it can emit events specifically designed to update materialized views. The deterministic nature of the state machine ensures that views stay consistent with the underlying state, and the event-driven approach means views can be updated in real-time as changes occur.
 
 ### Event Replay
+
 The deterministic nature of Arvo-XState makes it perfect for event replay scenarios. Since state transitions are purely functional (given the same input event and current state, they always produce the same output), replaying events will consistently reproduce the same system state. This makes it possible to debug issues, verify system behavior, or recover from failures by replaying the event stream.
 
 ### Event Streaming
-Arvo-XState's architecture makes it well-suited for event streaming scenarios. The state machine can process events as they arrive, maintaining state and emitting new events based on state transitions. The deterministic nature of the state machine means events are processed consistently, and the state machine can handle high volumes of events while maintaining system integrity. The ability to emit events based on state transitions means the system can participate in larger event streaming architectures while maintaining clear state management.
 
+Arvo-XState's architecture makes it well-suited for event streaming scenarios. The state machine can process events as they arrive, maintaining state and emitting new events based on state transitions. The deterministic nature of the state machine means events are processed consistently, and the state machine can handle high volumes of events while maintaining system integrity. The ability to emit events based on state transitions means the system can participate in larger event streaming architectures while maintaining clear state management.
 
 ## XState Integration
 
@@ -124,46 +131,52 @@ This guide provides a step-by-step explanation of how to set up and use an Arvo 
 
 ```typescript
 const incrementServiceContract = createArvoContract({
-  uri: '#/test/service/increment',
-  accepts: {
+    uri: '#/test/service/increment',
     type: 'com.number.increment',
-    schema: z.object({
-      delta: z.number(),
-    }),
-  },
-  emits: {
-    'evt.number.increment.success': z.object({
-      newValue: z.number(),
-    }),
-  },
-});
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.increment.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
+    },
+  });
 
-const decrementServiceContract = createArvoContract({
-  uri: '#/test/service/decrement',
-  accepts: {
+  const decrementServiceContract = createArvoContract({
+    uri: '#/test/service/decrement',
     type: 'com.number.decrement',
-    schema: z.object({
-      delta: z.number(),
-    }),
-  },
-  emits: {
-    'evt.number.decrement.success': z.object({
-      newValue: z.number(),
-    }),
-  },
-});
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.decrement.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
+    },
+  });
 
-const numberUpdateNotificationContract = createArvoContract({
-  uri: '#/test/notification/decrement',
-  accepts: {
+  const numberUpdateNotificationContract = createArvoContract({
+    uri: '#/test/notification/decrement',
     type: 'notif.number.update',
-    schema: z.object({
-      delta: z.number(),
-      type: z.enum(['increment', 'decrement']),
-    }),
-  },
-  emits: {},
-});
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        emits: {},
+      },
+    },
+  });
 ```
 
 **Commentary:**
@@ -179,18 +192,20 @@ This approach ensures type safety and clear communication boundaries. By definin
 
 ```typescript
 const testMachineContract = createArvoOrchestratorContract({
-  uri: '#/test/machine',
-  name: 'test',
-  schema: {
-    init: z.object({
-      delta: z.number(),
-      type: z.enum(['increment', 'decrement']),
-    }),
-    complete: z.object({
-      final: z.number(),
-    }),
-  },
-});
+    uri: '#/test/machine',
+    type: 'test',
+    versions: {
+      '0.0.1': {
+        init: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        complete: z.object({
+          final: z.number(),
+        }),
+      },
+    },
+  });
 ```
 
 **Commentary:**
@@ -207,12 +222,12 @@ This contract acts as a blueprint for your machine, ensuring that it receives th
 ```typescript
 const setup = setupArvoMachine({
   contracts: {
-    self: testMachineContract,
-    services: {
-      incrementServiceContract,
-      decrementServiceContract,
-      numberUpdateNotificationContract,
-    },
+    self: testMachineContract.version('0.0.1'),
+          services: {
+            increment: incrementServiceContract.version('0.0.1'),
+            decrement: decrementServiceContract.version('0.0.1'),
+            notification: numberUpdateNotificationContract.version('0.0.1'),
+          },
   },
   types: {
     context: {} as {
@@ -251,7 +266,7 @@ This setup provides a strongly-typed foundation for your machine, enabling autoc
 
 ```typescript
 const machineV100 = setup.createMachine({
-  version: '1.0.0',
+  version: '0.0.1',
   id: 'counter',
   context: ({ input }) => ({
     ...input,
@@ -358,8 +373,11 @@ This is where the logic of your system lives. The structure provided by Arvo hel
 
 ```typescript
 const orchestrator = createArvoOrchestrator({
+  contract: testMachineContract,
   executionunits: 1,
-  machines: [machineV100],
+  machines: {
+    '0.0.1': machineV100,
+  },
   opentelemetry: {
     inheritFrom: 'event',
   },
@@ -380,11 +398,11 @@ This step bridges the gap between your machine definitions and their actual exec
 ```typescript
 const eventSubject = ArvoOrchestrationSubject.new({
   orchestator: 'arvo.orc.test',
-  version: '1.0.0',
+  version: '0.0.1',
   initiator: 'com.test.service',
 });
 
-const event = createArvoEventFactory(testMachineContract).accepts({
+const event = createArvoEventFactory(testMachineContract.version('0.0.1)).accepts({
   source: 'com.test.service',
   subject: eventSubject,
   data: {
@@ -418,7 +436,7 @@ This step is crucial because it's where your system actually starts doing work i
 ### 7. Handle Subsequent Events
 
 ```typescript
-const nextEvent = createArvoEventFactory(incrementServiceContract).emits({
+const nextEvent = createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
   type: 'evt.number.increment.success',
   source: 'com.test.service',
   subject: eventSubject,
