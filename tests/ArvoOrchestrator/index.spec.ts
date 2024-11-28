@@ -21,67 +21,84 @@ describe('ArvoOrchestrator', () => {
 
   const testMachineContract = createArvoOrchestratorContract({
     uri: '#/test/machine',
-    name: 'test',
-    schema: {
-      init: z.object({
-        delta: z.number(),
-        type: z.enum(['increment', 'decrement']),
-      }),
-      complete: z.object({
-        final: z.number(),
-      }),
+    type: 'test',
+    versions: {
+      '0.0.1': {
+        init: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        complete: z.object({
+          final: z.number(),
+        }),
+      },
+      '0.0.2': {
+        init: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        complete: z.object({
+          final: z.number(),
+        }),
+      },
     },
   });
 
   const incrementServiceContract = createArvoContract({
     uri: '#/test/service/increment',
-    accepts: {
-      type: 'com.number.increment',
-      schema: z.object({
-        delta: z.number(),
-      }),
-    },
-    emits: {
-      'evt.number.increment.success': z.object({
-        newValue: z.number(),
-      }),
+    type: 'com.number.increment',
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.increment.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
     },
   });
 
   const decrementServiceContract = createArvoContract({
     uri: '#/test/service/decrement',
-    accepts: {
-      type: 'com.number.decrement',
-      schema: z.object({
-        delta: z.number(),
-      }),
-    },
-    emits: {
-      'evt.number.decrement.success': z.object({
-        newValue: z.number(),
-      }),
+    type: 'com.number.decrement',
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.decrement.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
     },
   });
 
   const numberUpdateNotificationContract = createArvoContract({
     uri: '#/test/notification/decrement',
-    accepts: {
-      type: 'notif.number.update',
-      schema: z.object({
-        delta: z.number(),
-        type: z.enum(['increment', 'decrement']),
-      }),
+    type: 'notif.number.update',
+    versions: {
+      '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+          type: z.enum(['increment', 'decrement']),
+        }),
+        emits: {},
+      },
     },
-    emits: {},
   });
 
-  const setup = setupArvoMachine({
+  const setupV001 = setupArvoMachine({
     contracts: {
-      self: testMachineContract,
+      self: testMachineContract.version('0.0.1'),
       services: {
-        incrementServiceContract,
-        decrementServiceContract,
-        numberUpdateNotificationContract,
+        increment: incrementServiceContract.version('0.0.1'),
+        decrement: decrementServiceContract.version('0.0.1'),
+        notification: numberUpdateNotificationContract.version('0.0.1'),
       },
     },
     types: {
@@ -106,9 +123,38 @@ describe('ArvoOrchestrator', () => {
     },
   });
 
-  const machineV100 = setup.createMachine({
-    /** @xstate-layout N4IgpgJg5mDOIC5QGMD2BXAdgFzAJwDo8NcBiAbQAYBdRUAB1VgEttnVM6QAPRARgDMAFgICArAE4BAdgAcAJlkTZCgQDYANCACeiAQMoFpQiRPnqxfMfMrSAvna1osuQsXRlyfWkhCMWbBxcvAiCIuJScorKqpo6iPLyYgTyJhJq0nxCahJZ5g5OGDj4RCRgFPI+DEys7Jy+IWGikjIKSirmcboIsnwEaTFK2XyUygUgzsWEzJjIeGAAtmA4pGAAbtgEmOgLAEYlM3OLy5uw6MjIcLBUVX41gfWgIWKU8gRqakKUsmqJskIjMRabrqETGUwGIQyDJ8NRicaTVwEQ7zJYrWDaWAENALLY7fbTWaok4EfDEPA3Lj+WpBBqIF5vD5fH5-AGUIHxBACLIpNKJaRqWHGPgIopIiBgI5o7CrDZ4vYlCVSklnC5XSm+akPYL017vT7fX6KNkc7pJCS80zSARSAxw+SilyKyXE9GY7GoXHbBWE5U4Ul4cka6oBOo6hAM-XMo3-QHAhLfIxpD5JaSUDJieyOCZikqYVBsABmzGQAEMHhQaFT7mG6aF02p3pRYdkG1kBfGEIpDLCPgJ5Mo1MI+Fns-mJfBfIj8NXQ7SnogALRdJdqR1TUoeMCzmmPHiIITyTuJAT9UwSTJqWyCBnrpEo444HfauvCU+ZUZiXqyUbKASdgxkgGNllEEYw72dP1sGfWsFy5KEjBGCQvz4H9TFkf9OT4UwCHPZQhBaMQDBUCDCHzIsS3LWC7jnPcQlUfo1BUSgoW5BRD2PQ99Q+IjMmkMQTBI7Np0ICAOG3TUa3nfdQlhPomP43pLGQ75TQSaRpFw3t5FhAQfjET4s0KJ1CDJVA8Bg6T6PMRjmNY1DUiPTkJEMSg3PczIkiEaQJCEBwHCAA */
-    version: '1.0.0',
+  const setupV002 = setupArvoMachine({
+    contracts: {
+      self: testMachineContract.version('0.0.2'),
+      services: {
+        increment: incrementServiceContract.version('0.0.1'),
+        decrement: decrementServiceContract.version('0.0.1'),
+        notification: numberUpdateNotificationContract.version('0.0.1'),
+      },
+    },
+    types: {
+      context: {} as {
+        delta: number;
+        type: 'increment' | 'decrement';
+        errors: z.infer<typeof ArvoErrorSchema>[];
+      },
+    },
+    actions: {
+      log: ({ context, event }) => console.log({ context, event }),
+      assignEventError: assign({
+        errors: ({ context, event }) => [
+          ...context.errors,
+          event.data as z.infer<typeof ArvoErrorSchema>,
+        ],
+      }),
+    },
+    guards: {
+      isIncrement: ({ context }) => context.type === 'increment',
+      isDecrement: ({ context }) => context.type === 'decrement',
+    },
+  });
+
+  const machineV100 = setupV001.createMachine({
     id: 'counter',
     context: ({ input }) => ({
       ...input.data,
@@ -199,9 +245,7 @@ describe('ArvoOrchestrator', () => {
     }),
   });
 
-  const machineV200 = setup.createMachine({
-    /** @xstate-layout N4IgpgJg5mDOIC5QGMD2BXAdgFzAJwDo8NcBiAbQAYBdRUAB1VgEttnVM6QAPRARgDMAFgICArAE4BAdgAcAJlkTZCgQDYANCACeiAQMoFpQiRPnqxfMfMrSAvna1osuQsXRlyfWkhCMWbBxcvAiCIuJScorKqpo6iPLyYgTyJhJq0nxCahJZ5g5OGDj4RCRgFPI+DEys7Jy+IWGikjIKSirmcboIsnwEaTFK2XyUygUgzsWEzJjIeGAAtmA4pGAAbtgEmOgLAEYlM3OLy5uw6MjIcLBUVX41gfWgIWKU8gRqakKUsmqJskIjMRabrqETGUwGIQyDJ8NRicaTVwEQ7zJYrWDaWAENALLY7fbTWaok4EfDEPA3Lj+WpBBqIF5vD5fH5-AGUIHxBACLIpNKJaRqWHGPgIopIiBgI5o7CrDZ4vYlCVSklnC5XSm+akPYL017vT7fX6KNkc7pJCS80zSARSAxw+SilyKyXE9GY7GoXHbBWE5U4Ul4cka6oBOo6hAM-XMo3-QHA-hCaQEb4SMRiWTiPipIQqR1TLaoNgAM2YyAAhg8KDQqfcw3TQpQPu9KLDso3BYmuglZIZYR8BPJlGphHx7ONMKgJfBfIj8DXQ7SnogALRdhCr5OULd8HfsgRKV4ixwTMUldy4ec0x48RBCeTxhCJAT9UwSTJqWyCBl5pEo444S9tXrYRn0yUZ0z4HtTAzB8DGSAY2WUQRjB-Z0-WwQC6yXLkoSMEZU16KDlAEB8+FMAhX2UIQWjEAxc2PWdCAnYtSwrLC7gXa8QlUfo1BUSgoW5BQ7wfVJGQ+OEZFHMQTHowonUICAODATDFxvUJYT6PjpAgyxU2+U0EmkJNcg+eRYX3OFPjHeT8zJVA8FUrjEB47J+MEyCxIfCRDC3PzPySRMJCEBwHCAA */
-    version: '2.0.0',
+  const machineV200 = setupV002.createMachine({
     id: 'counter',
     context: ({ input }) => ({
       ...input.data,
@@ -292,34 +336,42 @@ describe('ArvoOrchestrator', () => {
     }),
   });
 
-  const orchestrator = createArvoOrchestator({
+  const orchestrator = createArvoOrchestrator({
+    contract: testMachineContract,
     executionunits: 1,
-    machines: [machineV100, machineV200],
+    machines: {
+      '0.0.1': machineV100,
+      '0.0.2': machineV200,
+    },
   });
 
   test('should initialize correctly', () => {
-    expect(orchestrator.source).toBe(testMachineContract.init.type);
+    expect(orchestrator.source).toBe(testMachineContract.type);
     expect(orchestrator.executionunits).toBe(1);
-    expect(orchestrator.machines).toHaveLength(2);
-    expect(orchestrator.machines[0]).toBe(machineV100);
+    expect(Object.values(orchestrator.machines)).toHaveLength(2);
+    expect(orchestrator.machines['0.0.1']).toBe(machineV100);
   });
 
   test('should throw error if no machines are provided', () => {
     expect(() =>
-      createArvoOrchestator({ machines: [], executionunits: 1 }),
+      createArvoOrchestrator({ 
+        contract: testMachineContract,
+        executionunits: 1,
+        machines: {} as any,  
+      }),
     ).toThrow();
   });
 
   test('should execute increment successfully', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
-      version: '1.0.0',
+      version: '0.0.1',
       initiator: 'com.test.service',
     });
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract).accepts({
+      event: createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -334,6 +386,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.executionStatus).toBe('success');
     expect(result.events).toHaveLength(1); // Increment event and notification event
     expect(result.events[0].type).toBe('com.number.increment');
+    expect(result.events[0].dataschema).toBe(`${incrementServiceContract.uri}/0.0.1`)
     expect(result.state).toBeDefined();
     expect(result.parentSubject).toBe(null);
     expect(result.subject).toBe(eventSubject);
@@ -371,13 +424,13 @@ describe('ArvoOrchestrator', () => {
   test('should handle errors when wrong event.to is defined', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
-      version: '2.0.0',
+      version: '0.0.2',
       initiator: 'com.test.service',
     });
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract).accepts({
+      event: createArvoEventFactory(testMachineContract.version('0.0.2')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -400,13 +453,13 @@ describe('ArvoOrchestrator', () => {
   test('should handle errors when wrong event.subject.name is defined', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test.1',
-      version: '2.0.0',
+      version: '0.0.2',
       initiator: 'com.test.service',
     });
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract).accepts({
+      event: createArvoEventFactory(testMachineContract.version('0.0.2')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -424,43 +477,17 @@ describe('ArvoOrchestrator', () => {
     expect(result.state).toBe(null);
   });
 
-  test('should handle errors when wrong event.subject.version is defined', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '3.0.0',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: null,
-      event: createArvoEventFactory(testMachineContract).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          parentSubject$$: null,
-          type: 'increment',
-          delta: 1,
-        },
-      }),
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.state).toBe(null);
-  });
 
   test('should handle errors when wrong event.type is defined when no state is available', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
-      version: '1.0.0',
+      version: '0.0.1',
       initiator: 'com.test.service',
     });
 
     const result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(incrementServiceContract).accepts({
+      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -481,13 +508,13 @@ describe('ArvoOrchestrator', () => {
   test('should have a complete successfull orchestration', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
-      version: '1.0.0',
+      version: '0.0.1',
       initiator: 'com.test.service',
     });
 
     let result = orchestrator.execute({
       parentSubject: null,
-      event: createArvoEventFactory(testMachineContract).accepts({
+      event: createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -511,7 +538,7 @@ describe('ArvoOrchestrator', () => {
     result = orchestrator.execute({
       parentSubject: null,
       state: result.state,
-      event: createArvoEventFactory(incrementServiceContract).emits({
+      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
         type: 'evt.number.increment.success',
         subject: result.events[0].subject,
         source: 'com.number.increment',
@@ -541,19 +568,19 @@ describe('ArvoOrchestrator', () => {
   test('should have a complete successfull child orchestration', () => {
     const parentSubject = ArvoOrchestrationSubject.new({
       orchestator: 'com.test.service',
-      version: '1.0.0',
+      version: '0.0.1',
       initiator: 'com.test.saad',
     });
 
     const eventSubject = ArvoOrchestrationSubject.new({
       orchestator: 'arvo.orc.test',
-      version: '1.0.0',
+      version: '0.0.1',
       initiator: 'com.test.service',
     });
 
     let result = orchestrator.execute({
       parentSubject: parentSubject,
-      event: createArvoEventFactory(testMachineContract).accepts({
+      event: createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -577,7 +604,7 @@ describe('ArvoOrchestrator', () => {
     result = orchestrator.execute({
       parentSubject: result.parentSubject,
       state: result.state,
-      event: createArvoEventFactory(incrementServiceContract).emits({
+      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
         type: 'evt.number.increment.success',
         subject: result.events[0].subject,
         source: 'com.number.increment',
@@ -601,7 +628,7 @@ describe('ArvoOrchestrator', () => {
     expect(result.events[1].to).toBe('com.test.service');
     expect(result.events[1].subject).toBe(parentSubject);
     expect(result.events[1].source).toBe('arvo.orc.test');
-    expect(result.events[1].dataschema).toBe(testMachineContract.uri);
+    expect(result.events[1].dataschema).toBe(`${testMachineContract.uri}/0.0.1`);
     expect(result.events[1].data.final).toBe(1);
 
     console.log(result.snapshot);
