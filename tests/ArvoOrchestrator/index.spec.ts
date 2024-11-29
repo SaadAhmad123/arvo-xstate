@@ -6,7 +6,11 @@ import {
   createArvoOrchestratorContract,
 } from 'arvo-core';
 import { z } from 'zod';
-import { createArvoOrchestrator, setupArvoMachine } from '../../src';
+import {
+  createArvoOrchestrator,
+  emittableOrchestratorEvent,
+  setupArvoMachine,
+} from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 
