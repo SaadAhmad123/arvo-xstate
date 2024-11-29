@@ -8,11 +8,12 @@ import {
 import { z } from 'zod';
 import {
   createArvoOrchestrator,
-  emittableOrchestratorEvent,
+  createOrchestratorInitEvent,
   setupArvoMachine,
 } from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
+import { createArvoEventHandler } from 'arvo-event-handler';
 
 describe('ArvoOrchestrator', () => {
   beforeAll(() => {
@@ -103,10 +104,12 @@ describe('ArvoOrchestrator', () => {
         increment: incrementServiceContract.version('0.0.1'),
         decrement: decrementServiceContract.version('0.0.1'),
         notification: numberUpdateNotificationContract.version('0.0.1'),
+        test: testMachineContract.version('0.0.1'),
       },
     },
     types: {
       context: {} as {
+        currentSubject$$: string;
         delta: number;
         type: 'increment' | 'decrement';
         errors: z.infer<typeof ArvoErrorSchema>[];
@@ -162,6 +165,7 @@ describe('ArvoOrchestrator', () => {
     id: 'counter',
     context: ({ input }) => ({
       ...input.data,
+      currentSubject$$: input.subject,
       errors: [] as z.infer<typeof ArvoErrorSchema>[],
     }),
     initial: 'route',
@@ -238,6 +242,22 @@ describe('ArvoOrchestrator', () => {
               },
             }),
           },
+          emit(({ context }) => ({
+            type: 'arvo.orc.test',
+            data: {
+              parentSubject$$: context.currentSubject$$,
+              type: 'decrement',
+              delta: 1,
+            },
+          })),
+          emit(({ context }) => ({
+            type: 'arvo.orc.test',
+            data: {
+              parentSubject$$: null,
+              type: 'decrement',
+              delta: 1,
+            },
+          })),
         ],
         always: { target: 'done' },
       },
@@ -367,25 +387,21 @@ describe('ArvoOrchestrator', () => {
   });
 
   test('should execute increment successfully', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.1',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: null,
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.1'),
-      ).accepts({
+    const event = createOrchestratorInitEvent(
+      testMachineContract.version('0.0.1'),
+      {
         source: 'com.test.service',
-        subject: eventSubject,
         data: {
           parentSubject$$: null,
           type: 'increment',
           delta: 1,
         },
-      }),
+      },
+    );
+
+    const result = orchestrator.execute({
+      parentSubject: null,
+      event,
       state: null,
     });
 
@@ -397,7 +413,7 @@ describe('ArvoOrchestrator', () => {
     );
     expect(result.state).toBeDefined();
     expect(result.parentSubject).toBe(null);
-    expect(result.subject).toBe(eventSubject);
+    expect(result.subject).toBe(event.subject);
   });
 
   test('should handle errors successfully', () => {
@@ -602,95 +618,116 @@ describe('ArvoOrchestrator', () => {
         data: {
           newValue: 1,
         },
+        traceparent: result.events[0].traceparent ?? undefined,
+        tracestate: result.events[0].tracestate ?? undefined,
       }),
     });
 
-    expect(result.events.length).toBe(2);
+    expect(result.events.length).toBe(4);
     expect(result.subject).toBe(eventSubject);
     expect(result.parentSubject).toBe(null);
-    expect(result.events[0].type).toBe('notif.number.update');
-    expect(result.events[0].to).toBe('notif.number.update');
-    expect(result.events[0].subject).toBe(eventSubject);
-    expect(result.events[0].data.type).toBe('increment');
-    expect(result.events[0].data.delta).toBe(1);
 
-    expect(result.events[1].type).toBe('arvo.orc.test.done');
-    expect(result.events[1].to).toBe('com.test.service');
-    expect(result.events[1].subject).toBe(eventSubject);
-    expect(result.events[1].source).toBe('arvo.orc.test');
-    expect(result.events[1].data.final).toBe(1);
+    expect(result.events[0].type).toBe('arvo.orc.test');
+    expect(result.events[0].to).toBe('arvo.orc.test');
+
+    expect(result.events[0].data.parentSubject$$).toBe(eventSubject);
+    let parsedSubject = ArvoOrchestrationSubject.parse(
+      result.events[0].subject,
+    );
+    expect(parsedSubject.execution.initiator).toBe('arvo.orc.test');
+    expect(parsedSubject.orchestrator.name).toBe('arvo.orc.test');
+    expect(parsedSubject.orchestrator.version).toBe('0.0.1');
+
+    expect(result.events[1].data.parentSubject$$).toBe(null);
+    parsedSubject = ArvoOrchestrationSubject.parse(result.events[1].subject);
+    expect(parsedSubject.execution.initiator).toBe('arvo.orc.test');
+    expect(parsedSubject.orchestrator.name).toBe('arvo.orc.test');
+    expect(parsedSubject.orchestrator.version).toBe('0.0.1');
+
+    expect(result.events[2].type).toBe('notif.number.update');
+    expect(result.events[2].to).toBe('notif.number.update');
+    expect(result.events[2].subject).toBe(eventSubject);
+    expect(result.events[2].data.type).toBe('increment');
+    expect(result.events[2].data.delta).toBe(1);
+
+    expect(result.events[3].type).toBe('arvo.orc.test.done');
+    expect(result.events[3].to).toBe('com.test.service');
+    expect(result.events[3].subject).toBe(eventSubject);
+    expect(result.events[3].source).toBe('arvo.orc.test');
+    expect(result.events[3].data.final).toBe(1);
   });
 
-  test('should have a complete successfull child orchestration', () => {
+  test('should have a complete successfull child orchestration', async () => {
     const parentSubject = ArvoOrchestrationSubject.new({
       orchestator: 'com.test.service',
       version: '0.0.1',
       initiator: 'com.test.saad',
     });
 
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.1',
-      initiator: 'com.test.service',
-    });
-
-    let result = orchestrator.execute({
-      parentSubject: parentSubject,
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.1'),
-      ).accepts({
+    const event = createOrchestratorInitEvent(
+      testMachineContract.version('0.0.1'),
+      {
         source: 'com.test.service',
-        subject: eventSubject,
         data: {
           parentSubject$$: parentSubject,
           type: 'increment',
           delta: 1,
         },
-      }),
+      },
+    );
+
+    let result = orchestrator.execute({
+      parentSubject: parentSubject,
+      event,
       state: null,
     });
 
     expect(result.events.length).toBe(1);
     expect(result.events[0].type).toBe('com.number.increment');
-    expect(result.events[0].subject).toBe(eventSubject);
-    expect(result.subject).toBe(eventSubject);
+    expect(result.events[0].subject).toBe(event.subject);
+    expect(result.subject).toBe(event.subject);
     expect(result.parentSubject).toBe(parentSubject);
     expect(result.events[0].to).toBe('com.number.increment');
     expect(result.events[0].data.delta).toBe(1);
     expect(result.state).toBeDefined();
 
+    const incrementHandler = createArvoEventHandler({
+      executionunits: 0.1,
+      contract: incrementServiceContract,
+      handler: {
+        '0.0.1': async () => ({
+          type: 'evt.number.increment.success',
+          data: {
+            newValue: 1,
+          },
+        }),
+      },
+    });
+
     result = orchestrator.execute({
       parentSubject: result.parentSubject,
       state: result.state,
-      event: createArvoEventFactory(
-        incrementServiceContract.version('0.0.1'),
-      ).emits({
-        type: 'evt.number.increment.success',
-        subject: result.events[0].subject,
-        source: 'com.number.increment',
-        to: 'arvo.orc.test',
-        data: {
-          newValue: 1,
-        },
-      }),
+      event: (
+        await incrementHandler.execute(result.events[0] as any)
+      )[0] as any,
     });
 
-    expect(result.events.length).toBe(2);
-    expect(result.subject).toBe(eventSubject);
+    expect(result.events.length).toBe(4);
+    expect(result.subject).toBe(event.subject);
     expect(result.parentSubject).toBe(parentSubject);
-    expect(result.events[0].type).toBe('notif.number.update');
-    expect(result.events[0].to).toBe('notif.number.update');
-    expect(result.events[0].subject).toBe(eventSubject);
-    expect(result.events[0].data.type).toBe('increment');
-    expect(result.events[0].data.delta).toBe(1);
+    expect(result.events[2].type).toBe('notif.number.update');
+    expect(result.events[2].to).toBe('notif.number.update');
+    expect(result.events[2].subject).toBe(event.subject);
+    expect(result.events[2].data.type).toBe('increment');
+    expect(result.events[2].data.delta).toBe(1);
 
-    expect(result.events[1].type).toBe('arvo.orc.test.done');
-    expect(result.events[1].to).toBe('com.test.service');
-    expect(result.events[1].subject).toBe(parentSubject);
-    expect(result.events[1].source).toBe('arvo.orc.test');
-    expect(result.events[1].dataschema).toBe(
+    expect(result.events[3].type).toBe('arvo.orc.test.done');
+    expect(result.events[3].to).toBe('com.test.service');
+    expect(result.events[3].subject).toBe(parentSubject);
+    expect(result.events[3].source).toBe('arvo.orc.test');
+    expect(result.events[3].dataschema).toBe(
       `${testMachineContract.uri}/0.0.1`,
     );
-    expect(result.events[1].data.final).toBe(1);
+    expect(result.events[3].data.final).toBe(1);
   });
 });

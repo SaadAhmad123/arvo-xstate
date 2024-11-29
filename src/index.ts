@@ -12,7 +12,7 @@ import {
   ArvoOrchestratorExecuteOutput,
 } from './ArvoOrchestrator/types';
 import { base64ToObject, objectToBase64 } from './ArvoOrchestrator/utils';
-import { emittableOrchestratorEvent } from './utils/emittableOrchestratorEvent';
+import { createOrchestratorInitEvent } from './utils/createOrchestratorInitEvent';
 
 export {
   ArvoMachine,
@@ -26,5 +26,5 @@ export {
   XStatePersistanceSchema,
   objectToBase64,
   base64ToObject,
-  emittableOrchestratorEvent,
+  createOrchestratorInitEvent,
 };

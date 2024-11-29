@@ -346,9 +346,6 @@ describe('ArvoXState', () => {
       expect(output.events[0].type).toBe('notif.number.update');
       expect(output.events[0].data.delta).toBe(1);
       expect(output.events[0].data.type).toBe('increment');
-      expect(output.events[0].dataschema).toBe(
-        `${numberUpdateNotificationContract.uri}/0.0.1`,
-      );
 
       expect(output.events[1].source).toBe('arvo.orc.test');
       expect(output.events[1].type).toBe('arvo.orc.test.done');
