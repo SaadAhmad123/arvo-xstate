@@ -256,7 +256,7 @@ export default class ArvoOrchestrator<
         // The system error must always go back to
         // the source with initiated it
         to: event.source,
-        error: error as Error,
+        error: error,
         executionunits: this.executionunits,
         traceparent: otelSpanHeaders.traceparent ?? undefined,
         tracestate: otelSpanHeaders.tracestate ?? undefined,

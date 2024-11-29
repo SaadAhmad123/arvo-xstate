@@ -1,6 +1,5 @@
 import { IArvoOrchestrator } from './types';
 import { ArvoOrchestratorContract } from 'arvo-core';
-import { AnyActorLogic } from 'xstate';
 import ArvoOrchestrator from '.';
 
 /**
