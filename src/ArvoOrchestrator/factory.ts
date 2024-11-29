@@ -20,7 +20,7 @@ import ArvoOrchestrator from '.';
  * @throws Will throw an error if the provided parameters do not meet the requirements
  *         specified in the ArvoOrchestrator constructor.
  *
- * @see ArvoOrchestrator for more details on the orchestrator's functionality and usage.
+ * @see {@link ArvoOrchestrator} for more details on the orchestrator's functionality and usage.
  */
 export const createArvoOrchestrator = <
   TSelfContract extends ArvoOrchestratorContract,

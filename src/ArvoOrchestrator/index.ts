@@ -12,6 +12,7 @@ import {
   ArvoOrchestratorContract,
   ArvoSemanticVersion,
   currentOpenTelemetryHeaders,
+  logToSpan,
   OpenInferenceSpanKind,
   VersionedArvoContract,
 } from 'arvo-core';
@@ -33,7 +34,7 @@ import { OrchestratorEventQueue } from './OrchestratorEventQueue';
  * @template TSelfContract - Contract type defining orchestrator capabilities and versions
  *                          Must extend ArvoOrchestratorContract
  *
- * Key capabilities:
+ * ## Key capabilities:
  * - Version management across different workflow implementations
  * - State persistence and restoration
  * - Event routing and validation
@@ -129,19 +130,6 @@ export default class ArvoOrchestrator<
    * 7. Handles any output or error in the final snapshot.
    * 8. Persists the final state of the actor after processing.
    * 9. Returns the execution results, including new state, emitted events, and subject information.
-   *
-   * ## Potential Issues:
-   * 1. Orphaned Events: Default routing uses event type if 'to' is unset
-   * 2. Misrouted Events: Verify parent subject validity for completion events
-   * 3. Error Events: Custom errors may need explicit routing rules
-   * 4. Contract Validation: Non-strict events may lack proper contracts
-   * 5. Event Duplication: Watch for loops in complex orchestrations
-   *
-   * ###  To mitigate:
-   * - Validate event destinations
-   * - Maintain clear orchestration hierarchy
-   * - Implement proper error handling
-   * - Monitor for routing issues
    */
   public execute({
     event,
@@ -184,6 +172,13 @@ export default class ArvoOrchestrator<
         let compressedSnapshot: string | null = null;
 
         try {
+          logToSpan({
+            level: 'INFO',
+            message: 'Starting orchestration',
+            eventType: event.type,
+            eventSource: event.source,
+          });
+
           // Validate event destination
           if (event.to !== this.source) {
             throw new Error(
@@ -202,13 +197,19 @@ export default class ArvoOrchestrator<
           // Select the machine version required to use based on the parsed subject
           let versionToUse: ArvoSemanticVersion =
             parsedSubject.orchestrator.version;
-          if (
-            versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion
-          ) {
+          const isWildCardVersion = versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion
+          if (isWildCardVersion) {
             versionToUse = findLatestVersion(
               Object.values(this.machines).map((item) => item.version),
             );
           }
+
+          logToSpan({
+            level: 'INFO',
+            message: 'Selected machine version',
+            version: versionToUse,
+            isWildCardVersionProvided: `${isWildCardVersion}`
+          });
 
           // Select the machine
           const machine = this.machines[versionToUse];
@@ -221,6 +222,10 @@ export default class ArvoOrchestrator<
           // Actor creation and process with or without the state
           let actor: Actor<typeof machine.logic>;
           if (!state) {
+            logToSpan({
+              level: 'INFO',
+              message: 'Initializing new orchestration'
+            });
             if (event.type !== this.source) {
               throw new Error(
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
@@ -239,6 +244,10 @@ export default class ArvoOrchestrator<
             actor.subscribe({ error: () => {} });
             actor.start();
           } else {
+            logToSpan({
+              level: 'INFO',
+              message: 'Using existing state'
+            });
             const existingSnapshot = base64ToObject(
               XStatePersistanceSchema,
               state,
@@ -286,6 +295,10 @@ export default class ArvoOrchestrator<
 
           // Raise the error in case the snapshot has error in it
           if (snapshot.error) {
+            logToSpan({
+              level: 'ERROR',
+              message: 'Execution failed. There was a snapshot error',
+            });
             throw snapshot.error;
           }
 
@@ -300,9 +313,9 @@ export default class ArvoOrchestrator<
         }
         const isError = eventQueue.errorEvents.length > 0;
         const results = isError ? eventQueue.errorEvents : eventQueue.events;
-        results.forEach((item) =>
+        results.forEach((item, index) =>
           Object.entries(item.otelAttributes).forEach(([key, value]) =>
-            span.setAttribute(`to_emit.0.${key}`, value),
+            span.setAttribute(`to_emit.${index}.${key}`, value),
           ),
         );
         span.end();
