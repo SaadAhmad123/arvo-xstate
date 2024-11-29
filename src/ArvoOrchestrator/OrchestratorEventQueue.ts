@@ -22,14 +22,14 @@ import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
  * Handles event creation, validation, and error handling with contract enforcement.
  */
 export class OrchestratorEventQueue {
-  private _events: ArvoEvent[] = [];
+  private readonly _events: ArvoEvent[] = [];
 
   /** Get all queued events */
   public get events() {
     return this._events;
   }
 
-  private _errorEvents: ArvoEvent[] = [];
+  private readonly _errorEvents: ArvoEvent[] = [];
 
   /** Get all error events that occurred during event processing */
   public get errorEvents() {
@@ -37,7 +37,7 @@ export class OrchestratorEventQueue {
   }
 
   constructor(
-    private param: {
+    private readonly param: {
       machines: Record<
         ArvoSemanticVersion,
         ArvoMachine<

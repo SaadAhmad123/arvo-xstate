@@ -18,13 +18,7 @@ import {
 import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
 import { createOtelSpan } from 'arvo-event-handler';
-import {
-  context,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-  Tracer,
-} from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { base64ToObject, findLatestVersion, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
@@ -303,35 +297,34 @@ export default class ArvoOrchestrator<
           span.setStatus({ code: SpanStatusCode.OK });
         } catch (error) {
           eventQueue.appendError(error as Error);
-        } finally {
-          const isError = eventQueue.errorEvents.length > 0;
-          const results = isError ? eventQueue.errorEvents : eventQueue.events;
-          results.forEach((item) =>
-            Object.entries(item.otelAttributes).forEach(([key, value]) =>
-              span.setAttribute(`to_emit.0.${key}`, value),
-            ),
-          );
-          span.end();
+        }
+        const isError = eventQueue.errorEvents.length > 0;
+        const results = isError ? eventQueue.errorEvents : eventQueue.events;
+        results.forEach((item) =>
+          Object.entries(item.otelAttributes).forEach(([key, value]) =>
+            span.setAttribute(`to_emit.0.${key}`, value),
+          ),
+        );
+        span.end();
 
-          if (isError) {
-            return {
-              executionStatus: 'error',
-              events: results,
-              state: null,
-              snapshot: null,
-              subject: event.subject,
-              parentSubject: parentSubject,
-            };
-          }
+        if (isError) {
           return {
-            executionStatus: 'success',
+            executionStatus: 'error',
             events: results,
-            state: compressedSnapshot,
-            snapshot: snapshot as z.infer<typeof XStatePersistanceSchema>,
+            state: null,
+            snapshot: null,
             subject: event.subject,
             parentSubject: parentSubject,
           };
         }
+        return {
+          executionStatus: 'success',
+          events: results,
+          state: compressedSnapshot,
+          snapshot: snapshot as z.infer<typeof XStatePersistanceSchema>,
+          subject: event.subject,
+          parentSubject: parentSubject,
+        };
       },
     );
   }
