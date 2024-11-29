@@ -291,7 +291,7 @@ describe('ArvoXState', () => {
 
       const eventSubject = ArvoOrchestrationSubject.new({
         orchestator: 'arvo.orc.test',
-        version: '1.0.0',
+        version: '0.0.1',
         initiator: 'com.test.service',
       });
 

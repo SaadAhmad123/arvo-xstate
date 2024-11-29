@@ -154,7 +154,7 @@ describe('ArvoOrchestrator', () => {
     },
   });
 
-  const machineV100 = setupV001.createMachine({
+  const machineV001 = setupV001.createMachine({
     id: 'counter',
     context: ({ input }) => ({
       ...input.data,
@@ -245,7 +245,7 @@ describe('ArvoOrchestrator', () => {
     }),
   });
 
-  const machineV200 = setupV002.createMachine({
+  const machineV002 = setupV002.createMachine({
     id: 'counter',
     context: ({ input }) => ({
       ...input.data,
@@ -340,8 +340,8 @@ describe('ArvoOrchestrator', () => {
     contract: testMachineContract,
     executionunits: 1,
     machines: {
-      '0.0.1': machineV100,
-      '0.0.2': machineV200,
+      '0.0.1': machineV001,
+      '0.0.2': machineV002,
     },
   });
 
@@ -349,7 +349,7 @@ describe('ArvoOrchestrator', () => {
     expect(orchestrator.source).toBe(testMachineContract.type);
     expect(orchestrator.executionunits).toBe(1);
     expect(Object.values(orchestrator.machines)).toHaveLength(2);
-    expect(orchestrator.machines['0.0.1']).toBe(machineV100);
+    expect(orchestrator.machines['0.0.1']).toBe(machineV001);
   });
 
   test('should throw error if no machines are provided', () => {
@@ -396,34 +396,73 @@ describe('ArvoOrchestrator', () => {
     expect(result.subject).toBe(eventSubject);
   });
 
-  // test('should handle errors successfully', () => {
-  //   const eventSubject = ArvoOrchestrationSubject.new({
-  //     orchestator: 'arvo.orc.test',
-  //     version: '2.0.0',
-  //     initiator: 'com.test.service',
-  //   });
+  test('should handle errors successfully', () => {
+    const eventSubject = ArvoOrchestrationSubject.new({
+      orchestator: 'arvo.orc.test',
+      version: '0.0.2',
+      initiator: 'com.test.service',
+    });
 
-  //   const result = orchestrator.execute({
-  //     parentSubject: 'testsubject',
-  //     event: createArvoEventFactory(testMachineContract).accepts({
-  //       source: 'com.test.service',
-  //       subject: eventSubject,
-  //       data: {
-  //         parentSubject$$: 'testsubject',
-  //         type: 'increment',
-  //         delta: 1
-  //       }
-  //     }),
-  //     state: null,
-  //   });
+    const result = orchestrator.execute({
+      parentSubject: 'testsubject',
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.2'),
+      ).accepts({
+        source: 'com.test.service',
+        subject: eventSubject,
+        data: {
+          parentSubject$$: 'testsubject',
+          type: 'increment',
+          delta: 1,
+        },
+      }),
+      state: null,
+    });
 
-  //   expect(result.executionStatus).toBe('error');
-  //   expect(result.events).toHaveLength(1);
-  //   expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-  //   expect(result.events[0].subject).toBe('testsubject');
-  //   expect(result.events[0].to).toBe('com.test.service');
-  //   expect(result.state).toBe(null)
-  // });
+    expect(result.executionStatus).toBe('error');
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
+    expect(result.events[0].subject).toBe('testsubject');
+    expect(result.events[0].to).toBe('com.test.service');
+    expect(result.events[0].data.errorMessage).toBe(
+      "The emitted event (type=com.number.increment.1) does not correspond to a contract. If this is delibrate, the use the action 'enqueueArvoEvent' instead of the 'emit'",
+    );
+    expect(result.state).toBe(null);
+  });
+
+  test('should handle errors successfully: No machine found', () => {
+    const eventSubject = ArvoOrchestrationSubject.new({
+      orchestator: 'arvo.orc.test',
+      version: '0.0.3',
+      initiator: 'com.test.service',
+    });
+
+    const result = orchestrator.execute({
+      parentSubject: 'testsubject',
+      event: createArvoEventFactory(
+        testMachineContract.version('0.0.2'),
+      ).accepts({
+        source: 'com.test.service',
+        subject: eventSubject,
+        data: {
+          parentSubject$$: 'testsubject',
+          type: 'increment',
+          delta: 1,
+        },
+      }),
+      state: null,
+    });
+
+    expect(result.executionStatus).toBe('error');
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
+    expect(result.events[0].subject).toBe('testsubject');
+    expect(result.events[0].to).toBe('com.test.service');
+    expect(result.events[0].data.errorMessage).toBe(
+      "Unsupported version: No machine found for orchestrator arvo.orc.test with version '0.0.3'. Please check the supported versions and update your request.",
+    );
+    expect(result.state).toBe(null);
+  });
 
   test('should handle errors when wrong event.to is defined', () => {
     const eventSubject = ArvoOrchestrationSubject.new({
@@ -649,7 +688,5 @@ describe('ArvoOrchestrator', () => {
       `${testMachineContract.uri}/0.0.1`,
     );
     expect(result.events[1].data.final).toBe(1);
-
-    console.log(result.snapshot);
   });
 });

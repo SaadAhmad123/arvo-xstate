@@ -131,52 +131,52 @@ This guide provides a step-by-step explanation of how to set up and use an Arvo 
 
 ```typescript
 const incrementServiceContract = createArvoContract({
-    uri: '#/test/service/increment',
-    type: 'com.number.increment',
-    versions: {
-      '0.0.1': {
-        accepts: z.object({
-          delta: z.number(),
+  uri: '#/test/service/increment',
+  type: 'com.number.increment',
+  versions: {
+    '0.0.1': {
+      accepts: z.object({
+        delta: z.number(),
+      }),
+      emits: {
+        'evt.number.increment.success': z.object({
+          newValue: z.number(),
         }),
-        emits: {
-          'evt.number.increment.success': z.object({
-            newValue: z.number(),
-          }),
-        },
       },
     },
-  });
+  },
+});
 
-  const decrementServiceContract = createArvoContract({
-    uri: '#/test/service/decrement',
-    type: 'com.number.decrement',
-    versions: {
-      '0.0.1': {
-        accepts: z.object({
-          delta: z.number(),
+const decrementServiceContract = createArvoContract({
+  uri: '#/test/service/decrement',
+  type: 'com.number.decrement',
+  versions: {
+    '0.0.1': {
+      accepts: z.object({
+        delta: z.number(),
+      }),
+      emits: {
+        'evt.number.decrement.success': z.object({
+          newValue: z.number(),
         }),
-        emits: {
-          'evt.number.decrement.success': z.object({
-            newValue: z.number(),
-          }),
-        },
       },
     },
-  });
+  },
+});
 
-  const numberUpdateNotificationContract = createArvoContract({
-    uri: '#/test/notification/decrement',
-    type: 'notif.number.update',
-    versions: {
-      '0.0.1': {
-        accepts: z.object({
-          delta: z.number(),
-          type: z.enum(['increment', 'decrement']),
-        }),
-        emits: {},
-      },
+const numberUpdateNotificationContract = createArvoContract({
+  uri: '#/test/notification/decrement',
+  type: 'notif.number.update',
+  versions: {
+    '0.0.1': {
+      accepts: z.object({
+        delta: z.number(),
+        type: z.enum(['increment', 'decrement']),
+      }),
+      emits: {},
     },
-  });
+  },
+});
 ```
 
 **Commentary:**
@@ -192,20 +192,20 @@ This approach ensures type safety and clear communication boundaries. By definin
 
 ```typescript
 const testMachineContract = createArvoOrchestratorContract({
-    uri: '#/test/machine',
-    type: 'test',
-    versions: {
-      '0.0.1': {
-        init: z.object({
-          delta: z.number(),
-          type: z.enum(['increment', 'decrement']),
-        }),
-        complete: z.object({
-          final: z.number(),
-        }),
-      },
+  uri: '#/test/machine',
+  type: 'test',
+  versions: {
+    '0.0.1': {
+      init: z.object({
+        delta: z.number(),
+        type: z.enum(['increment', 'decrement']),
+      }),
+      complete: z.object({
+        final: z.number(),
+      }),
     },
-  });
+  },
+});
 ```
 
 **Commentary:**
@@ -223,11 +223,11 @@ This contract acts as a blueprint for your machine, ensuring that it receives th
 const setup = setupArvoMachine({
   contracts: {
     self: testMachineContract.version('0.0.1'),
-          services: {
-            increment: incrementServiceContract.version('0.0.1'),
-            decrement: decrementServiceContract.version('0.0.1'),
-            notification: numberUpdateNotificationContract.version('0.0.1'),
-          },
+    services: {
+      increment: incrementServiceContract.version('0.0.1'),
+      decrement: decrementServiceContract.version('0.0.1'),
+      notification: numberUpdateNotificationContract.version('0.0.1'),
+    },
   },
   types: {
     context: {} as {

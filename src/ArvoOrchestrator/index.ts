@@ -17,17 +17,96 @@ import {
   currentOpenTelemetryHeaders,
   exceptionToSpan,
   OpenInferenceSpanKind,
-  parseEventDataSchema,
+  OpenTelemetryHeaders,
   VersionedArvoContract,
 } from 'arvo-core';
 import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
 import { createOtelSpan } from 'arvo-event-handler';
-import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import {
+  context,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+  Tracer,
+} from '@opentelemetry/api';
 import { base64ToObject, findLatestVersion, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
 import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
+
+/**
+ * Enqueues an event to be emitted by the orchestrator.
+ *
+ * @param emittedEvent - The event to be enqueued
+ * @param strict - If true, performs strict validation against the event contract
+ * @throws Error if strict validation fails or if the event type doesn't correspond to a contract
+ */
+const createEnqueuableEvent = (
+  machineServiceContracts: Record<
+    string,
+    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
+  >,
+  otelSpanHeaders: OpenTelemetryHeaders,
+  orchestrator: ArvoOrchestrator<ArvoOrchestratorContract>,
+  ogEvent: ArvoEvent,
+  otelTracer: Tracer,
+  emittedEvent: EnqueueArvoEventActionParam,
+  strict: boolean,
+) => {
+  const { __extensions, data, ...eventData } = emittedEvent;
+  const eventContract:
+    | VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
+    | undefined = Object.values(machineServiceContracts).filter(
+    (item) => item.accepts.type === eventData.type,
+  )[0];
+  let verifiedData = data;
+  let dataschema: string | undefined = emittedEvent.dataschema;
+  if (strict) {
+    if (!eventContract) {
+      throw new Error(
+        `The emitted event (type=${emittedEvent.type}) does not correspond to a contract. If this is delibrate, the use the action 'enqueueArvoEvent' instead of the 'emit'`,
+      );
+    }
+    if (
+      dataschema &&
+      dataschema !== `${eventContract.uri}/${eventContract.version}`
+    ) {
+      throw new Error(
+        `The dataschema of the event to be emitted (dataschema=${dataschema}) does not match the dataschema imposed by the contract (uri=${eventContract.uri}, version=${eventContract.version})`,
+      );
+    }
+    verifiedData = eventContract.accepts.schema.parse(verifiedData);
+  }
+
+  if (emittedEvent?.dataschema) {
+    dataschema = emittedEvent.dataschema;
+  } else if (eventContract?.uri && eventContract?.version) {
+    dataschema = `${eventContract.uri}/${eventContract.version}`;
+  }
+
+  return createArvoEvent(
+    {
+      ...eventData,
+      data: verifiedData,
+      dataschema: dataschema,
+      traceparent: otelSpanHeaders.traceparent ?? undefined,
+      tracestate: otelSpanHeaders.tracestate ?? undefined,
+      source: orchestrator.source,
+      subject: emittedEvent.subject ?? ogEvent.subject,
+      to: eventData.to ?? eventData.type,
+      redirectto: eventData.redirectto ?? undefined,
+      executionunits: eventData.executionunits ?? orchestrator.executionunits,
+      accesscontrol:
+        eventData.accesscontrol ?? ogEvent.accesscontrol ?? undefined,
+    },
+    __extensions,
+    {
+      disable: false,
+      tracer: otelTracer,
+    },
+  );
+};
 
 /**
  * ArvoOrchestrator is a sophisticated state machine orchestration system that manages
@@ -70,11 +149,6 @@ export default class ArvoOrchestrator<
   /**
    * Version-keyed collection of state machines implementing the orchestrator's logic
    * Each version represents a different implementation of the contract specifications
-   *
-   * @remarks
-   * - Keys are semantic versions (e.g., '1.0.0', '2.0.0')
-   * - Values are ArvoMachine instances that implement the corresponding contract version
-   * - Enables backward compatibility and gradual upgrades
    */
   public readonly machines: {
     [V in keyof TSelfContract['versions'] & ArvoSemanticVersion]: ArvoMachine<
@@ -86,16 +160,6 @@ export default class ArvoOrchestrator<
     >;
   };
 
-  /**
-   * Creates a new ArvoOrchestrator instance with the specified configuration.
-   *
-   * @param param - Configuration object implementing IArvoOrchestrator interface
-   *
-   * @throws {Error} If:
-   * - Required machines for contract versions are missing
-   * - Machines have inconsistent self contracts
-   * - Contract validation fails
-   */
   constructor(param: IArvoOrchestrator<TSelfContract>) {
     this.contract = param.contract;
     this.source = this.contract.type;
@@ -181,6 +245,24 @@ export default class ArvoOrchestrator<
         tracer: fetchOpenTelemetryTracer(),
       },
     });
+
+    const createErrorEvent = (
+      error: Error,
+      otelSpanHeaders: OpenTelemetryHeaders,
+    ) =>
+      createArvoEventFactory(this.contract.version('any')).systemError({
+        source: this.source,
+        subject: parentSubject ?? event.subject,
+        // The system error must always go back to
+        // the source with initiated it
+        to: event.source,
+        error: error as Error,
+        executionunits: this.executionunits,
+        traceparent: otelSpanHeaders.traceparent ?? undefined,
+        tracestate: otelSpanHeaders.tracestate ?? undefined,
+        accesscontrol: event.accesscontrol ?? undefined,
+      });
+
     return context.with(
       trace.setSpan(context.active(), span),
       (): ArvoOrchestratorExecuteOutput => {
@@ -189,7 +271,7 @@ export default class ArvoOrchestrator<
         );
         const otelSpanHeaders = currentOpenTelemetryHeaders();
         const eventQueue: ArvoEvent[] = [];
-        let orchestrationInitSource: string = event.source;
+        const errorQueue: ArvoEvent[] = [];
         try {
           if (event.to !== this.source) {
             throw new Error(
@@ -197,7 +279,6 @@ export default class ArvoOrchestrator<
             );
           }
           const parsedSubject = ArvoOrchestrationSubject.parse(event.subject);
-          orchestrationInitSource = parsedSubject.execution.initiator;
           if (parsedSubject.orchestrator.name !== this.source) {
             throw new Error(
               `Invalid event subject: The orchestrator name in the parsed subject (${parsedSubject.orchestrator.name}) does not match the expected source (${this.source}). Please verify the event originator's configuration.`,
@@ -205,7 +286,6 @@ export default class ArvoOrchestrator<
           }
 
           let versionToUse: ArvoSemanticVersion =
-            parseEventDataSchema(event)?.version ??
             parsedSubject.orchestrator.version;
           if (
             versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion
@@ -232,49 +312,21 @@ export default class ArvoOrchestrator<
             emittedEvent: EnqueueArvoEventActionParam,
             strict: boolean = true,
           ) => {
-            const { __extensions, data, ...eventData } = emittedEvent;
-            const eventContract:
-              | VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
-              | undefined = Object.values(machine.contracts.services).filter(
-              (item) => item.accepts.type === eventData.type,
-            )[0];
-            let verifiedData = data;
-            if (strict) {
-              if (!eventContract) {
-                throw new Error(
-                  `The emitted event (type=${emittedEvent.type}) does not correspond to a contract. If this is delibrate, the use the action 'enqueueArvoEvent' instead of the 'emit'`,
-                );
-              }
-              verifiedData = eventContract.accepts.schema.parse(verifiedData);
+            try {
+              eventQueue.push(
+                createEnqueuableEvent(
+                  machine.contracts.services,
+                  otelSpanHeaders,
+                  this,
+                  event,
+                  opentelemetry?.tracer ?? fetchOpenTelemetryTracer(),
+                  emittedEvent,
+                  strict,
+                ),
+              );
+            } catch (e) {
+              errorQueue.push(createErrorEvent(e as Error, otelSpanHeaders));
             }
-            let dataschema: string | undefined = undefined;
-            if (emittedEvent?.dataschema) {
-              dataschema = emittedEvent.dataschema;
-            } else if (eventContract?.uri && eventContract?.version) {
-              dataschema = `${eventContract.uri}/${eventContract.version}`;
-            }
-
-            const arvoEvent = createArvoEvent(
-              {
-                ...eventData,
-                data: verifiedData,
-                dataschema: dataschema,
-                traceparent: otelSpanHeaders.traceparent ?? undefined,
-                tracestate: otelSpanHeaders.tracestate ?? undefined,
-                source: this.source,
-                subject: emittedEvent.subject ?? event.subject,
-                // It must be explicitly mentioned in the execute tsdocs that the if the
-                // machine logic does not emit the 'to' field then the 'type' is used by
-                // default
-                to: eventData.to ?? eventData.type,
-                redirectto: eventData.redirectto ?? undefined,
-                executionunits: eventData.executionunits ?? this.executionunits,
-                accesscontrol:
-                  eventData.accesscontrol ?? event.accesscontrol ?? undefined,
-              },
-              __extensions,
-            );
-            eventQueue.push(arvoEvent);
           };
 
           let actor: Actor<typeof machine.logic>;
@@ -290,9 +342,11 @@ export default class ArvoOrchestrator<
             actor = createActor(machine.logic, {
               input: event.toJSON() as any,
             });
-            actor.on('*', (event: EnqueueArvoEventActionParam) =>
-              enqueueEvent(event, true),
-            );
+            actor.on('*', (event: EnqueueArvoEventActionParam) => {
+              enqueueEvent(event, true);
+            });
+            // With this the errors are not leaked anymore
+            actor.subscribe({ error: () => {} });
             actor.start();
           } else {
             const existingSnapshot = base64ToObject(
@@ -303,9 +357,11 @@ export default class ArvoOrchestrator<
               snapshot: existingSnapshot,
             } as any);
             actor.start();
-            actor.on('*', (event: EnqueueArvoEventActionParam) =>
-              enqueueEvent(event, true),
-            );
+            actor.on('*', (event: EnqueueArvoEventActionParam) => {
+              enqueueEvent(event, true);
+            });
+            // With this the errors are not leaked anymore
+            actor.subscribe({ error: () => {} });
             actor.send(event.toJSON() as any);
           }
 
@@ -341,6 +397,24 @@ export default class ArvoOrchestrator<
             XStatePersistanceSchema,
             snapshot as any,
           );
+
+          if (errorQueue.length) {
+            errorQueue.forEach((result, index) => {
+              Object.entries(result.otelAttributes).forEach(([key, value]) =>
+                span.setAttribute(`to_emit.${index}.${key}`, value),
+              );
+            });
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            return {
+              executionStatus: 'error',
+              events: errorQueue,
+              state: state,
+              snapshot: null,
+              subject: event.subject,
+              parentSubject: parentSubject,
+            };
+          }
+
           eventQueue.forEach((result, index) => {
             Object.entries(result.otelAttributes).forEach(([key, value]) =>
               span.setAttribute(`to_emit.${index}.${key}`, value),
@@ -360,20 +434,7 @@ export default class ArvoOrchestrator<
             code: SpanStatusCode.ERROR,
             message: (error as Error).message,
           });
-          const result = createArvoEventFactory(
-            this.contract.version('any'),
-          ).systemError({
-            source: this.source,
-            subject: parentSubject ?? event.subject,
-            // The system error must always go back to
-            // the source with initiated it
-            to: orchestrationInitSource,
-            error: error as Error,
-            executionunits: this.executionunits,
-            traceparent: otelSpanHeaders.traceparent ?? undefined,
-            tracestate: otelSpanHeaders.tracestate ?? undefined,
-            accesscontrol: event.accesscontrol ?? undefined,
-          });
+          const result = createErrorEvent(error as Error, otelSpanHeaders);
           Object.entries(result.otelAttributes).forEach(([key, value]) =>
             span.setAttribute(`to_emit.0.${key}`, value),
           );
