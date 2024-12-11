@@ -1,4 +1,4 @@
-import { setupArvoMachine, createArvoOrchestrator } from '../../src';
+import { setupArvoMachine, createArvoMachineRunner } from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import {
   createArvoEventFactory,
   ArvoErrorType,
 } from 'arvo-core';
+import { createArvoEventHandler } from 'arvo-event-handler';
 
 describe('ArvoXState', () => {
   beforeAll(() => {
@@ -22,7 +23,7 @@ describe('ArvoXState', () => {
 
   const testMachineContract = createArvoOrchestratorContract({
     uri: '#/test/machine',
-    type: 'test',
+    name: 'test',
     versions: {
       '0.0.1': {
         init: z.object({
@@ -103,7 +104,7 @@ describe('ArvoXState', () => {
         },
         actions: {
           notification: emit(({ context }) => ({
-            type: 'notif.number.update',
+            type: 'notif.number.update' as const,
             data: {
               delta: context.delta,
               type: context.type,
@@ -181,7 +182,7 @@ describe('ArvoXState', () => {
       },
     });
 
-    it('should create a valid machine', () => {
+    it('should create a valid machine', async () => {
       const machine = setup.createMachine({
         /** @xstate-layout N4IgpgJg5mDOIC5QGMD2BXAdgFzAJwDo8NcBiAbQAYBdRUAB1VgEttnVM6QAPRARgDMAFgICArAE4BAdgAcAJlkTZCgQDYANCACeiAQMoFpQiRPnqxfMfMrSAvna1osuQsXRlyfWkhCMWbBxcvAiCIuJScorKqpo6iPLyYgTyJhJq0nxCahJZ5g5OGDj4RCRgFPI+DEys7Jy+IWGikjIKSirmcboIsnwEaTFK2XyUygUgzsWEzJjIeGAAtmA4pGAAbtgEmOgLAEYlM3OLy5uw6MjIcLBUVX41gfWgIWKU8gRqakKUsmqJskIjMRabrqETGUwGIQyDJ8NRicaTVwEQ7zJYrWDaWAENALLY7fbTWaok4EfDEPA3Lj+WpBBqIF5vD5fH5-AGUIHxBACLIpNKJaRqWHGPgIopIiBgI5o7CrDZ4vYlCVSklnC5XSm+akPYL017vT7fX6KNkc7pJCS80zSARSAxw+SilyKyXE9GY7GoXHbBWE5U4Ul4cka6oBOo6hAM-XMo3-QHAhLfIxpD5JaSUDJieyOCZikqYVBsABmzGQAEMHhQaFT7mG6aF02p3pRYdkG1kBfGEIpDLCPgJ5Mo1MI+Fns-mJfBfIj8NXQ7SnogALRdJdqR1TUoeMCzmmPHiIITyTuJAT9UwSTJqWyCBnrpEo444HfauvCU+ZUZiXqyUbKASdgxkgGNllEEYw72dP1sGfWsFy5KEjBGCQvz4H9TFkf9OT4UwCHPZQhBaMQDBUCDCHzIsS3LWC7jnPcQlUfo1BUSgoW5BRD2PQ99Q+IjMmkMQTBI7Np0ICAOG3TUa3nfdQlhPomP43pLGQ75TQSaRpFw3t5FhAQfjET4s0KJ1CDJVA8Bg6T6PMRjmNY1DUiPTkJEMSg3PczIkiEaQJCEBwHCAA */
         id: 'counter',
@@ -281,7 +282,7 @@ describe('ArvoXState', () => {
       expect(machine.version).toBe('0.0.1');
       expect(machine.id).toBe('counter');
 
-      const orchestrator = createArvoOrchestrator({
+      const orchestrator = createArvoMachineRunner({
         contract: testMachineContract,
         executionunits: 0.1,
         machines: {
@@ -311,7 +312,7 @@ describe('ArvoXState', () => {
         event: initEvent,
         state: null,
         parentSubject: null,
-      });
+      }, {inheritFrom: "EVENT"});
       expect(output.executionStatus).toBe('success');
       expect(output.events.length).toBe(1);
       expect(output.events[0].source).toBe('arvo.orc.test');
@@ -321,24 +322,31 @@ describe('ArvoXState', () => {
         `${incrementServiceContract.uri}/0.0.1`,
       );
 
-      const nextEvent = createArvoEventFactory(
-        incrementServiceContract.version('0.0.1'),
-      ).emits({
-        type: 'evt.number.increment.success',
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          newValue: 10,
-        },
-        to: output.events[0].source,
-        traceparent: output.events[0].traceparent ?? undefined,
-        tracestate: output.events[0].tracestate ?? undefined,
-      });
+      const incrementHandler = createArvoEventHandler({
+        contract: incrementServiceContract,
+        executionunits: 0.1,
+        handler: {
+          '0.0.1': async ({event}) => {
+            return {
+              type: 'evt.number.increment.success',
+              data: {
+                newValue: event.data.delta + 9
+              }
+            }
+          }
+        }
+      })
+
+
+      const nextEvent = await incrementHandler.execute(output.events[0])
+
       output = orchestrator.execute({
-        event: nextEvent,
+        event: nextEvent[0],
         state: output.state,
         parentSubject: null,
-      });
+      }, {inheritFrom: "EVENT"});
+
+      console.log(JSON.stringify(output, null, 2))
 
       expect(output.executionStatus).toBe('success');
       expect(output.events.length).toBe(2);

@@ -55,7 +55,6 @@ export class OrchestratorEventQueue {
       parentSubject: string | null;
       sourceName: string;
       executionunits?: number;
-      otelTracer?: Tracer;
       otelSpanHeaders: OpenTelemetryHeaders;
     },
   ) {}
@@ -86,7 +85,6 @@ export class OrchestratorEventQueue {
       __extensions,
       {
         disable: false,
-        tracer: this.param.otelTracer,
       },
     );
   }

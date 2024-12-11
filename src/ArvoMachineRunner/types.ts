@@ -1,15 +1,10 @@
 import {
-  ArvoContract,
-  ArvoSemanticVersion,
   ArvoOrchestratorContract,
   ArvoEvent,
-  VersionedArvoContract,
 } from 'arvo-core';
 import ArvoMachine from '../ArvoMachine';
-import { AnyActorLogic } from 'xstate';
 import { z } from 'zod';
 import { XStatePersistanceSchema } from './schema';
-import { OpenTelemetryConfig } from 'arvo-event-handler';
 
 /**
  * Core interface for an Arvo Orchestrator, responsible for managing and coordinating
@@ -22,7 +17,7 @@ import { OpenTelemetryConfig } from 'arvo-event-handler';
  * @template TSelfContract Extends ArvoOrchestratorContract - Defines the contract
  * that this orchestrator implements, including supported versions and their specifications
  */
-export interface IArvoOrchestrator<
+export interface IArvoMachineRunner<
   TSelfContract extends ArvoOrchestratorContract,
 > {
   /** The contract defining the orchestrator's capabilities and supported versions */
@@ -44,31 +39,15 @@ export interface IArvoOrchestrator<
    * The type mapping ensures that each machine version correctly implements
    * its corresponding contract version, maintaining type safety across versions.
    */
-  machines: {
-    [V in keyof TSelfContract['versions'] & ArvoSemanticVersion]: ArvoMachine<
-      string,
-      V,
-      VersionedArvoContract<TSelfContract, V>,
-      Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
-      AnyActorLogic
-    >;
-  };
+  machines: Record<keyof TSelfContract['versions'], ArvoMachine<any, any, any, any, any>>;
 }
 
 /**
  * Input parameters for executing an Arvo Orchestrator.
- *
- * @remarks
- * This type defines all necessary information needed to start or continue
- * an orchestration execution cycle. It supports both new orchestrations
- * and continuation of existing ones through state management.
  */
-export type ArvoOrchestratorExecuteInput = {
+export type ArvoMachineRunnerExecuteInput = {
   /**
    * The triggering event for this execution cycle.
-   *
-   * Contains the payload and metadata needed to drive the orchestration process.
-   * The event's type and data should match the orchestrator's contract specifications.
    */
   event: ArvoEvent;
 
@@ -106,16 +85,6 @@ export type ArvoOrchestratorExecuteInput = {
    * ```
    */
   parentSubject: string | null;
-
-  /**
-   * Optional OpenTelemetry configuration for observability.
-   *
-   * @remarks
-   * Enables distributed tracing, metrics collection, and logging across
-   * the orchestration process. Useful for monitoring performance,
-   * debugging, and understanding system behavior.
-   */
-  opentelemetry?: OpenTelemetryConfig;
 };
 
 /**
@@ -125,7 +94,7 @@ export type ArvoOrchestratorExecuteInput = {
  * Encapsulates all results and side effects of an orchestration execution,
  * including state changes, emitted events, and execution status.
  */
-export type ArvoOrchestratorExecuteOutput = {
+export type ArvoMachineRunnerExecuteOutput = {
   /**
    * Unique identifier for this orchestration execution.
    *

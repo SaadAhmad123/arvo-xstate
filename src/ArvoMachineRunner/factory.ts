@@ -1,6 +1,6 @@
-import { IArvoOrchestrator } from './types';
+import { IArvoMachineRunner } from './types';
 import { ArvoOrchestratorContract } from 'arvo-core';
-import ArvoOrchestrator from '.';
+import ArvoMachineRunner from '.';
 
 /**
  * Creates and returns a new ArvoOrchestrator instance.
@@ -22,10 +22,10 @@ import ArvoOrchestrator from '.';
  *
  * @see {@link ArvoOrchestrator} for more details on the orchestrator's functionality and usage.
  */
-export const createArvoOrchestrator = <
+export const createArvoMachineRunner = <
   TSelfContract extends ArvoOrchestratorContract,
 >(
-  param: IArvoOrchestrator<TSelfContract>,
+  param: IArvoMachineRunner<TSelfContract>,
 ) => {
-  return new ArvoOrchestrator<TSelfContract>(param);
+  return new ArvoMachineRunner<TSelfContract>(param);
 };

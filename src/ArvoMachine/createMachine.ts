@@ -130,7 +130,6 @@ import ArvoMachine from '.';
  *   }
  * }).createMachine({
  *   id: machineId,
- *   version: '1.0.0',
  *   context: ({input}) => ({
  *     request: input.request,
  *     llm: input.llm,
@@ -195,14 +194,8 @@ import ArvoMachine from '.';
  */
 export function setupArvoMachine<
   TContext extends MachineContext,
-  TSelfContract extends VersionedArvoContract<
-    ArvoOrchestratorContract,
-    ArvoSemanticVersion
-  >,
-  TServiceContracts extends Record<
-    string,
-    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
-  >,
+  TSelfContract extends VersionedArvoContract<any, any>,
+  TServiceContracts extends Record<string, VersionedArvoContract<any, any>>,
   TActions extends Record<
     string,
     ParameterizedObject['params'] | undefined

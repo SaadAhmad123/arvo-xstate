@@ -1,30 +1,33 @@
 import { z } from 'zod';
 import {
-  ArvoOrchestratorExecuteInput,
-  ArvoOrchestratorExecuteOutput,
-  IArvoOrchestrator,
+  ArvoMachineRunnerExecuteInput,
+  ArvoMachineRunnerExecuteOutput,
+  IArvoMachineRunner,
 } from './types';
 import {
   ArvoContract,
   ArvoContractRecord,
+  ArvoExecution,
   ArvoExecutionSpanKind,
+  ArvoOpenTelemetry,
   ArvoOrchestrationSubject,
   ArvoOrchestratorContract,
   ArvoSemanticVersion,
   currentOpenTelemetryHeaders,
+  EventDataschemaUtil,
   logToSpan,
+  OpenInference,
   OpenInferenceSpanKind,
   VersionedArvoContract,
 } from 'arvo-core';
 import { Actor, AnyActorLogic, createActor, Snapshot } from 'xstate';
 import ArvoMachine from '../ArvoMachine';
-import { createOtelSpan } from 'arvo-event-handler';
-import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import { base64ToObject, findLatestVersion, objectToBase64 } from './utils';
+import { context, SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
-import { fetchOpenTelemetryTracer } from '../OpenTelemetry';
 import { OrchestratorEventQueue } from './OrchestratorEventQueue';
+import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
 
 /**
  * ArvoOrchestrator manages versioned workflow execution in distributed environments.
@@ -54,7 +57,7 @@ import { OrchestratorEventQueue } from './OrchestratorEventQueue';
  * });
  * ```
  */
-export default class ArvoOrchestrator<
+export default class ArvoMachineRunner<
   TSelfContract extends ArvoOrchestratorContract,
 > {
   /** Contract defining the orchestrator's capabilities and supported versions */
@@ -67,8 +70,7 @@ export default class ArvoOrchestrator<
   public readonly source: TSelfContract['type'];
 
   /**
-   * Resource limit for execution cycles
-   * Prevents infinite loops and ensures resource constraints are respected
+   * The cost of the execution of the runner
    */
   public readonly executionunits: number;
 
@@ -80,13 +82,15 @@ export default class ArvoOrchestrator<
     [V in keyof TSelfContract['versions'] & ArvoSemanticVersion]: ArvoMachine<
       string,
       V,
-      VersionedArvoContract<TSelfContract, V>,
+      TSelfContract extends ArvoOrchestratorContract
+        ? VersionedArvoContract<TSelfContract, V>
+        : never,
       Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
       AnyActorLogic
     >;
   };
 
-  constructor(param: IArvoOrchestrator<TSelfContract>) {
+  constructor(param: IArvoMachineRunner<TSelfContract>) {
     this.contract = param.contract;
     this.source = this.contract.type;
     this.machines = param.machines;
@@ -117,7 +121,7 @@ export default class ArvoOrchestrator<
    * @param input.parentSubject - Parent orchestration ID (null for root orchestration)
    * @param input.opentelemetry - OpenTelemetry configuration (defaults to environment)
    *
-   * @returns {ArvoOrchestratorExecuteOutput} Execution results
+   * @returns {ArvoMachineRunnerExecuteOutput} Execution results
    * @throws {Error} For invalid events, versions, or contract violations
    *
    * ## Execution process:
@@ -131,29 +135,36 @@ export default class ArvoOrchestrator<
    * 8. Persists the final state of the actor after processing.
    * 9. Returns the execution results, including new state, emitted events, and subject information.
    */
-  public execute({
-    event,
-    state,
-    parentSubject,
-    opentelemetry,
-  }: ArvoOrchestratorExecuteInput): ArvoOrchestratorExecuteOutput {
-    const span = createOtelSpan({
-      spanName: `ArvoOrchestrator<${this.contract.uri}>.execute<${event.type}>`,
-      spanKinds: {
-        kind: SpanKind.INTERNAL,
-        openInference: OpenInferenceSpanKind.CHAIN,
-        arvoExecution: ArvoExecutionSpanKind.COMMANDER,
+  public execute(
+    { event, state, parentSubject }: ArvoMachineRunnerExecuteInput,
+    opentelemetry: Pick<ArvoEventHandlerOpenTelemetryOptions, 'inheritFrom'>,
+  ): ArvoMachineRunnerExecuteOutput {
+    return ArvoOpenTelemetry.getInstance().startActiveSpan({
+      name: 'ArvoMachineRunner',
+      spanOptions: {
+        kind: SpanKind.PRODUCER,
+        attributes: {
+          [ArvoExecution.ATTR_SPAN_KIND]: ArvoExecutionSpanKind.ORCHESTRATOR,
+          [OpenInference.ATTR_SPAN_KIND]: OpenInferenceSpanKind.CHAIN,
+          'arvo.contract.uri': this.contract.uri,
+          'arvo.handler.source': this.source,
+        },
       },
-      event: event,
-      opentelemetryConfig: opentelemetry ?? {
-        inheritFrom: 'event',
-        tracer: fetchOpenTelemetryTracer(),
-      },
-    });
-
-    return context.with(
-      trace.setSpan(context.active(), span),
-      (): ArvoOrchestratorExecuteOutput => {
+      disableSpanManagement: true,
+      context:
+        opentelemetry.inheritFrom === 'EVENT'
+          ? {
+              inheritFrom: 'TRACE_HEADERS' as const,
+              traceHeaders: {
+                traceparent: event.traceparent,
+                tracestate: event.tracestate,
+              },
+            }
+          : {
+              inheritFrom: 'CONTEXT' as const,
+              context: context.active(),
+            },
+      fn: (span): ArvoMachineRunnerExecuteOutput => {
         Object.entries(event.otelAttributes).forEach(([key, value]) =>
           span.setAttribute(`to_process.0.${key}`, value),
         );
@@ -164,7 +175,6 @@ export default class ArvoOrchestrator<
           parentSubject: parentSubject,
           sourceName: this.source,
           executionunits: this.executionunits,
-          otelTracer: opentelemetry?.tracer ?? fetchOpenTelemetryTracer(),
           otelSpanHeaders: currentOpenTelemetryHeaders(),
         });
 
@@ -174,7 +184,7 @@ export default class ArvoOrchestrator<
         try {
           logToSpan({
             level: 'INFO',
-            message: 'Starting orchestration',
+            message: 'Starting machine runner',
             eventType: event.type,
             eventSource: event.source,
           });
@@ -197,18 +207,10 @@ export default class ArvoOrchestrator<
           // Select the machine version required to use based on the parsed subject
           let versionToUse: ArvoSemanticVersion =
             parsedSubject.orchestrator.version;
-          const isWildCardVersion = versionToUse === ArvoOrchestrationSubject.WildCardMachineVersion
-          if (isWildCardVersion) {
-            versionToUse = findLatestVersion(
-              Object.values(this.machines).map((item) => item.version),
-            );
-          }
 
           logToSpan({
             level: 'INFO',
-            message: 'Selected machine version',
-            version: versionToUse,
-            isWildCardVersionProvided: `${isWildCardVersion}`
+            message: `Using machine version ${versionToUse}`,
           });
 
           // Select the machine
@@ -224,12 +226,27 @@ export default class ArvoOrchestrator<
           if (!state) {
             logToSpan({
               level: 'INFO',
-              message: 'Initializing new orchestration'
+              message: 'Initializing new orchestration',
             });
             if (event.type !== this.source) {
               throw new Error(
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
+            }
+            const parsedEventDataSchema = EventDataschemaUtil.parse(event);
+            if (parsedEventDataSchema) {
+              const { uri, version } = parsedEventDataSchema;
+              if (uri !== this.contract.uri) {
+                throw new Error(`The event data schema expects contract (=${uri}) but the machine adhers to contract (=${this.contract.uri}`)
+              }
+              if (version !== versionToUse) {
+                throw new Error(`The version requested by the event subject (=${versionToUse}) is different from the dataschema version (=${version}). Both must be the same`)
+              }
+            } else  {
+              logToSpan({
+                level: "WARNING",
+                message: `Unable to parse event data schema (=${event.dataschema}). Defaulting to ${this.contract.uri}/${versionToUse}`
+              })
             }
             this.contract
               .version(versionToUse)
@@ -246,7 +263,7 @@ export default class ArvoOrchestrator<
           } else {
             logToSpan({
               level: 'INFO',
-              message: 'Using existing state'
+              message: 'Using existing state',
             });
             const existingSnapshot = base64ToObject(
               XStatePersistanceSchema,
@@ -339,7 +356,7 @@ export default class ArvoOrchestrator<
           parentSubject: parentSubject,
         };
       },
-    );
+    });
   }
 
   /**
@@ -349,6 +366,6 @@ export default class ArvoOrchestrator<
    * @returns The ArvoContractRecord for system errors
    */
   public get systemErrorSchema(): ArvoContractRecord {
-    return this.contract.version('any').systemError;
+    return this.contract.version('latest').systemError;
   }
 }

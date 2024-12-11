@@ -4,27 +4,25 @@ import {
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
 } from './ArvoMachine/types';
-import ArvoOrchestrator from './ArvoOrchestrator';
-import { createArvoOrchestrator } from './ArvoOrchestrator/factory';
-import { XStatePersistanceSchema } from './ArvoOrchestrator/schema';
+import ArvoMachineRunner from './ArvoMachineRunner';
+import { createArvoMachineRunner } from './ArvoMachineRunner/factory';
+import { XStatePersistanceSchema } from './ArvoMachineRunner/schema';
 import {
-  ArvoOrchestratorExecuteInput,
-  ArvoOrchestratorExecuteOutput,
-} from './ArvoOrchestrator/types';
-import { base64ToObject, objectToBase64 } from './ArvoOrchestrator/utils';
-import { createOrchestratorInitEvent } from './utils/createOrchestratorInitEvent';
+  ArvoMachineRunnerExecuteInput,
+  ArvoMachineRunnerExecuteOutput,
+} from './ArvoMachineRunner/types';
+import { base64ToObject, objectToBase64 } from './ArvoMachineRunner/utils';
 
 export {
   ArvoMachine,
   setupArvoMachine,
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
-  ArvoOrchestrator,
-  ArvoOrchestratorExecuteInput,
-  ArvoOrchestratorExecuteOutput,
-  createArvoOrchestrator,
+  ArvoMachineRunner,
+  ArvoMachineRunnerExecuteInput,
+  ArvoMachineRunnerExecuteOutput,
+  createArvoMachineRunner,
   XStatePersistanceSchema,
   objectToBase64,
   base64ToObject,
-  createOrchestratorInitEvent,
 };
