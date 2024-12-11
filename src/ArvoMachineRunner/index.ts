@@ -26,7 +26,7 @@ import { context, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { base64ToObject, objectToBase64 } from './utils';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { XStatePersistanceSchema } from './schema';
-import { OrchestratorEventQueue } from './OrchestratorEventQueue';
+import { InternalEventStore } from './InternalEventStore';
 import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
 
 /**
@@ -169,7 +169,7 @@ export default class ArvoMachineRunner<
           span.setAttribute(`to_process.0.${key}`, value),
         );
 
-        const eventQueue = new OrchestratorEventQueue({
+        const eventQueue = new InternalEventStore({
           machines: this.machines,
           sourceEvent: event,
           parentSubject: parentSubject,
@@ -233,6 +233,7 @@ export default class ArvoMachineRunner<
                 `Invalid initialization event: Expected event type '${this.source}' for a new orchestration, but received '${event.type}'. Please provide the correct event type to initiate the orchestration.`,
               );
             }
+
             const parsedEventDataSchema = EventDataschemaUtil.parse(event);
             if (parsedEventDataSchema) {
               const { uri, version } = parsedEventDataSchema;
@@ -248,6 +249,7 @@ export default class ArvoMachineRunner<
                 message: `Unable to parse event data schema (=${event.dataschema}). Defaulting to ${this.contract.uri}/${versionToUse}`
               })
             }
+
             this.contract
               .version(versionToUse)
               .accepts.schema.parse(event.data);

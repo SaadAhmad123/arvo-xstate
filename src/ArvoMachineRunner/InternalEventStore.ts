@@ -21,7 +21,7 @@ import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
  * Manages a queue of Arvo events and error events for an orchestrator.
  * Handles event creation, validation, and error handling with contract enforcement.
  */
-export class OrchestratorEventQueue {
+export class InternalEventStore {
   private readonly _events: ArvoEvent[] = [];
 
   /** Get all queued events */
