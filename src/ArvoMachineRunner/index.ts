@@ -223,6 +223,12 @@ export default class ArvoMachineRunner<
 
           // Actor creation and process with or without the state
           let actor: Actor<typeof machine.logic>;
+          const errorSubscriber = (error: unknown) => { 
+            logToSpan({
+              level: "ERROR",
+              message: (error as Error)?.message
+            })
+          }
           if (!state) {
             logToSpan({
               level: 'INFO',
@@ -260,7 +266,7 @@ export default class ArvoMachineRunner<
               eventQueue.appendEvent(versionToUse, event, true),
             );
             // With this the errors are not leaked anymore
-            actor.subscribe({ error: () => {} });
+            actor.subscribe({ error: errorSubscriber });
             actor.start();
           } else {
             logToSpan({
@@ -279,7 +285,7 @@ export default class ArvoMachineRunner<
               eventQueue.appendEvent(versionToUse, event, true),
             );
             // With this the errors are not leaked anymore
-            actor.subscribe({ error: () => {} });
+            actor.subscribe({ error: errorSubscriber });
             actor.send(event.toJSON() as any);
           }
 
