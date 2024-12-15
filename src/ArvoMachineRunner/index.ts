@@ -223,12 +223,12 @@ export default class ArvoMachineRunner<
 
           // Actor creation and process with or without the state
           let actor: Actor<typeof machine.logic>;
-          const errorSubscriber = (error: unknown) => { 
+          const errorSubscriber = (error: unknown) => {
             logToSpan({
-              level: "ERROR",
-              message: (error as Error)?.message
-            })
-          }
+              level: 'ERROR',
+              message: (error as Error)?.message,
+            });
+          };
           if (!state) {
             logToSpan({
               level: 'INFO',
@@ -244,16 +244,20 @@ export default class ArvoMachineRunner<
             if (parsedEventDataSchema) {
               const { uri, version } = parsedEventDataSchema;
               if (uri !== this.contract.uri) {
-                throw new Error(`The event data schema expects contract (=${uri}) but the machine adhers to contract (=${this.contract.uri}`)
+                throw new Error(
+                  `The event data schema expects contract (=${uri}) but the machine adhers to contract (=${this.contract.uri}`,
+                );
               }
               if (version !== versionToUse) {
-                throw new Error(`The version requested by the event subject (=${versionToUse}) is different from the dataschema version (=${version}). Both must be the same`)
+                throw new Error(
+                  `The version requested by the event subject (=${versionToUse}) is different from the dataschema version (=${version}). Both must be the same`,
+                );
               }
-            } else  {
+            } else {
               logToSpan({
-                level: "WARNING",
-                message: `Unable to parse event data schema (=${event.dataschema}). Defaulting to ${this.contract.uri}/${versionToUse}`
-              })
+                level: 'WARNING',
+                message: `Unable to parse event data schema (=${event.dataschema}). Defaulting to ${this.contract.uri}/${versionToUse}`,
+              });
             }
 
             this.contract

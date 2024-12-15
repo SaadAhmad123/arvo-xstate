@@ -1,7 +1,4 @@
-import {
-  ArvoOrchestratorContract,
-  ArvoEvent,
-} from 'arvo-core';
+import { ArvoOrchestratorContract, ArvoEvent } from 'arvo-core';
 import ArvoMachine from '../ArvoMachine';
 import { z } from 'zod';
 import { XStatePersistanceSchema } from './schema';
@@ -39,7 +36,10 @@ export interface IArvoMachineRunner<
    * The type mapping ensures that each machine version correctly implements
    * its corresponding contract version, maintaining type safety across versions.
    */
-  machines: Record<keyof TSelfContract['versions'], ArvoMachine<any, any, any, any, any>>;
+  machines: Record<
+    keyof TSelfContract['versions'],
+    ArvoMachine<any, any, any, any, any>
+  >;
 }
 
 /**

@@ -17,12 +17,9 @@ import {
   ExtractOrchestratorType,
 } from './types';
 import {
-  ArvoContract,
-  ArvoOrchestratorContract,
   cleanString,
   VersionedArvoContract,
   InferVersionedArvoContract,
-  ArvoSemanticVersion,
   ArvoOrchestratorEventTypeGen,
 } from 'arvo-core';
 import { getAllPaths } from '../utils/object';
@@ -258,14 +255,14 @@ export function setupArvoMachine<
 }) {
   const createConfigErrorMessage = (type: 'actor' | 'delays') => {
     return cleanString(`
-          Error: Unsupported '${type}' parameter
-          
-          The Arvo event-driven system does not support XState actor invocations.
-          
-          Suggestion: Remove the '${type}' parameter from your setup configuration.
-          If you need to perform asynchronous operations, consider using Arvo's
-          event-driven approach instead.  
-        `);
+      Configuration Error: '${type}' not supported in Arvo machines
+      
+      Arvo machines do not support XState ${type === 'actor' ? 'actors' : 'delay transitions'} as they introduce asynchronous behavior.
+      
+      To fix:
+      1. Remove the '${type}' configuration
+      2. Use Arvo's event-driven patterns instead for asynchronous operations
+    `);
   };
 
   if ((param as any).actors) {
@@ -279,15 +276,15 @@ export function setupArvoMachine<
   if (param.actions?.enqueueArvoEvent) {
     throw new Error(
       cleanString(`
-            Error: Reserved action name 'enqueueArvoEvent'
-            
-            The action name 'enqueueArvoEvent' is reserved for internal use in the Arvo system.
-            
-            Suggestion: Choose a different name for your action. For example:
-            - 'sendCustomEvent'
-            - 'triggerArvoAction'
-            - 'dispatchArvoEvent'
-          `),
+        Configuration Error: Reserved action name 'enqueueArvoEvent'
+        
+        'enqueueArvoEvent' is an internal Arvo system action and cannot be overridden.
+        
+        To fix: Use a different name for your action, such as:
+        - 'queueCustomEvent'
+        - 'scheduleEvent'
+        - 'dispatchEvent'
+      `),
     );
   }
 
@@ -386,45 +383,54 @@ export function setupArvoMachine<
       version?: TSelfContract['version'];
     },
   ) => {
+    const machineVersion: TSelfContract['version'] =
+      config.version ?? param.contracts.self.version;
+
+    if (machineVersion !== param.contracts.self.version) {
+      throw new Error(
+        `Version mismatch: Machine version must be '${param.contracts.self.version}' or undefined, received '${config.version}'`,
+      );
+    }
+
     const createConfigErrorMessage = (
       type: 'invoke' | 'after' | 'enqueueArvoEvent',
       path: string[],
     ) => {
-      const location = (emphasisString: string) => path.join(' > ');
+      const location = path.join(' > ');
+
       if (type === 'invoke') {
         return cleanString(`
-              Error: Unsupported 'invoke' configuration
-              
-              Location: ${location('invoke')}
-              
-              The Arvo XState variant does not allow asynchronous invocation of functions or actors.
-              
-              Suggestion: Remove the 'invoke' configuration and use Arvo's event-driven
-              approach for handling asynchronous operations. Consider using actions to
-              emit events that trigger the desired behavior.
-            `);
+          Configuration Error: 'invoke' not supported
+          
+          Location: ${location}
+          
+          Arvo machines do not support XState invocations as they introduce asynchronous behavior.
+          
+          To fix: Replace 'invoke' with Arvo event-driven patterns for asynchronous operations
+        `);
       }
+
       if (type === 'after') {
         return cleanString(`
-              Error: Unsupported 'after' configuration
-              
-              Location: ${location('after')}
-              
-              The Arvo XState variant does not support delayed transitions, which cause
-              asynchronous machine interpretation.
-              
-              Suggestion: Remove the 'after' configuration and use Arvo's event-driven
-              approach for time-based behavior. Consider using a different timed events 
-              strategy for delayed actions.
-            `);
+          Configuration Error: 'after' not supported
+          
+          Location: ${location}
+          
+          Arvo machines do not support delayed transitions as they introduce asynchronous behavior.
+          
+          To fix: Replace 'after' with Arvo event-driven patterns for time-based operations
+        `);
       }
+
       if (type === 'enqueueArvoEvent') {
         return cleanString(`
-          Error: Unsupported 'enqueueArvoEvent' configuration
-
-          Location: ${location('enqueueArvoEvent')}
-
-          The action name 'enqueueArvoEvent' is reserved for internal use in the Arvo system.
+          Configuration Error: Reserved action name 'enqueueArvoEvent'
+          
+          Location: ${location}
+          
+          'enqueueArvoEvent' is an internal Arvo system action and cannot be used in machine configurations.
+          
+          To fix: Use a different name for your action
         `);
       }
     };
@@ -448,16 +454,11 @@ export function setupArvoMachine<
     });
     return new ArvoMachine<
       string,
-      TSelfContract['version'],
+      typeof machineVersion,
       TSelfContract,
       TServiceContracts,
       typeof machine
-    >(
-      config.id,
-      config.version ?? param.contracts.self.version,
-      param.contracts,
-      machine,
-    );
+    >(config.id, machineVersion, param.contracts, machine);
   };
   return { createMachine };
 }

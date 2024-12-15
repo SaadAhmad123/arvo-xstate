@@ -12,6 +12,12 @@ import {
   ArvoMachineRunnerExecuteOutput,
 } from './ArvoMachineRunner/types';
 import { base64ToObject, objectToBase64 } from './ArvoMachineRunner/utils';
+import { executeMachine } from './ExecuteMachine';
+import {
+  ExecuteMachineInput,
+  ExecuteMachineOutput,
+} from './ExecuteMachine/types';
+import { MachineRegistry } from './MachineRegistry';
 
 export {
   ArvoMachine,
@@ -25,4 +31,8 @@ export {
   XStatePersistanceSchema,
   objectToBase64,
   base64ToObject,
+  MachineRegistry,
+  executeMachine,
+  ExecuteMachineInput,
+  ExecuteMachineOutput,
 };

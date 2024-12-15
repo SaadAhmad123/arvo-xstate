@@ -9,6 +9,10 @@ import {
   ArvoOrchestrationSubject,
   createArvoEventFactory,
   ArvoErrorType,
+  createArvoOrchestratorEventFactory,
+  cleanString,
+  createArvoEvent,
+  EventDataschemaUtil,
 } from 'arvo-core';
 import { createArvoEventHandler } from 'arvo-event-handler';
 
@@ -42,6 +46,16 @@ describe('ArvoXState', () => {
     type: 'com.number.increment',
     versions: {
       '0.0.1': {
+        accepts: z.object({
+          delta: z.number(),
+        }),
+        emits: {
+          'evt.number.increment.success': z.object({
+            newValue: z.number(),
+          }),
+        },
+      },
+      '0.0.2': {
         accepts: z.object({
           delta: z.number(),
         }),
@@ -126,7 +140,15 @@ describe('ArvoXState', () => {
           // @ts-ignore
           actors: {},
         });
-      }).toThrow(/Unsupported 'actor' parameter/);
+      }).toThrow(
+        cleanString(`
+        Configuration Error: 'actor' not supported in Arvo machines
+        Arvo machines do not support XState actors as they introduce asynchronous behavior.
+        To fix:
+        1. Remove the 'actor' configuration
+        2. Use Arvo's event-driven patterns instead for asynchronous operations  
+      `),
+      );
     });
 
     it('should throw an error when using "delays" parameter', () => {
@@ -135,7 +157,15 @@ describe('ArvoXState', () => {
           // @ts-ignore
           delays: {},
         });
-      }).toThrow(/Unsupported 'delays' parameter/);
+      }).toThrow(
+        cleanString(`
+        Configuration Error: 'delays' not supported in Arvo machines
+        Arvo machines do not support XState delay transitions as they introduce asynchronous behavior.
+        To fix:
+        1. Remove the 'delays' configuration
+        2. Use Arvo's event-driven patterns instead for asynchronous operations 
+      `),
+      );
     });
 
     it('should throw an error when using reserved action name "enqueueArvoEvent"', () => {
@@ -180,6 +210,16 @@ describe('ArvoXState', () => {
         isIncrement: ({ context }) => context.type === 'increment',
         isDecrement: ({ context }) => context.type === 'decrement',
       },
+    });
+
+    it('should throw error on version mismatch', () => {
+      expect(() =>
+        setup.createMachine({
+          version: '0.0.3',
+        } as any),
+      ).toThrow(
+        "Version mismatch: Machine version must be '0.0.1' or undefined, received '0.0.3'",
+      );
     });
 
     it('should create a valid machine', async () => {
@@ -278,6 +318,7 @@ describe('ArvoXState', () => {
         },
       });
 
+      expect(machine.source).toBe('arvo.orc.test');
       expect(machine.logic).toBeDefined();
       expect(machine.version).toBe('0.0.1');
       expect(machine.id).toBe('counter');
@@ -308,11 +349,14 @@ describe('ArvoXState', () => {
         },
       });
 
-      let output = orchestrator.execute({
-        event: initEvent,
-        state: null,
-        parentSubject: null,
-      }, {inheritFrom: "EVENT"});
+      let output = orchestrator.execute(
+        {
+          event: initEvent,
+          state: null,
+          parentSubject: null,
+        },
+        { inheritFrom: 'EVENT' },
+      );
       expect(output.executionStatus).toBe('success');
       expect(output.events.length).toBe(1);
       expect(output.events[0].source).toBe('arvo.orc.test');
@@ -326,27 +370,37 @@ describe('ArvoXState', () => {
         contract: incrementServiceContract,
         executionunits: 0.1,
         handler: {
-          '0.0.1': async ({event}) => {
+          '0.0.1': async ({ event }) => {
             return {
               type: 'evt.number.increment.success',
               data: {
-                newValue: event.data.delta + 9
-              }
-            }
-          }
-        }
-      })
+                newValue: event.data.delta + 9,
+              },
+            };
+          },
+          '0.0.2': async ({ event }) => {
+            return {
+              type: 'evt.number.increment.success',
+              data: {
+                newValue: event.data.delta + 9,
+              },
+            };
+          },
+        },
+      });
 
+      const nextEvent = await incrementHandler.execute(output.events[0]);
 
-      const nextEvent = await incrementHandler.execute(output.events[0])
+      output = orchestrator.execute(
+        {
+          event: nextEvent[0],
+          state: output.state,
+          parentSubject: null,
+        },
+        { inheritFrom: 'EVENT' },
+      );
 
-      output = orchestrator.execute({
-        event: nextEvent[0],
-        state: output.state,
-        parentSubject: null,
-      }, {inheritFrom: "EVENT"});
-
-      console.log(JSON.stringify(output, null, 2))
+      console.log(JSON.stringify(output, null, 2));
 
       expect(output.executionStatus).toBe('success');
       expect(output.events.length).toBe(2);
@@ -362,6 +416,167 @@ describe('ArvoXState', () => {
       expect(output.events[1].dataschema).toBe(
         `${testMachineContract.uri}/0.0.1`,
       );
+    });
+
+    it('should validate events input to the machine', () => {
+      const machine = setup.createMachine({
+        id: 'counter',
+        context: ({ input }) => ({
+          ...input.data,
+          errors: [] as ArvoErrorType[],
+        }),
+        initial: 'route',
+        states: {
+          route: { type: 'final' },
+        },
+      });
+
+      // TODO: test valid init event
+      let validationResult = machine.validateInput(
+        createArvoOrchestratorEventFactory(
+          testMachineContract.version('0.0.1'),
+        ).init({
+          source: 'com.test.test',
+          data: {
+            parentSubject$$: null,
+            delta: 1,
+            type: 'decrement',
+          },
+        }),
+      );
+      expect(validationResult.type).toBe('VALID');
+
+      // TODO: test invalid init event
+      validationResult = machine.validateInput(
+        createArvoEvent({
+          type: testMachineContract.version('0.0.1').accepts.type,
+          source: 'test',
+          subject: 'test',
+          data: {
+            parentSubject$$: null,
+            delta: 1,
+            type: 'test' as any,
+          },
+          dataschema: EventDataschemaUtil.create(
+            testMachineContract.version('0.0.1'),
+          ),
+        }),
+      );
+      expect(validationResult.type).toBe('INVALID_DATA');
+      if (validationResult.type === 'INVALID_DATA') {
+        expect(validationResult.error.errors[0].message).toBe(
+          "Invalid enum value. Expected 'increment' | 'decrement', received 'test'",
+        );
+      }
+
+      validationResult = machine.validateInput(
+        createArvoEvent({
+          type: testMachineContract.version('0.0.1').accepts.type,
+          source: 'test',
+          subject: 'test',
+          data: {
+            parentSubject$$: null,
+            delta: 1,
+            type: 'increment',
+          },
+        }),
+      );
+      expect(validationResult.type).toBe('VALID');
+
+      validationResult = machine.validateInput(
+        createArvoEvent({
+          type: testMachineContract.version('0.0.1').accepts.type,
+          source: 'test',
+          subject: 'test',
+          data: {
+            parentSubject$$: null,
+            delta: 1,
+            type: 'increment',
+          },
+          dataschema: `${testMachineContract.uri}/0.0.2`,
+        }),
+      );
+      expect(validationResult.type).toBe('INVALID');
+      if (validationResult.type === 'INVALID') {
+        expect(validationResult.error.message).toBe(
+          "Contract version mismatch: self Contract(version='0.0.1', type='arvo.orc.test') does not match Event(dataschema='#/test/machine/0.0.2', type='arvo.orc.test')",
+        );
+      }
+
+      validationResult = machine.validateInput(
+        createArvoEvent({
+          type: testMachineContract.version('0.0.1').accepts.type,
+          source: 'test',
+          subject: 'test',
+          data: {
+            parentSubject$$: null,
+            delta: 1,
+            type: 'increment',
+          },
+          dataschema: `${testMachineContract.uri}/invalid/0.0.1`,
+        }),
+      );
+      expect(validationResult.type).toBe('INVALID');
+      if (validationResult.type === 'INVALID') {
+        expect(validationResult.error.message).toBe(
+          "Contract URI mismatch: self Contract(uri='#/test/machine', type='arvo.orc.test') does not match Event(dataschema='#/test/machine/invalid/0.0.1', type='arvo.orc.test')",
+        );
+      }
+
+      validationResult = machine.validateInput(
+        createArvoEvent({
+          type: 'com.test.test',
+          subject: 'test',
+          source: 'test',
+          data: {},
+        }),
+      );
+      expect(validationResult.type).toBe('CONTRACT_UNRESOLVED');
+
+      validationResult = machine.validateInput(
+        createArvoEvent({
+          type: 'com.test.test',
+          subject: 'test',
+          source: 'test',
+          data: {},
+          dataschema: 'saad',
+        }),
+      );
+      expect(validationResult.type).toBe('CONTRACT_UNRESOLVED');
+
+      // TODO: test valid increment success event
+      validationResult = machine.validateInput(
+        createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits(
+          {
+            type: 'evt.number.increment.success',
+            source: 'test',
+            subject: 'test',
+            data: {
+              newValue: 1,
+            },
+          },
+        ),
+      );
+      expect(validationResult.type).toBe('VALID');
+
+      validationResult = machine.validateInput(
+        createArvoEventFactory(incrementServiceContract.version('0.0.2')).emits(
+          {
+            type: 'evt.number.increment.success',
+            source: 'test',
+            subject: 'test',
+            data: {
+              newValue: 1,
+            },
+          },
+        ),
+      );
+      expect(validationResult.type).toBe('INVALID');
+      if (validationResult.type === 'INVALID') {
+        expect(validationResult.error.message).toBe(
+          "Contract version mismatch: service Contract(version='0.0.1', type='com.number.increment') does not match Event(dataschema='#/test/service/increment/0.0.2', type='evt.number.increment.success')",
+        );
+      }
     });
 
     it('should throw an error when using "invoke" in machine config', () => {
@@ -386,7 +601,14 @@ describe('ArvoXState', () => {
             success: {},
           },
         });
-      }).toThrow(/Unsupported 'invoke' configuration/);
+      }).toThrow(
+        cleanString(`
+        Configuration Error: 'invoke' not supported
+        Location: idle > invoke > onDone
+        Arvo machines do not support XState invocations as they introduce asynchronous behavior.
+        To fix: Replace 'invoke' with Arvo event-driven patterns for asynchronous operations  
+      `),
+      );
     });
 
     it('should throw an error when using "after" in machine config', () => {
@@ -410,7 +632,14 @@ describe('ArvoXState', () => {
             timeout: {},
           },
         });
-      }).toThrow(/Unsupported 'after' configuration/);
+      }).toThrow(
+        cleanString(`
+        Configuration Error: 'after' not supported
+        Location: idle > after > 1000
+        Arvo machines do not support delayed transitions as they introduce asynchronous behavior.
+        To fix: Replace 'after' with Arvo event-driven patterns for time-based operations  
+      `),
+      );
     });
 
     it('should throw an error when using "enqueueArvoEvent" in machine config', () => {
@@ -433,7 +662,14 @@ describe('ArvoXState', () => {
             timeout: {},
           },
         });
-      }).toThrow(/Unsupported 'enqueueArvoEvent' configuration/);
+      }).toThrow(
+        cleanString(`
+        Configuration Error: Reserved action name 'enqueueArvoEvent'
+        Location: enqueueArvoEvent > on > * > target
+        'enqueueArvoEvent' is an internal Arvo system action and cannot be used in machine configurations.
+        To fix: Use a different name for your action  
+      `),
+      );
     });
   });
 });
