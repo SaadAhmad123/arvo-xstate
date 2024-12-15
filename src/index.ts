@@ -18,6 +18,10 @@ import {
   ExecuteMachineOutput,
 } from './ExecuteMachine/types';
 import { MachineRegistry } from './MachineRegistry';
+import { IMachineMemory } from './MachineMemory/interface';
+import { MachineMemoryRecord, IArvoOrchestrator } from './ArvoOrchestrator/types';
+import { ArvoOrchestratorError } from './ArvoOrchestrator/error';
+import { ArvoOrchestrator } from './ArvoOrchestrator';
 
 export {
   ArvoMachine,
@@ -35,4 +39,9 @@ export {
   executeMachine,
   ExecuteMachineInput,
   ExecuteMachineOutput,
+  IMachineMemory,
+  MachineMemoryRecord,
+  IArvoOrchestrator,
+  ArvoOrchestratorError,
+  ArvoOrchestrator,
 };

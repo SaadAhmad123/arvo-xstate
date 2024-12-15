@@ -132,7 +132,6 @@ describe('MachineRegistry', () => {
       ...input.data,
       errors: [] as ArvoErrorType[],
     }),
-
     initial: 'route',
     states: {
       route: {
@@ -207,13 +206,13 @@ describe('MachineRegistry', () => {
               },
             }),
           },
-          emit(({context}) => ({
+          emit(({ context }) => ({
             type: 'notif.number.update',
             data: {
               delta: -1,
-              type: context.type
-            }
-          }))
+              type: context.type,
+            },
+          })),
         ],
         always: { target: 'done' },
       },
@@ -229,26 +228,26 @@ describe('MachineRegistry', () => {
 
   it('should execute the machine in case of events', () => {
     const initEvent = createArvoOrchestratorEventFactory(
-      testMachineContract.version('0.0.1')
+      testMachineContract.version('0.0.1'),
     ).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,
         delta: 1,
-        type: 'increment'
-      }
-    })
+        type: 'increment',
+      },
+    });
 
     let result = executeMachine({
       state: null,
       event: initEvent,
       machine,
-    })
+    });
 
-    expect(result.events[0].type).toBe(incrementServiceContract.type)
-    expect(result.state.status).toBe('active')
-    expect((result.state as any).value).toBe('increment')
-    expect(result.finalOutput).toBe(null)
+    expect(result.events[0].type).toBe(incrementServiceContract.type);
+    expect(result.state.status).toBe('active');
+    expect((result.state as any).value).toBe('increment');
+    expect(result.finalOutput).toBe(null);
 
     result = executeMachine({
       state: result.state,
@@ -260,22 +259,24 @@ describe('MachineRegistry', () => {
         source: 'com.test.test',
         type: 'evt.number.increment.success',
         data: {
-          newValue: 10
-        }
-      })
-    })
+          newValue: 10,
+        },
+      }),
+    });
 
-    expect(result.finalOutput).not.toBe(null)
-    expect(result.events.length).toBe(2)
-    expect(result.events[0].type).toBe(numberUpdateNotificationContract.type)
-    expect(result.events[0].data.delta).toBe(-1)
-    expect(result.events[1].type).toBe(numberUpdateNotificationContract.type)
-    expect(result.events[1].data.delta).toBe(1)
-    expect(result.state.status).toBe('done')
-    expect((result.state as any).value).toBe('done')
-    expect(result.finalOutput.final).toBe(1)
-    expect((result.state as any)?.context?.arvo$$?.volatile$$?.eventQueue$$).toBe(undefined)
-    
+    expect(result.finalOutput).not.toBe(null);
+    expect(result.events.length).toBe(2);
+    expect(result.events[0].type).toBe(numberUpdateNotificationContract.type);
+    expect(result.events[0].data.delta).toBe(-1);
+    expect(result.events[1].type).toBe(numberUpdateNotificationContract.type);
+    expect(result.events[1].data.delta).toBe(1);
+    expect(result.state.status).toBe('done');
+    expect((result.state as any).value).toBe('done');
+    expect(result.finalOutput.final).toBe(1);
+    expect(
+      (result.state as any)?.context?.arvo$$?.volatile$$?.eventQueue$$,
+    ).toBe(undefined);
+
     expect(() => {
       executeMachine({
         state: null,
@@ -287,13 +288,82 @@ describe('MachineRegistry', () => {
           source: 'com.test.test',
           type: 'evt.number.increment.success',
           data: {
-            newValue: 10
-          }
-        })
-      })
+            newValue: 10,
+          },
+        }),
+      });
     }).toThrow(
-      "Invalid initialization event: Machine requires source event 'arvo.orc.test' to start, but received event 'evt.number.increment.success' instead. This likely indicates a mismatch between the expected workflow trigger and the actual event sent."
-    )
-  })
+      "Invalid initialization event: Machine requires source event 'arvo.orc.test' to start, but received event 'evt.number.increment.success' instead. This likely indicates a mismatch between the expected workflow trigger and the actual event sent.",
+    );
+  });
 
+  it('should throw error at init of the event in case there is an error', () => {
+    const machine = setup.createMachine({
+      id: 'counter',
+      context: ({ input }) => {
+        throw new Error('Some error');
+      },
+      initial: 'route',
+      states: {
+        route: { type: 'final' },
+      },
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      testMachineContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        delta: 1,
+        type: 'increment',
+      },
+    });
+
+    expect(() => {
+      executeMachine({
+        state: null,
+        event: initEvent,
+        machine,
+      });
+    }).toThrow('Some error');
+  });
+
+  it('should throw error at state actions in the machine', () => {
+    const machine = setup.createMachine({
+      id: 'counter',
+      context: ({ input }) => ({
+        ...input.data,
+        errors: [],
+      }),
+      initial: 'route',
+      states: {
+        route: {
+          type: 'final',
+          entry: () => {
+            throw new Error('In state error');
+          },
+        },
+      },
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      testMachineContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        delta: 1,
+        type: 'increment',
+      },
+    });
+
+    expect(() => {
+      executeMachine({
+        state: null,
+        event: initEvent,
+        machine,
+      });
+    }).toThrow('In state error');
+  });
 });

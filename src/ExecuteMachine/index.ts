@@ -59,6 +59,7 @@ export const executeMachine = (
           },
     fn: () => {
       const eventQueue: EnqueueArvoEventActionParam[] = [];
+      const errors: Error[] = [];
       let actor: Actor<typeof machine.logic>;
       if (!state) {
         logToSpan({
@@ -76,7 +77,7 @@ export const executeMachine = (
         actor.on('*', (event) =>
           eventQueue.push(event as EnqueueArvoEventActionParam),
         );
-        actor.subscribe({ error: () => {} });
+        actor.subscribe({ error: (err) => errors.push(err as Error) });
         actor.start();
       } else {
         logToSpan({
@@ -89,7 +90,7 @@ export const executeMachine = (
         actor.on('*', (event) =>
           eventQueue.push(event as EnqueueArvoEventActionParam),
         );
-        actor.subscribe({ error: () => {} });
+        actor.subscribe({ error: (err) => errors.push(err as Error) });
         actor.start();
         actor.send(event.toJSON());
       }
@@ -108,6 +109,9 @@ export const executeMachine = (
             ?.eventQueue$$ as EnqueueArvoEventActionParam[]
         ).forEach((item) => eventQueue.push(item));
         delete (extractedSnapshot as any).context.arvo$$.volatile$$;
+      }
+      if (errors.length) {
+        throw errors[0];
       }
       return {
         state: extractedSnapshot,
