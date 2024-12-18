@@ -21,7 +21,6 @@ import {
   ArvoOrchestrationSubject,
 } from 'arvo-core';
 import { IMachineMemory } from '../MachineMemory/interface';
-import { MachineRegistry } from '../MachineRegistry';
 import {
   IArvoOrchestrator,
   MachineMemoryRecord,
@@ -33,39 +32,51 @@ import {
 } from 'arvo-event-handler';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { ArvoOrchestratorError } from './error';
-import { executeMachine } from '../ExecuteMachine';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import ArvoMachine from '../ArvoMachine';
 import { z } from 'zod';
+import { IMachineRegistry } from '../MachineRegistry/interface';
+import { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
 
+/**
+* Orchestrates state machine execution and lifecycle management.
+* Handles machine resolution, state management, event processing and error handling.
+*/
 export class ArvoOrchestrator extends AbstractArvoEventHandler {
   readonly executionunits: number;
   readonly memory: IMachineMemory<MachineMemoryRecord>;
-  readonly registry: MachineRegistry;
+  readonly registry: IMachineRegistry;
+  readonly executionEngine: IMachineExectionEngine
 
+  /**
+   * Gets the source identifier for this orchestrator
+   */
   get source() {
     return this.registry.machines[0].source;
   }
 
-  constructor({ executionunits, memory, machines }: IArvoOrchestrator) {
+  /**
+   * Creates a new orchestrator instance
+   * @param params - Configuration parameters
+   * @throws Error if machines in registry have different sources
+   */
+  constructor({ executionunits, memory, registry, executionEngine }: IArvoOrchestrator) {
     super();
     this.executionunits = executionunits;
     this.memory = memory;
-    if (!machines.length) {
-      throw new Error(`The orchestrator requires at least 1 machine`);
-    }
-    const representativeMachine = machines[0];
-    for (const machine of machines) {
+    const representativeMachine = registry.machines[0];
+    for (const machine of registry.machines) {
       if (representativeMachine.source !== machine.source) {
         throw new Error(
           `All the machines in the orchestrator must have type '${representativeMachine.source}'`,
         );
       }
     }
-    this.registry = new MachineRegistry(...machines);
+    this.registry = registry;
+    this.executionEngine = executionEngine
   }
 
-  private async acquireLock(
+  protected async acquireLock(
     event: ArvoEvent,
   ): Promise<TryFunctionOutput<boolean, ArvoOrchestratorError>> {
     const id: string = event.subject;
@@ -95,7 +106,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
   }
 
-  private async acquireState(
+  protected async acquireState(
     event: ArvoEvent,
   ): Promise<
     TryFunctionOutput<MachineMemoryRecord | null, ArvoOrchestratorError>
@@ -123,7 +134,15 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
   }
 
-  private createEmittableEvent(
+  /**
+   * Creates emittable event from execution result
+   * @param event - Source event to emit
+   * @param machine - Machine that generated event
+   * @param otelHeaders - OpenTelemetry headers
+   * @param parentSubject - Parent orchestration subject
+   * @param sourceEvent - Original triggering event
+   */
+  protected createEmittableEvent(
     event: EnqueueArvoEventActionParam,
     machine: ArvoMachine<any, any, any, any, any>,
     otelHeaders: OpenTelemetryHeaders,
@@ -221,6 +240,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         to: event.to ?? event.type,
         accesscontrol:
           event.accesscontrol ?? sourceEvent.accesscontrol ?? undefined,
+        // The orchestrator does not respect redirectto from the source event
         redirectto: event.redirectto ?? undefined,
         executionunits: event.executionunits ?? this.executionunits,
         traceparent: otelHeaders.traceparent ?? undefined,
@@ -237,6 +257,15 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     return emittableEvent;
   }
 
+  /**
+   * Executes a state machine in response to an event.
+   * Handles the complete lifecycle including state management, event processing and error handling.
+   * 
+   * @param event - Event triggering the execution
+   * @param opentelemetry - OpenTelemetry configuration
+   * @returns Array of events generated during execution
+   * @throws ArvoOrchestratorError on execution failures
+   */
   async execute(
     event: ArvoEvent,
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
@@ -317,7 +346,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Resolving machine for event ${event.type}`,
           });
 
-          const machine = this.registry.resolve(event);
+          const machine = this.registry.resolve(event, { inheritFrom: "CONTEXT" });
 
           logToSpan({
             level: 'INFO',
@@ -340,14 +369,15 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             );
           }
 
-          const executionResult = executeMachine({
+          const executionResult = this.executionEngine.execute({
             state: state?.state ?? null,
             event,
             machine,
-          });
+          }, { inheritFrom: "CONTEXT" });
 
           const preEmitableEvents = executionResult.events;
           if (executionResult.finalOutput) {
+            const _parsedSubject = ArvoOrchestrationSubject.parse(event.subject)
             preEmitableEvents.push({
               type: (
                 machine.contracts.self as VersionedArvoContract<
@@ -356,6 +386,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
                 >
               ).metadata.completeEventType,
               data: executionResult.finalOutput,
+              to: _parsedSubject?.meta?.redirectto ?? _parsedSubject.execution.initiator,
             });
           }
 
@@ -437,6 +468,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     });
   }
 
+  /**
+   * Gets the error schema for this orchestrator
+   */
   get systemErrorSchema(): ArvoContractRecord {
     return {
       type: `sys.${this.source}.error`,

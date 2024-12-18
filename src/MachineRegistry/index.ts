@@ -7,6 +7,7 @@ import {
 import ArvoMachine from '../ArvoMachine';
 import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
 import { context, SpanKind } from '@opentelemetry/api';
+import { IMachineRegistry } from './interface';
 
 /**
  * Registry for managing and resolving ArvoMachine instances.
@@ -16,7 +17,7 @@ import { context, SpanKind } from '@opentelemetry/api';
  * The registry must contain at least one machine upon initialization.
  * Each machine in the registry should have a unique combination of version and source.
  */
-export class MachineRegistry {
+export class MachineRegistry implements IMachineRegistry {
   public machines: ArvoMachine<any, any, any, any, any>[];
 
   /**
@@ -39,6 +40,7 @@ export class MachineRegistry {
    * The resolution is performed using the orchestrator information in the event's subject.
    *
    * @param event - The event containing orchestration subject information
+   * @param opentelemetry Telemetry configuration for tracing
    * @returns The matching ArvoMachine instance
    * @throws {Error} When no matching machine is found in the registry
    *
@@ -51,7 +53,7 @@ export class MachineRegistry {
   resolve(
     event: ArvoEvent,
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
-      inheritFrom: 'CONTEXT',
+      inheritFrom: "CONTEXT"
     },
   ): ArvoMachine<any, any, any, any, any> {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({

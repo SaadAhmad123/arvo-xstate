@@ -1,4 +1,4 @@
-import { executeMachine, MachineRegistry, setupArvoMachine } from '../src';
+import { MachineExecutionEngine, setupArvoMachine } from '../src';
 import {
   ArvoErrorSchema,
   ArvoErrorType,
@@ -19,6 +19,8 @@ describe('MachineRegistry', () => {
   afterAll(() => {
     telemetrySdkStop();
   });
+
+  const executionEngine = new MachineExecutionEngine()
 
   const testMachineContract = createArvoOrchestratorContract({
     uri: '#/test/machine',
@@ -238,7 +240,7 @@ describe('MachineRegistry', () => {
       },
     });
 
-    let result = executeMachine({
+    let result = executionEngine.execute({
       state: null,
       event: initEvent,
       machine,
@@ -249,7 +251,7 @@ describe('MachineRegistry', () => {
     expect((result.state as any).value).toBe('increment');
     expect(result.finalOutput).toBe(null);
 
-    result = executeMachine({
+    result = executionEngine.execute({
       state: result.state,
       machine,
       event: createArvoEventFactory(
@@ -278,7 +280,7 @@ describe('MachineRegistry', () => {
     ).toBe(undefined);
 
     expect(() => {
-      executeMachine({
+      executionEngine.execute({
         state: null,
         machine,
         event: createArvoEventFactory(
@@ -321,7 +323,7 @@ describe('MachineRegistry', () => {
     });
 
     expect(() => {
-      executeMachine({
+      executionEngine.execute({
         state: null,
         event: initEvent,
         machine,
@@ -359,7 +361,7 @@ describe('MachineRegistry', () => {
     });
 
     expect(() => {
-      executeMachine({
+      executionEngine.execute({
         state: null,
         event: initEvent,
         machine,

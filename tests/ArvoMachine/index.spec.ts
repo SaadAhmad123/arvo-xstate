@@ -1,4 +1,4 @@
-import { setupArvoMachine, ArvoOrchestrator } from '../../src';
+import { setupArvoMachine, ArvoOrchestrator, createArvoOrchestrator, SimpleMachineMemory } from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { z } from 'zod';
@@ -323,13 +323,13 @@ describe('ArvoXState', () => {
       expect(machine.version).toBe('0.0.1');
       expect(machine.id).toBe('counter');
 
-      const orchestrator = createArvoMachineRunner({
-        contract: testMachineContract,
+      const orchestrator = createArvoOrchestrator({
+        memory: new SimpleMachineMemory(),
         executionunits: 0.1,
-        machines: {
-          '0.0.1': machine,
-        },
-      });
+        machines: [
+          machine
+        ],
+      })
 
       const eventSubject = ArvoOrchestrationSubject.new({
         orchestator: 'arvo.orc.test',
@@ -349,20 +349,15 @@ describe('ArvoXState', () => {
         },
       });
 
-      let output = orchestrator.execute(
-        {
-          event: initEvent,
-          state: null,
-          parentSubject: null,
-        },
-        { inheritFrom: 'EVENT' },
+      let output = await orchestrator.execute(
+        initEvent,
+        { inheritFrom: 'EVENT' }
       );
-      expect(output.executionStatus).toBe('success');
-      expect(output.events.length).toBe(1);
-      expect(output.events[0].source).toBe('arvo.orc.test');
-      expect(output.events[0].type).toBe('com.number.increment');
-      expect(output.events[0].data.delta).toBe(1);
-      expect(output.events[0].dataschema).toBe(
+      expect(output.length).toBe(1);
+      expect(output[0].source).toBe('arvo.orc.test');
+      expect(output[0].type).toBe('com.number.increment');
+      expect(output[0].data.delta).toBe(1);
+      expect(output[0].dataschema).toBe(
         `${incrementServiceContract.uri}/0.0.1`,
       );
 
@@ -389,31 +384,26 @@ describe('ArvoXState', () => {
         },
       });
 
-      const nextEvent = await incrementHandler.execute(output.events[0]);
+      const nextEvent = await incrementHandler.execute(output[0]);
 
-      output = orchestrator.execute(
-        {
-          event: nextEvent[0],
-          state: output.state,
-          parentSubject: null,
-        },
+      output = await orchestrator.execute(
+        nextEvent[0],
         { inheritFrom: 'EVENT' },
       );
 
-      console.log(JSON.stringify(output, null, 2));
+      console.log(JSON.stringify({ssss: output}, null, 2));
 
-      expect(output.executionStatus).toBe('success');
-      expect(output.events.length).toBe(2);
-      expect(output.events[0].source).toBe('arvo.orc.test');
-      expect(output.events[0].type).toBe('notif.number.update');
-      expect(output.events[0].data.delta).toBe(1);
-      expect(output.events[0].data.type).toBe('increment');
+      expect(output.length).toBe(2);
+      expect(output[0].source).toBe('arvo.orc.test');
+      expect(output[0].type).toBe('notif.number.update');
+      expect(output[0].data.delta).toBe(1);
+      expect(output[0].data.type).toBe('increment');
 
-      expect(output.events[1].source).toBe('arvo.orc.test');
-      expect(output.events[1].type).toBe('arvo.orc.test.done');
-      expect(output.events[1].data.final).toBe(1);
-      expect(output.events[1].to).toBe('com.test.service');
-      expect(output.events[1].dataschema).toBe(
+      expect(output[1].source).toBe('arvo.orc.test');
+      expect(output[1].type).toBe('arvo.orc.test.done');
+      expect(output[1].data.final).toBe(1);
+      expect(output[1].to).toBe('com.test.service');
+      expect(output[1].dataschema).toBe(
         `${testMachineContract.uri}/0.0.1`,
       );
     });

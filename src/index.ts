@@ -4,44 +4,37 @@ import {
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
 } from './ArvoMachine/types';
-import ArvoMachineRunner from './ArvoMachineRunner';
-import { createArvoMachineRunner } from './ArvoMachineRunner/factory';
-import { XStatePersistanceSchema } from './ArvoMachineRunner/schema';
-import {
-  ArvoMachineRunnerExecuteInput,
-  ArvoMachineRunnerExecuteOutput,
-} from './ArvoMachineRunner/types';
-import { base64ToObject, objectToBase64 } from './ArvoMachineRunner/utils';
-import { executeMachine } from './ExecuteMachine';
+import { MachineExecutionEngine } from './MachineExecutionEngine';
 import {
   ExecuteMachineInput,
   ExecuteMachineOutput,
-} from './ExecuteMachine/types';
+} from './MachineExecutionEngine/types';
+import { IMachineExectionEngine } from './MachineExecutionEngine/interface';
 import { MachineRegistry } from './MachineRegistry';
 import { IMachineMemory } from './MachineMemory/interface';
 import { MachineMemoryRecord, IArvoOrchestrator } from './ArvoOrchestrator/types';
 import { ArvoOrchestratorError } from './ArvoOrchestrator/error';
 import { ArvoOrchestrator } from './ArvoOrchestrator';
+import { IMachineRegistry } from './MachineRegistry/interface';
+import { SimpleMachineMemory } from './MachineMemory/Simple';
+import { createArvoOrchestrator } from './ArvoOrchestrator/factory';
 
 export {
   ArvoMachine,
   setupArvoMachine,
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
-  ArvoMachineRunner,
-  ArvoMachineRunnerExecuteInput,
-  ArvoMachineRunnerExecuteOutput,
-  createArvoMachineRunner,
-  XStatePersistanceSchema,
-  objectToBase64,
-  base64ToObject,
+  IMachineRegistry,
   MachineRegistry,
-  executeMachine,
+  MachineExecutionEngine,
+  IMachineExectionEngine,
   ExecuteMachineInput,
   ExecuteMachineOutput,
   IMachineMemory,
+  SimpleMachineMemory,
   MachineMemoryRecord,
   IArvoOrchestrator,
   ArvoOrchestratorError,
   ArvoOrchestrator,
+  createArvoOrchestrator,
 };
