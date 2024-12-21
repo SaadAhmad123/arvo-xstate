@@ -1,12 +1,12 @@
-import { MachineMemoryRecord } from "../ArvoOrchestrator/types";
-import { IMachineMemory } from "./interface";
+import { MachineMemoryRecord } from '../ArvoOrchestrator/types';
+import { IMachineMemory } from './interface';
 
 /**
  * In-memory implementation of machine state storage for single-instance NodeJS apps.
- * 
+ *
  * Best for: Container apps, request-scoped workflows, testing, demos
  * Not for: Multi-instance deployments, persistent workflows, distributed systems
- * 
+ *
  * @example
  * const memory = new SimpleMachineMemory();
  * const orchestrator = createArvoOrchestrator({
@@ -15,7 +15,9 @@ import { IMachineMemory } from "./interface";
  *   machines: [workflow]
  * });
  */
-export class SimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> {
+export class SimpleMachineMemory
+  implements IMachineMemory<MachineMemoryRecord>
+{
   private readonly memoryMap: Map<string, MachineMemoryRecord> = new Map();
   private readonly lockMap: Map<string, boolean> = new Map();
 

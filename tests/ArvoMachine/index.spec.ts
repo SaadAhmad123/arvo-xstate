@@ -1,4 +1,9 @@
-import { setupArvoMachine, ArvoOrchestrator, createArvoOrchestrator, SimpleMachineMemory } from '../../src';
+import {
+  setupArvoMachine,
+  ArvoOrchestrator,
+  createArvoOrchestrator,
+  SimpleMachineMemory,
+} from '../../src';
 import { assign, emit } from 'xstate';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { z } from 'zod';
@@ -326,10 +331,8 @@ describe('ArvoXState', () => {
       const orchestrator = createArvoOrchestrator({
         memory: new SimpleMachineMemory(),
         executionunits: 0.1,
-        machines: [
-          machine
-        ],
-      })
+        machines: [machine],
+      });
 
       const eventSubject = ArvoOrchestrationSubject.new({
         orchestator: 'arvo.orc.test',
@@ -349,10 +352,9 @@ describe('ArvoXState', () => {
         },
       });
 
-      let output = await orchestrator.execute(
-        initEvent,
-        { inheritFrom: 'EVENT' }
-      );
+      let output = await orchestrator.execute(initEvent, {
+        inheritFrom: 'EVENT',
+      });
       expect(output.length).toBe(1);
       expect(output[0].source).toBe('arvo.orc.test');
       expect(output[0].type).toBe('com.number.increment');
@@ -386,12 +388,11 @@ describe('ArvoXState', () => {
 
       const nextEvent = await incrementHandler.execute(output[0]);
 
-      output = await orchestrator.execute(
-        nextEvent[0],
-        { inheritFrom: 'EVENT' },
-      );
+      output = await orchestrator.execute(nextEvent[0], {
+        inheritFrom: 'EVENT',
+      });
 
-      console.log(JSON.stringify({ssss: output}, null, 2));
+      console.log(JSON.stringify({ ssss: output }, null, 2));
 
       expect(output.length).toBe(2);
       expect(output[0].source).toBe('arvo.orc.test');
@@ -403,9 +404,7 @@ describe('ArvoXState', () => {
       expect(output[1].type).toBe('arvo.orc.test.done');
       expect(output[1].data.final).toBe(1);
       expect(output[1].to).toBe('com.test.service');
-      expect(output[1].dataschema).toBe(
-        `${testMachineContract.uri}/0.0.1`,
-      );
+      expect(output[1].dataschema).toBe(`${testMachineContract.uri}/0.0.1`);
     });
 
     it('should validate events input to the machine', () => {

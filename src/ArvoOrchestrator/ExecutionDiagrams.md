@@ -2,7 +2,7 @@
 stateDiagram-v2
    [*] --> BeginExecution
    BeginExecution --> AcquireLock
-   
+
    state AcquireLock {
        [*] --> AttemptLock
        AttemptLock --> LockSuccess: lock acquired
@@ -37,7 +37,7 @@ stateDiagram-v2
    }
 
    ValidateExecution --> ExecuteMachine
-   
+
    state ExecuteMachine {
        [*] --> ProcessState
        ProcessState --> WriteState
@@ -77,14 +77,14 @@ sequenceDiagram
    participant O as Orchestrator
    participant OT as OpenTelemetry
    participant L as Memory Lock
-   participant S as Memory State 
+   participant S as Memory State
    participant R as Registry
    participant M as Machine
    participant E as Event Creator
 
    C->>+O: execute(event)
    O->>+OT: startActiveSpan()
-   
+
    O->>+L: acquireLock(event)
    L-->>-O: lock result
    alt Lock Failed
@@ -99,7 +99,7 @@ sequenceDiagram
 
    O->>+R: resolve(event)
    R-->>-O: machine instance
-   
+
    O->>+M: validateInput(event)
    M-->>-O: validation result
    alt Validation Failed
@@ -122,12 +122,12 @@ sequenceDiagram
 
    O->>+S: write(state)
    S-->>-O: write confirmation
-   
+
    O->>+L: unlock(subject)
    alt Unlock Failed
        L-->>O: error
        Note over O: Log warning
-   else Unlock Success    
+   else Unlock Success
        L-->>-O: success
    end
 

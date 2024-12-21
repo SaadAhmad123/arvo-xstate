@@ -39,14 +39,14 @@ import { IMachineRegistry } from '../MachineRegistry/interface';
 import { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
 
 /**
-* Orchestrates state machine execution and lifecycle management.
-* Handles machine resolution, state management, event processing and error handling.
-*/
+ * Orchestrates state machine execution and lifecycle management.
+ * Handles machine resolution, state management, event processing and error handling.
+ */
 export class ArvoOrchestrator extends AbstractArvoEventHandler {
   readonly executionunits: number;
   readonly memory: IMachineMemory<MachineMemoryRecord>;
   readonly registry: IMachineRegistry;
-  readonly executionEngine: IMachineExectionEngine
+  readonly executionEngine: IMachineExectionEngine;
 
   /**
    * Gets the source identifier for this orchestrator
@@ -60,7 +60,12 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
    * @param params - Configuration parameters
    * @throws Error if machines in registry have different sources
    */
-  constructor({ executionunits, memory, registry, executionEngine }: IArvoOrchestrator) {
+  constructor({
+    executionunits,
+    memory,
+    registry,
+    executionEngine,
+  }: IArvoOrchestrator) {
     super();
     this.executionunits = executionunits;
     this.memory = memory;
@@ -73,7 +78,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       }
     }
     this.registry = registry;
-    this.executionEngine = executionEngine
+    this.executionEngine = executionEngine;
   }
 
   protected async acquireLock(
@@ -260,7 +265,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   /**
    * Executes a state machine in response to an event.
    * Handles the complete lifecycle including state management, event processing and error handling.
-   * 
+   *
    * @param event - Event triggering the execution
    * @param opentelemetry - OpenTelemetry configuration
    * @returns Array of events generated during execution
@@ -346,7 +351,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Resolving machine for event ${event.type}`,
           });
 
-          const machine = this.registry.resolve(event, { inheritFrom: "CONTEXT" });
+          const machine = this.registry.resolve(event, {
+            inheritFrom: 'CONTEXT',
+          });
 
           logToSpan({
             level: 'INFO',
@@ -369,15 +376,20 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             );
           }
 
-          const executionResult = this.executionEngine.execute({
-            state: state?.state ?? null,
-            event,
-            machine,
-          }, { inheritFrom: "CONTEXT" });
+          const executionResult = this.executionEngine.execute(
+            {
+              state: state?.state ?? null,
+              event,
+              machine,
+            },
+            { inheritFrom: 'CONTEXT' },
+          );
 
           const preEmitableEvents = executionResult.events;
           if (executionResult.finalOutput) {
-            const _parsedSubject = ArvoOrchestrationSubject.parse(event.subject)
+            const _parsedSubject = ArvoOrchestrationSubject.parse(
+              event.subject,
+            );
             preEmitableEvents.push({
               type: (
                 machine.contracts.self as VersionedArvoContract<
@@ -386,7 +398,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
                 >
               ).metadata.completeEventType,
               data: executionResult.finalOutput,
-              to: _parsedSubject?.meta?.redirectto ?? _parsedSubject.execution.initiator,
+              to:
+                _parsedSubject?.meta?.redirectto ??
+                _parsedSubject.execution.initiator,
             });
           }
 

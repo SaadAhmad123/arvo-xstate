@@ -53,7 +53,7 @@ export class MachineRegistry implements IMachineRegistry {
   resolve(
     event: ArvoEvent,
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
-      inheritFrom: "CONTEXT"
+      inheritFrom: 'CONTEXT',
     },
   ): ArvoMachine<any, any, any, any, any> {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({

@@ -12,7 +12,10 @@ import {
 import { IMachineExectionEngine } from './MachineExecutionEngine/interface';
 import { MachineRegistry } from './MachineRegistry';
 import { IMachineMemory } from './MachineMemory/interface';
-import { MachineMemoryRecord, IArvoOrchestrator } from './ArvoOrchestrator/types';
+import {
+  MachineMemoryRecord,
+  IArvoOrchestrator,
+} from './ArvoOrchestrator/types';
 import { ArvoOrchestratorError } from './ArvoOrchestrator/error';
 import { ArvoOrchestrator } from './ArvoOrchestrator';
 import { IMachineRegistry } from './MachineRegistry/interface';

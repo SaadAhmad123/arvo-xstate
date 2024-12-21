@@ -20,7 +20,7 @@ describe('MachineRegistry', () => {
     telemetrySdkStop();
   });
 
-  const executionEngine = new MachineExecutionEngine()
+  const executionEngine = new MachineExecutionEngine();
 
   const testMachineContract = createArvoOrchestratorContract({
     uri: '#/test/machine',

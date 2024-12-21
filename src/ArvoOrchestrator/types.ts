@@ -29,7 +29,7 @@ export type MachineMemoryRecord = {
 
   /** Current value stored in the machine state */
   value: string | Record<string, any> | null;
-  
+
   /** XState snapshot representing the machine's current state */
   state: Snapshot<any>;
 };
@@ -43,27 +43,27 @@ export interface IArvoOrchestrator {
 
   /** Memory interface for storing and retrieving machine state */
   memory: IMachineMemory<MachineMemoryRecord>;
-  
+
   /** Registry for managing and resolving machine instances */
   registry: IMachineRegistry;
-  
+
   /** Engine responsible for machine execution */
   executionEngine: IMachineExectionEngine;
 }
 
 /**
-* Configuration interface for creating an Arvo orchestrator instance.
-*/
+ * Configuration interface for creating an Arvo orchestrator instance.
+ */
 export interface ICreateArvoOrchestrator {
   /** Memory interface for storing and retrieving machine state */
   memory: IMachineMemory<MachineMemoryRecord>;
- 
+
   /** The cost of the execution of the orchestrator */
   executionunits: number;
- 
+
   /**
    * Collection of state machines to be managed by the orchestrator.
    * All machines must have the same source identifier.
    */
   machines: ArvoMachine<any, any, any, any, any>[];
- }
+}

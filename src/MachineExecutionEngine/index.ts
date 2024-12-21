@@ -12,28 +12,28 @@ import { IMachineExectionEngine } from './interface';
 export class MachineExecutionEngine implements IMachineExectionEngine {
   /**
    * Executes a state machine and manages its lifecycle.
-   * 
+   *
    * @description
    * Handles machine initialization/resumption, event processing, and state transitions.
    * Manages event queues and volatile context during execution.
-   * 
+   *
    * @param params Configuration parameters:
    *   - machine: State machine definition
    *   - state: Optional existing state to resume from
    *   - event: Event triggering the execution
    * @param opentelemetry Telemetry configuration for tracing
-   * 
+   *
    * @returns Object containing:
    *   - state: Final machine state
    *   - events: Generated events
    *   - finalOutput: Machine output or null
-   * 
+   *
    * @throws Error on invalid initialization events or execution failures
    */
   execute(
     { machine, state, event }: ExecuteMachineInput,
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
-      inheritFrom: "CONTEXT"
+      inheritFrom: 'CONTEXT',
     },
   ): ExecuteMachineOutput {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({
@@ -49,16 +49,16 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
       context:
         opentelemetry.inheritFrom === 'EVENT'
           ? {
-            inheritFrom: 'TRACE_HEADERS',
-            traceHeaders: {
-              traceparent: event.traceparent,
-              tracestate: event.tracestate,
-            },
-          }
+              inheritFrom: 'TRACE_HEADERS',
+              traceHeaders: {
+                traceparent: event.traceparent,
+                tracestate: event.tracestate,
+              },
+            }
           : {
-            inheritFrom: 'CONTEXT',
-            context: context.active(),
-          },
+              inheritFrom: 'CONTEXT',
+              context: context.active(),
+            },
       fn: () => {
         const eventQueue: EnqueueArvoEventActionParam[] = [];
         const errors: Error[] = [];
@@ -122,8 +122,5 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
         };
       },
     });
-  };
-
+  }
 }
-
-
