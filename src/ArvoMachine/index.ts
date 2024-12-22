@@ -4,6 +4,7 @@ import {
   ArvoOrchestratorContract,
   ArvoSemanticVersion,
   EventDataschemaUtil,
+  isWildCardArvoSematicVersion,
   logToSpan,
   VersionedArvoContract,
 } from 'arvo-core';
@@ -123,7 +124,7 @@ export default class ArvoMachine<
           Object.values(this.contracts.services).reduce(
             (acc, cur) => [
               ...acc,
-              ...cur.emitList.map(
+              ...[...cur.emitList, cur.systemError].map(
                 (item) =>
                   [item.type, cur] as [string, VersionedArvoContract<any, any>],
               ),
@@ -169,11 +170,14 @@ export default class ArvoMachine<
           ),
         };
       }
-      if (dataschema.version !== resovledContract.version) {
+      if (
+        !isWildCardArvoSematicVersion(dataschema.version) &&
+        dataschema.version !== resovledContract.version
+      ) {
         return {
           type: 'INVALID',
           error: new Error(
-            `Contract version mismatch: ${contractType} Contract(version='${resovledContract.version}', type='${resovledContract.accepts.type}') does not match Event(dataschema='${event.dataschema}', type='${event.type}')`,
+            `Contract version mismatch: ${contractType} Contract(version='${resovledContract.version}', type='${resovledContract.accepts.type}', uri=${resovledContract.uri}) does not match Event(dataschema='${event.dataschema}', type='${event.type}')`,
           ),
         };
       }
@@ -182,7 +186,8 @@ export default class ArvoMachine<
     const validationSchema: z.AnyZodObject =
       contractType === 'self'
         ? resovledContract.accepts.schema
-        : resovledContract.emits[event.type];
+        : (resovledContract.emits[event.type] ??
+          resovledContract.systemError.schema);
     const error = validationSchema.safeParse(event.data).error ?? null;
     if (error) {
       return {

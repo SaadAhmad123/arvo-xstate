@@ -488,7 +488,7 @@ describe('ArvoXState', () => {
       expect(validationResult.type).toBe('INVALID');
       if (validationResult.type === 'INVALID') {
         expect(validationResult.error.message).toBe(
-          "Contract version mismatch: self Contract(version='0.0.1', type='arvo.orc.test') does not match Event(dataschema='#/test/machine/0.0.2', type='arvo.orc.test')",
+          "Contract version mismatch: self Contract(version='0.0.1', type='arvo.orc.test', uri=#/test/machine) does not match Event(dataschema='#/test/machine/0.0.2', type='arvo.orc.test')",
         );
       }
 
@@ -563,7 +563,7 @@ describe('ArvoXState', () => {
       expect(validationResult.type).toBe('INVALID');
       if (validationResult.type === 'INVALID') {
         expect(validationResult.error.message).toBe(
-          "Contract version mismatch: service Contract(version='0.0.1', type='com.number.increment') does not match Event(dataschema='#/test/service/increment/0.0.2', type='evt.number.increment.success')",
+          "Contract version mismatch: service Contract(version='0.0.1', type='com.number.increment', uri=#/test/service/increment) does not match Event(dataschema='#/test/service/increment/0.0.2', type='evt.number.increment.success')",
         );
       }
     });

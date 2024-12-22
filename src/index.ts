@@ -21,6 +21,8 @@ import { ArvoOrchestrator } from './ArvoOrchestrator';
 import { IMachineRegistry } from './MachineRegistry/interface';
 import { SimpleMachineMemory } from './MachineMemory/Simple';
 import { createArvoOrchestrator } from './ArvoOrchestrator/factory';
+import { SimpleEventBroker } from './utils/SimpleEventBroker';
+import { createSimpleEventBroker } from './utils/SimpleEventBroker/helper';
 
 export {
   ArvoMachine,
@@ -40,4 +42,6 @@ export {
   ArvoOrchestratorError,
   ArvoOrchestrator,
   createArvoOrchestrator,
+  SimpleEventBroker,
+  createSimpleEventBroker,
 };

@@ -19,6 +19,7 @@ import {
   createArvoEvent,
   EventDataschemaUtil,
   ArvoOrchestrationSubject,
+  ArvoOrchestrationSubjectContent,
 } from 'arvo-core';
 import { IMachineMemory } from '../MachineMemory/interface';
 import {
@@ -277,8 +278,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       inheritFrom: 'EVENT',
     },
   ): Promise<ArvoEvent[]> {
+    let thisMachineAcquiredLock = false;
     return await ArvoOpenTelemetry.getInstance().startActiveSpan({
-      name: 'Orchestrator',
+      name: `Orchestrator<${this.registry.machines[0].contracts.self.uri}>`,
       spanOptions: {
         kind: SpanKind.PRODUCER,
         attributes: {
@@ -340,6 +342,12 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             throw new Error(
               'Lock acquisition denied - Unable to obtain exclusive access to event processing',
             );
+          } else {
+            logToSpan({
+              level: 'INFO',
+              message: `This execetion acquired lock at resource '${event.subject}'`,
+            });
+            thisMachineAcquiredLock = true;
           }
 
           if (event.type === this.source) {
@@ -438,16 +446,6 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `State update persisted in memory for subject ${event.subject}`,
           });
 
-          await this.memory.unlock(event.subject).catch((err: Error) => {
-            logToSpan(
-              {
-                level: 'WARNING',
-                message: `Memory unlock operation failed - Possible resource leak: ${err.message}`,
-              },
-              span,
-            );
-          });
-
           return emittables;
         } catch (e) {
           logToSpan({
@@ -459,6 +457,16 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             code: SpanStatusCode.ERROR,
             message: (e as Error).message,
           });
+          let parsedEventSubject: ArvoOrchestrationSubjectContent | null = null;
+          try {
+            parsedEventSubject = ArvoOrchestrationSubject.parse(event.subject);
+          } catch (e) {
+            logToSpan({
+              level: 'WARNING',
+              message: `Unable to parse event subject: ${(e as Error).message}`,
+            });
+          }
+
           const errorEvent = createArvoOrchestratorEventFactory(
             this.registry.machines[0].contracts.self,
           ).systemError({
@@ -466,16 +474,29 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             subject: parentSubject$$ ?? event.subject,
             // The system error must always go back to
             // the source with initiated it
-            to: event.source,
+            to: parsedEventSubject?.execution.initiator ?? event.source,
             error: e as Error,
             traceparent: otelHeaders.traceparent ?? undefined,
             tracestate: otelHeaders.tracestate ?? undefined,
             accesscontrol: event.accesscontrol ?? undefined,
             executionunits: this.executionunits,
           });
-
+          Object.entries(errorEvent.otelAttributes).forEach(([key, value]) => {
+            span.setAttribute(`to_emit.0.${key}`, value);
+          });
           return [errorEvent];
         } finally {
+          if (thisMachineAcquiredLock) {
+            await this.memory.unlock(event.subject).catch((err: Error) => {
+              logToSpan(
+                {
+                  level: 'WARNING',
+                  message: `Memory unlock operation failed - Possible resource leak: ${err.message}`,
+                },
+                span,
+              );
+            });
+          }
           span.end();
         }
       },
