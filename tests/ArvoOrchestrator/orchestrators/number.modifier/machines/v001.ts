@@ -36,7 +36,7 @@ export const machineV001 = setupArvoMachine({
     final_value: 0,
   }),
   output: ({ context }) => ({
-    success: !!context.errors.length,
+    success: !context.errors.length,
     error: context.errors,
     final: context.final_value,
   }),
@@ -108,6 +108,7 @@ export const machineV001 = setupArvoMachine({
         type: 'arvo.orc.dec',
         data: {
           parentSubject$$: context.currentSubject$$,
+          key: context.key,
           modifier: context.modifier,
           trend: context.trend,
         },
@@ -142,6 +143,7 @@ export const machineV001 = setupArvoMachine({
         type: 'arvo.orc.inc',
         data: {
           parentSubject$$: context.currentSubject$$,
+          key: context.key,
           modifier: context.modifier,
           trend: context.trend,
         },

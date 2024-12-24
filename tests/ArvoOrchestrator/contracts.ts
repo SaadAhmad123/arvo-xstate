@@ -100,6 +100,7 @@ export const incrementOrchestratorContract = createArvoOrchestratorContract({
   versions: {
     '0.0.1': {
       init: z.object({
+        key: z.string(),
         modifier: z.number(),
         trend: z.literal('linear'),
       }),
@@ -111,6 +112,7 @@ export const incrementOrchestratorContract = createArvoOrchestratorContract({
     },
     '0.0.2': {
       init: z.object({
+        key: z.string(),
         modifier: z.number(),
         trend: z.literal('exponential'),
       }),
@@ -129,6 +131,7 @@ export const decrementOrchestratorContract = createArvoOrchestratorContract({
   versions: {
     '0.0.1': {
       init: z.object({
+        key: z.string(),
         modifier: z.number(),
         trend: z.literal('linear'),
       }),
@@ -140,6 +143,7 @@ export const decrementOrchestratorContract = createArvoOrchestratorContract({
     },
     '0.0.2': {
       init: z.object({
+        key: z.string(),
         modifier: z.number(),
         trend: z.literal('exponential'),
       }),

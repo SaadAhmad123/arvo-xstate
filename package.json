@@ -51,7 +51,7 @@
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/core": "^1.28.0",
     "arvo-core": "^2.1.15",
-    "arvo-event-handler": "^2.1.11",
+    "arvo-event-handler": "^2.1.12",
     "uuid": "^10.0.0",
     "xstate": "^5.19.0",
     "zod": "^3.23.8"

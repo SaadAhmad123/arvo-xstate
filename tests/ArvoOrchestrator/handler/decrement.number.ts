@@ -10,7 +10,7 @@ export const decrementNumberHandler: EventHandlerFactory = () =>
     executionunits: 0.1,
     handler: {
       '0.0.1': async ({ event }) => {
-        const finalValue = event.data.init + event.data.decrement;
+        const finalValue = event.data.init - event.data.decrement;
         return {
           type: 'evt.decrement.number.success',
           data: {

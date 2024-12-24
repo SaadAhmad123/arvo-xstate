@@ -23,7 +23,7 @@ export const machineV001 = setupArvoMachine({
   /** @xstate-layout N4IgpgJg5mDOIC5QFsCGBjAFgSwHZgDUBGABhIDoAzMAFywH0A3VAGwFcwBiMRm859mHIAnMKgjlYbdOjiwA2iQC6iUAAcA9rGw1sG3KpAAPREQAcAJnIkALBYskAbAGYA7M5skiNswBoQAJ6mLuSuJM5EzgCsUa5RNjYAnGaOAL6p-mhYeISkFNR0mEysHJywAbDk6BrI-CVCouLkYMLCGsKKKkggmtq6+oYmCMnkiY6uZs5mUUSJiURR4f5BCDYhno5EjnaRzhZx6ZkYOPjEZOR46KLIYLg03LwXuFdgN3fkuGzIAEYtktKyWAKZSGXo6PQGbpDTZmchmIgTfZeSKeIjLYLOULhUjJSauVwWLaHEBZE65c6Xa63e7lSrVWqU17Uj5fX7CZqtdqdUFacEDKGINyOcjRRJTMgIlzOWzo1brJyEmJjRyWRLpDIgXAaCBwQyknJnEg8voQwaIAC0UUxFhSETmFkW4pSsri5DsYzIUQdyUiao1+tOeSotAYAg4xr5kNAQ0t5BtLlmiQd4TMJGdgWCViTiVcuxIYvMNmJAfJFEZbxoEf6UeMiASNlC8P2jhtniT3llWyzFjGZlcm37G1cxeOBqDLTawirpoFwx75AR+bmjhIrmzzllNn7cc8UU2XtzewsI+ygfOEH0YGn-OjiCTsM2LlXXhsi5snemC7Xjj3qcmREJdVUiAA */
   id: machineId,
   context: ({ input }) => ({
-    key: input.subject,
+    key: input.data.key,
     value: 0,
     modifier: input.data.modifier,
     trend: input.data.trend,

@@ -71,11 +71,20 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     this.executionunits = executionunits;
     this.memory = memory;
     const representativeMachine = registry.machines[0];
+    let lastSeenVersions: ArvoSemanticVersion[] = []
     for (const machine of registry.machines) {
       if (representativeMachine.source !== machine.source) {
         throw new Error(
           `All the machines in the orchestrator must have type '${representativeMachine.source}'`,
         );
+      }
+      if (lastSeenVersions.includes(machine.version)) {
+        throw new Error(
+          `An orchestrator must have unique machine versions. Machine ID:${machine.id} has duplicate version ${machine.version}.`
+        )
+      }
+      else {
+        lastSeenVersions.push(machine.version)
       }
     }
     this.registry = registry;
@@ -197,12 +206,25 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       if (
         (contract as any).metadata.contractType === 'ArvoOrchestratorContract'
       ) {
+        if (event.data.parentSubject$$) {
+          try {
+            ArvoOrchestrationSubject.parse(event.data.parentSubject$$)
+          } catch (e) {
+            throw new Error(
+              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema}')` + 
+              'It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the ' + 
+              'current orchestration subject by storing the subject via the context block in the machine' + 
+              'definition'
+            )
+          }
+        }
+
         try {
-          if (parentSubject$$) {
+          if (event.data.parentSubject$$) {
             subject = ArvoOrchestrationSubject.from({
               orchestator: contract.accepts.type,
               version: contract.version,
-              subject: parentSubject$$,
+              subject: event.data.parentSubject$$,
             });
           } else {
             subject = ArvoOrchestrationSubject.new({
@@ -338,6 +360,16 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         const otelHeaders = currentOpenTelemetryHeaders();
         let parentSubject$$: string | null = state?.parentSubject ?? null;
         try {
+          try {
+            ArvoOrchestrationSubject.parse(event.subject)
+          } catch(e) {
+            throw new Error(
+              `Invalid event subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. ` + 
+              `The subject must follow the format specified by ArvoOrchestrationSubject schema. ` +
+              `Parsing error: ${(e as Error).message}`
+            );
+          }
+
           if (!lockAcquired) {
             throw new Error(
               'Lock acquisition denied - Unable to obtain exclusive access to event processing',

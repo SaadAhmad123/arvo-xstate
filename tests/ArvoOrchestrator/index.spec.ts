@@ -1,4 +1,4 @@
-import { SimpleMachineMemory, createSimpleEventBroker } from '../../src';
+import { ArvoOrchestrator, MachineMemoryRecord, SimpleMachineMemory, createArvoOrchestrator, createSimpleEventBroker } from '../../src';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { incrementNumberHandler } from './handler/increment.number';
 import { decrementNumberHandler } from './handler/decrement.number';
@@ -9,6 +9,7 @@ import { incrementOrchestrator } from './orchestrators/increment';
 import { numberModifierOrchestrator } from './orchestrators/number.modifier';
 import {
   ArvoEvent,
+  ArvoOrchestrationSubject,
   createArvoEvent,
   createArvoOrchestratorEventFactory,
   EventDataschemaUtil,
@@ -53,13 +54,14 @@ describe('ArvoOrchestrator', () => {
     ).init({
       source: 'com.test.test',
       data: {
+        key: 'test.key',
         modifier: 2,
         trend: 'linear',
         parentSubject$$: null,
       },
     });
 
-    valueStore[initEvent.subject] = 2;
+    valueStore[initEvent.data.key] = 2;
     let events = await handlers.incrementAgent.execute(initEvent, {
       inheritFrom: 'EVENT',
     });
@@ -78,7 +80,7 @@ describe('ArvoOrchestrator', () => {
     expect(events[0].type).toBe(valueReadContract.type);
     expect(events[0].to).toBe(valueReadContract.type);
     expect(events[0].source).toBe(incrementOrchestratorContract.type);
-    expect(events[0].data.key).toBe(initEvent.subject);
+    expect(events[0].data.key).toBe(initEvent.data.key);
 
     await promiseTimeout();
     events = await handlers.valueRead.execute(events[0], {
@@ -90,7 +92,7 @@ describe('ArvoOrchestrator', () => {
     expect(events[0].type).toBe('evt.value.read.success');
     expect(events[0].to).toBe(incrementOrchestratorContract.type);
     expect(events[0].source).toBe(valueReadContract.type);
-    expect(events[0].data.value).toBe(valueStore[initEvent.subject]);
+    expect(events[0].data.value).toBe(valueStore[initEvent.data.key]);
 
     await promiseTimeout();
     events = await handlers.incrementAgent.execute(events[0], {
@@ -158,6 +160,7 @@ describe('ArvoOrchestrator', () => {
     ).init({
       source: 'com.test.test',
       data: {
+        key: 'test.key',
         modifier: 2,
         trend: 'linear',
         parentSubject$$: null,
@@ -187,6 +190,7 @@ describe('ArvoOrchestrator', () => {
     ).init({
       source: 'com.test.test',
       data: {
+        key: 'test.key',
         modifier: 2,
         trend: 'linear',
         parentSubject$$: null,
@@ -251,16 +255,146 @@ describe('ArvoOrchestrator', () => {
         init: 1,
         modifier: 4,
         trend: 'linear',
-        operation: 'increment',
+        operation: 'decrement',
         parentSubject$$: null,
       },
     });
 
     await broker.publish(initEvent);
+    expect(finalEvent).not.toBe(null)
+    expect(finalEvent!.data.success).toBe(true)
+    expect(finalEvent!.data.error.length).toBe(0)
+    expect(finalEvent!.data.final).toBe(-3)
+    expect(broker.events.length).toBe(
+      1 + // Number modifier orchestrator init event
+      1 + // Write event
+      1 + // Sucess event for write
+      1 + // Init decrement orchestrator event
+      1 + // Read event
+      1 + // Read success event
+      1 + // Decrement event
+      1 + // Decrement success event
+      1 + // Decrement orchestrator completion event
+      1   // Number modifier orchestrator completion event
+    )
 
-    console.log({
-      finalEvent,
-      events: broker.events,
-    });
+    expect(broker.events[0].type).toBe('arvo.orc.number.modifier')
+    expect(broker.events[0].to).toBe('arvo.orc.number.modifier')
+    
+    expect(broker.events[1].type).toBe('com.value.write')
+    expect(broker.events[1].to).toBe('com.value.write')
+    expect(broker.events[1].subject).toBe(initEvent.subject)
+    expect(broker.events[1].data.key).toBe(initEvent.subject)
+    expect(broker.events[1].data.value).toBe(initEvent.data.init)
+
+    expect(broker.events[3].type).toBe('arvo.orc.dec')
+    expect(broker.events[3].data.parentSubject$$).toBe(initEvent.subject)
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.name).toBe('arvo.orc.dec')
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.version).toBe('0.0.1')
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).execution.initiator).toBe('arvo.orc.number.modifier')
+
+    const result = await handlers.numberModifierAgent.execute(createArvoEvent({
+      source: 'com.test.test',
+      subject: 'test',
+      data: {},
+      type: numberModifierOrchestratorContract.type
+    }), {inheritFrom: 'EVENT'})
+
+    expect(result[0].type).toBe(numberModifierOrchestratorContract.systemError.type)
+    expect(result[0].data.errorMessage).toBe(
+      `Invalid event subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` + 
+      `Error -> incorrect header check\n` + 
+      `subject -> test`
+    )
   });
+
+  it('should throw error on different mahines', () => {
+    expect(() => {
+      createArvoOrchestrator({
+        executionunits: 0.1,
+        memory: new SimpleMachineMemory(),
+        machines: [
+          ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+          ...(handlers.decrementAgent as ArvoOrchestrator).registry.machines,
+        ]
+      })
+    }).toThrow("All the machines in the orchestrator must have type 'arvo.orc.inc'")
+  })
+
+  it('should throw error on duplicate mahines', () => {
+    expect(() => {
+      createArvoOrchestrator({
+        executionunits: 0.1,
+        memory: new SimpleMachineMemory(),
+        machines: [
+          ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+          ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+        ]
+      })
+    }).toThrow("An orchestrator must have unique machine versions. Machine ID:machineV001 has duplicate version 0.0.1.")
+  })
+
+  it('should throw error on execute in case of faulty locking mechanism', async () => {
+    const orchestrator = createArvoOrchestrator({
+      executionunits: 0.1,
+      memory: {
+        read: async (id: string) => null,
+        write: async (id: string, data: MachineMemoryRecord) => {},
+        lock: async (id: string) => {
+          throw new Error('Locking system failure!')
+        },
+        unlock: async (id: string) => true
+      },
+      machines: [
+        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+      ]
+    })
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1')
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        key: 'test',
+        modifier: 2,
+        trend: 'linear',
+      }
+    })
+
+    await expect(orchestrator.execute(initEvent))
+      .rejects.toThrow(`Error acquiring lock (id=${initEvent.subject}): Locking system failure!`)
+  })
+
+  it('should throw error on execute in case of faulty locking mechanism', async () => {
+    const orchestrator = createArvoOrchestrator({
+      executionunits: 0.1,
+      memory: {
+        read: async (id: string) => {
+          throw new Error('Failed to acquire memory')
+        },
+        write: async (id: string, data: MachineMemoryRecord) => {},
+        lock: async (id: string) => true,
+        unlock: async (id: string) => true
+      },
+      machines: [
+        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+      ]
+    })
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1')
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        key: 'test',
+        modifier: 2,
+        trend: 'linear',
+      }
+    })
+
+    await expect(orchestrator.execute(initEvent))
+      .rejects.toThrow(`Error reading state (id=${initEvent.subject}): Failed to acquire memory`)
+  })
 });
