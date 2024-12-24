@@ -31,9 +31,9 @@ export type MachineMemoryRecord = {
    * - 'done': Machine has completed its execution successfully
    * - 'error': Machine encountered an error during execution
    * - 'stopped': Machine execution was explicitly stopped
-   * 
-   * Due to XState dependency, the status can be any string value defined in the 
-   * state machine definition. This allows for custom states specific to the 
+   *
+   * Due to XState dependency, the status can be any string value defined in the
+   * state machine definition. This allows for custom states specific to the
    * business logic implemented in the state machine.
    */
   status: string;

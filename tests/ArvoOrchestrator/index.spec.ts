@@ -1,4 +1,10 @@
-import { ArvoOrchestrator, MachineMemoryRecord, SimpleMachineMemory, createArvoOrchestrator, createSimpleEventBroker } from '../../src';
+import {
+  ArvoOrchestrator,
+  MachineMemoryRecord,
+  SimpleMachineMemory,
+  createArvoOrchestrator,
+  createSimpleEventBroker,
+} from '../../src';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import { incrementNumberHandler } from './handler/increment.number';
 import { decrementNumberHandler } from './handler/decrement.number';
@@ -261,51 +267,67 @@ describe('ArvoOrchestrator', () => {
     });
 
     await broker.publish(initEvent);
-    expect(finalEvent).not.toBe(null)
-    expect(finalEvent!.data.success).toBe(true)
-    expect(finalEvent!.data.error.length).toBe(0)
-    expect(finalEvent!.data.final).toBe(-3)
+    expect(finalEvent).not.toBe(null);
+    expect(finalEvent!.to).toBe('com.test.test');
+    expect(finalEvent!.data.success).toBe(true);
+    expect(finalEvent!.data.error.length).toBe(0);
+    expect(finalEvent!.data.final).toBe(-3);
     expect(broker.events.length).toBe(
       1 + // Number modifier orchestrator init event
-      1 + // Write event
-      1 + // Sucess event for write
-      1 + // Init decrement orchestrator event
-      1 + // Read event
-      1 + // Read success event
-      1 + // Decrement event
-      1 + // Decrement success event
-      1 + // Decrement orchestrator completion event
-      1   // Number modifier orchestrator completion event
-    )
+        1 + // Write event
+        1 + // Sucess event for write
+        1 + // Init decrement orchestrator event
+        1 + // Notification event
+        1 + // Read event
+        1 + // Read success event
+        1 + // Decrement event
+        1 + // Decrement success event
+        1 + // Decrement orchestrator completion event
+        1, // Number modifier orchestrator completion event
+    );
 
-    expect(broker.events[0].type).toBe('arvo.orc.number.modifier')
-    expect(broker.events[0].to).toBe('arvo.orc.number.modifier')
-    
-    expect(broker.events[1].type).toBe('com.value.write')
-    expect(broker.events[1].to).toBe('com.value.write')
-    expect(broker.events[1].subject).toBe(initEvent.subject)
-    expect(broker.events[1].data.key).toBe(initEvent.subject)
-    expect(broker.events[1].data.value).toBe(initEvent.data.init)
+    expect(broker.events[0].type).toBe('arvo.orc.number.modifier');
+    expect(broker.events[0].to).toBe('arvo.orc.number.modifier');
 
-    expect(broker.events[3].type).toBe('arvo.orc.dec')
-    expect(broker.events[3].data.parentSubject$$).toBe(initEvent.subject)
-    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.name).toBe('arvo.orc.dec')
-    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.version).toBe('0.0.1')
-    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).execution.initiator).toBe('arvo.orc.number.modifier')
+    expect(broker.events[1].type).toBe('com.value.write');
+    expect(broker.events[1].to).toBe('com.value.write');
+    expect(broker.events[1].subject).toBe(initEvent.subject);
+    expect(broker.events[1].data.key).toBe(initEvent.subject);
+    expect(broker.events[1].data.value).toBe(initEvent.data.init);
 
-    const result = await handlers.numberModifierAgent.execute(createArvoEvent({
-      source: 'com.test.test',
-      subject: 'test',
-      data: {},
-      type: numberModifierOrchestratorContract.type
-    }), {inheritFrom: 'EVENT'})
+    expect(broker.events[3].type).toBe('arvo.orc.dec');
+    expect(broker.events[3].data.parentSubject$$).toBe(initEvent.subject);
+    expect(
+      ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator
+        .name,
+    ).toBe('arvo.orc.dec');
+    expect(
+      ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator
+        .version,
+    ).toBe('0.0.1');
+    expect(
+      ArvoOrchestrationSubject.parse(broker.events[3].subject).execution
+        .initiator,
+    ).toBe('arvo.orc.number.modifier');
 
-    expect(result[0].type).toBe(numberModifierOrchestratorContract.systemError.type)
+    const result = await handlers.numberModifierAgent.execute(
+      createArvoEvent({
+        source: 'com.test.test',
+        subject: 'test',
+        data: {},
+        type: numberModifierOrchestratorContract.type,
+      }),
+      { inheritFrom: 'EVENT' },
+    );
+
+    expect(result[0].type).toBe(
+      numberModifierOrchestratorContract.systemError.type,
+    );
     expect(result[0].data.errorMessage).toBe(
-      `Invalid event subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` + 
-      `Error -> incorrect header check\n` + 
-      `subject -> test`
-    )
+      `Invalid event subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` +
+        `Error -> incorrect header check\n` +
+        `subject -> test`,
+    );
   });
 
   it('should throw error on different mahines', () => {
@@ -316,10 +338,12 @@ describe('ArvoOrchestrator', () => {
         machines: [
           ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
           ...(handlers.decrementAgent as ArvoOrchestrator).registry.machines,
-        ]
-      })
-    }).toThrow("All the machines in the orchestrator must have type 'arvo.orc.inc'")
-  })
+        ],
+      });
+    }).toThrow(
+      "All the machines in the orchestrator must have type 'arvo.orc.inc'",
+    );
+  });
 
   it('should throw error on duplicate mahines', () => {
     expect(() => {
@@ -329,10 +353,12 @@ describe('ArvoOrchestrator', () => {
         machines: [
           ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
           ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
-        ]
-      })
-    }).toThrow("An orchestrator must have unique machine versions. Machine ID:machineV001 has duplicate version 0.0.1.")
-  })
+        ],
+      });
+    }).toThrow(
+      'An orchestrator must have unique machine versions. Machine ID:machineV001 has duplicate version 0.0.1.',
+    );
+  });
 
   it('should throw error on execute in case of faulty locking mechanism', async () => {
     const orchestrator = createArvoOrchestrator({
@@ -341,17 +367,17 @@ describe('ArvoOrchestrator', () => {
         read: async (id: string) => null,
         write: async (id: string, data: MachineMemoryRecord) => {},
         lock: async (id: string) => {
-          throw new Error('Locking system failure!')
+          throw new Error('Locking system failure!');
         },
-        unlock: async (id: string) => true
+        unlock: async (id: string) => true,
       },
       machines: [
         ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
-      ]
-    })
+      ],
+    });
 
     const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1')
+      incrementOrchestratorContract.version('0.0.1'),
     ).init({
       source: 'com.test.test',
       data: {
@@ -359,31 +385,32 @@ describe('ArvoOrchestrator', () => {
         key: 'test',
         modifier: 2,
         trend: 'linear',
-      }
-    })
+      },
+    });
 
-    await expect(orchestrator.execute(initEvent))
-      .rejects.toThrow(`Error acquiring lock (id=${initEvent.subject}): Locking system failure!`)
-  })
+    await expect(orchestrator.execute(initEvent)).rejects.toThrow(
+      `Error acquiring lock (id=${initEvent.subject}): Locking system failure!`,
+    );
+  });
 
   it('should throw error on execute in case of faulty locking mechanism', async () => {
     const orchestrator = createArvoOrchestrator({
       executionunits: 0.1,
       memory: {
         read: async (id: string) => {
-          throw new Error('Failed to acquire memory')
+          throw new Error('Failed to acquire memory');
         },
         write: async (id: string, data: MachineMemoryRecord) => {},
         lock: async (id: string) => true,
-        unlock: async (id: string) => true
+        unlock: async (id: string) => true,
       },
       machines: [
         ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
-      ]
-    })
+      ],
+    });
 
     const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1')
+      incrementOrchestratorContract.version('0.0.1'),
     ).init({
       source: 'com.test.test',
       data: {
@@ -391,10 +418,142 @@ describe('ArvoOrchestrator', () => {
         key: 'test',
         modifier: 2,
         trend: 'linear',
-      }
-    })
+      },
+    });
 
-    await expect(orchestrator.execute(initEvent))
-      .rejects.toThrow(`Error reading state (id=${initEvent.subject}): Failed to acquire memory`)
-  })
+    await expect(orchestrator.execute(initEvent)).rejects.toThrow(
+      `Error reading state (id=${initEvent.subject}): Failed to acquire memory`,
+    );
+  });
+
+  it('should redirect the completion event to a different location', async () => {
+    const broker = createSimpleEventBroker(Object.values(handlers));
+    let finalEventFromTest: ArvoEvent | null = null;
+    let finalEventFromTest1: ArvoEvent | null = null;
+    broker.subscribe('com.test.test', async (event) => {
+      finalEventFromTest = event;
+    });
+    broker.subscribe('com.test.test.1', async (event) => {
+      finalEventFromTest1 = event;
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      numberModifierOrchestratorContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        init: 1,
+        modifier: 4,
+        trend: 'linear',
+        operation: 'decrement',
+        parentSubject$$: null,
+      },
+      redirectto: 'com.test.test.1',
+    });
+
+    await broker.publish(initEvent);
+
+    expect(broker.events.length).toBe(
+      1 + // Number modifier orchestrator init event
+        1 + // Write event
+        1 + // Sucess event for write
+        1 + // Init decrement orchestrator event
+        1 + // Notification event
+        1 + // Read event
+        1 + // Read success event
+        1 + // Decrement event
+        1 + // Decrement success event
+        1 + // Decrement orchestrator completion event
+        1, // Number modifier orchestrator completion event
+    );
+    expect(finalEventFromTest).toBe(null);
+    expect(finalEventFromTest1).not.toBe(null);
+    expect(finalEventFromTest1!.to).toBe('com.test.test.1');
+  });
+
+  it('should throw error event in case of faulty parent subject', async () => {
+    const broker = createSimpleEventBroker(Object.values(handlers));
+    let finalEventFromTest: ArvoEvent | null = null;
+    let finalEventFromTest1: ArvoEvent | null = null;
+    broker.subscribe('com.test.test', async (event) => {
+      finalEventFromTest = event;
+    });
+    broker.subscribe('com.test.test.1', async (event) => {
+      finalEventFromTest1 = event;
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      numberModifierOrchestratorContract.version('0.0.2'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        init: 1,
+        modifier: 4,
+        trend: 'exponential',
+        operation: 'decrement',
+        parentSubject$$: null,
+      },
+      redirectto: 'com.test.test.1',
+    });
+
+    await broker.publish(initEvent);
+
+    expect(broker.events.length).toBe(
+      1 + // Number modifier orchestrator init event
+        1 + // Write event
+        1 + // Sucess event for write
+        1 // Error event for faulty parent subject
+    );
+    expect(finalEventFromTest1).toBe(null);
+    expect(finalEventFromTest).not.toBe(null);
+    expect(finalEventFromTest!.to).toBe('com.test.test');
+  });
+
+  it('should redirect the completion event to a different location', async () => {
+    const broker = createSimpleEventBroker(Object.values(handlers));
+    let finalEventFromTest: ArvoEvent | null = null;
+    broker.subscribe('com.test.test', async (event) => {
+      finalEventFromTest = event;
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      numberModifierOrchestratorContract.version('0.0.2'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        init: 1,
+        modifier: 4,
+        trend: 'exponential',
+        operation: 'increment',
+        parentSubject$$: null,
+      },
+    });
+
+    await broker.publish(initEvent);
+    console.log(JSON.stringify(await machineMemory.read(initEvent.subject), null, 2))
+    expect(broker.events.length).toBe(
+      1 + // Number modifier orchestrator init event
+        1 + // Write event
+        1 + // Sucess event for write
+        1 + // Init increment orchestrator event
+        1 + // Init increment orchestrator event with out parent subject
+        1 + // Read event
+        1 + // Read success event
+        1 + // Increment event
+        1 + // Increment success event 1 
+        1 + // Increment success event 2
+        1 + // Increment orchestrator completion event
+        1 + // Number modifier orchestrator completion event
+        1 + // Read event
+        1 + // Read success event
+        1 + // Increment event
+        1 + // Increment success event 1
+        1 + // Increment success event 2
+        1 // Increment orchestrator completion event
+    );
+    expect(finalEventFromTest).not.toBe(null);
+    expect(finalEventFromTest!.to).toBe('com.test.test');
+
+
+  });
 });

@@ -9,20 +9,20 @@ import {
 } from '../../../contracts';
 import { NumberModiferMachineContext } from '../types';
 
-const machineId = 'machineV001';
-export const machineV001 = setupArvoMachine({
+const machineId = 'machineV002';
+export const machineV002 = setupArvoMachine({
   contracts: {
-    self: numberModifierOrchestrator.version('0.0.1'),
+    self: numberModifierOrchestrator.version('0.0.2'),
     services: {
       valueWriter: valueWriteContract.version('0.0.1'),
       valueReader: valueReadContract.version('0.0.1'),
-      increment: incrementOrchestratorContract.version('0.0.1'),
-      decrement: decrementOrchestratorContract.version('0.0.1'),
+      increment: incrementOrchestratorContract.version('0.0.2'),
+      decrement: decrementOrchestratorContract.version('0.0.2'),
     },
   },
   types: {
     context: {} as NumberModiferMachineContext & {
-      trend: 'linear';
+      trend: 'exponential';
     },
   },
 }).createMachine({
@@ -114,13 +114,15 @@ export const machineV001 = setupArvoMachine({
             trend: context.trend,
           },
         })),
-        {
-          type: 'enqueueArvoEvent',
-          params: {
-            type: 'com.notif.test',
-            data: {},
+        emit(({ context }) => ({
+          type: 'arvo.orc.dec',
+          data: {
+            parentSubject$$: 'test',
+            key: context.key,
+            modifier: context.modifier,
+            trend: context.trend,
           },
-        },
+        })),
       ],
       on: {
         'arvo.orc.dec.done': [
@@ -158,13 +160,15 @@ export const machineV001 = setupArvoMachine({
             trend: context.trend,
           },
         })),
-        {
-          type: 'enqueueArvoEvent',
-          params: {
-            type: 'com.notif.test',
-            data: {},
+        emit(({ context }) => ({
+          type: 'arvo.orc.inc',
+          data: {
+            parentSubject$$: null,
+            key: context.key,
+            modifier: context.modifier,
+            trend: context.trend,
           },
-        },
+        })),
       ],
       on: {
         'arvo.orc.inc.done': [
