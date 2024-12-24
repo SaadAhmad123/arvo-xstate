@@ -1,19 +1,30 @@
-import {
-  ArvoErrorSchema,
-  ArvoOrchestrationSubject,
-  createArvoContract,
-  createArvoEventFactory,
-  createArvoOrchestratorContract,
-} from 'arvo-core';
-import { z } from 'zod';
-import {
-  createArvoOrchestrator,
-  createOrchestratorInitEvent,
-  setupArvoMachine,
-} from '../../src';
-import { assign, emit } from 'xstate';
+import { ArvoOrchestrator, MachineMemoryRecord, SimpleMachineMemory, createArvoOrchestrator, createSimpleEventBroker } from '../../src';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
-import { createArvoEventHandler } from 'arvo-event-handler';
+import { incrementNumberHandler } from './handler/increment.number';
+import { decrementNumberHandler } from './handler/decrement.number';
+import { valueReadHandler } from './handler/value.read';
+import { valueWriteHandler } from './handler/value.write';
+import { decrementOrchestrator } from './orchestrators/decrement';
+import { incrementOrchestrator } from './orchestrators/increment';
+import { numberModifierOrchestrator } from './orchestrators/number.modifier';
+import {
+  ArvoEvent,
+  ArvoOrchestrationSubject,
+  createArvoEvent,
+  createArvoOrchestratorEventFactory,
+  EventDataschemaUtil,
+} from 'arvo-core';
+import {
+  incrementContract,
+  incrementOrchestratorContract,
+  valueReadContract,
+  numberModifierOrchestrator as numberModifierOrchestratorContract,
+} from './contracts';
+
+const promiseTimeout = (timeout: number = 10) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, timeout);
+  });
 
 describe('ArvoOrchestrator', () => {
   beforeAll(() => {
@@ -24,710 +35,366 @@ describe('ArvoOrchestrator', () => {
     telemetrySdkStop();
   });
 
-  const testMachineContract = createArvoOrchestratorContract({
-    uri: '#/test/machine',
-    type: 'test',
-    versions: {
-      '0.0.1': {
-        init: z.object({
-          delta: z.number(),
-          type: z.enum(['increment', 'decrement']),
-        }),
-        complete: z.object({
-          final: z.number(),
-        }),
+  const valueStore: Record<string, number> = {};
+  const machineMemory: SimpleMachineMemory = new SimpleMachineMemory();
+
+  const handlers = {
+    increment: incrementNumberHandler(),
+    decrement: decrementNumberHandler(),
+    valueRead: valueReadHandler({ valueStore }),
+    valueWrite: valueWriteHandler({ valueStore }),
+    incrementAgent: incrementOrchestrator({ memory: machineMemory }),
+    decrementAgent: decrementOrchestrator({ memory: machineMemory }),
+    numberModifierAgent: numberModifierOrchestrator({ memory: machineMemory }),
+  };
+
+  it('should orchestrate valid init event', async () => {
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        key: 'test.key',
+        modifier: 2,
+        trend: 'linear',
+        parentSubject$$: null,
       },
-      '0.0.2': {
-        init: z.object({
-          delta: z.number(),
-          type: z.enum(['increment', 'decrement']),
-        }),
-        complete: z.object({
-          final: z.number(),
-        }),
-      },
-    },
+    });
+
+    valueStore[initEvent.data.key] = 2;
+    let events = await handlers.incrementAgent.execute(initEvent, {
+      inheritFrom: 'EVENT',
+    });
+    let context = await machineMemory.read(initEvent.subject);
+
+    expect(context?.subject).toBe(initEvent.subject);
+    expect(context?.parentSubject).toBe(null);
+    expect(context?.status).toBe('active');
+    expect(context?.value).toBe('fetch_value');
+    expect((context?.state as any)?.context.value).toBe(0);
+    expect((context?.state as any)?.context.modifier).toBe(2);
+    expect((context?.state as any)?.context.trend).toBe('linear');
+    expect((context?.state as any)?.context.error.length).toBe(0);
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe(valueReadContract.type);
+    expect(events[0].to).toBe(valueReadContract.type);
+    expect(events[0].source).toBe(incrementOrchestratorContract.type);
+    expect(events[0].data.key).toBe(initEvent.data.key);
+
+    await promiseTimeout();
+    events = await handlers.valueRead.execute(events[0], {
+      inheritFrom: 'EVENT',
+    });
+    context = await machineMemory.read(initEvent.subject);
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe('evt.value.read.success');
+    expect(events[0].to).toBe(incrementOrchestratorContract.type);
+    expect(events[0].source).toBe(valueReadContract.type);
+    expect(events[0].data.value).toBe(valueStore[initEvent.data.key]);
+
+    await promiseTimeout();
+    events = await handlers.incrementAgent.execute(events[0], {
+      inheritFrom: 'EVENT',
+    });
+    context = await machineMemory.read(initEvent.subject);
+
+    expect(context?.subject).toBe(initEvent.subject);
+    expect(context?.parentSubject).toBe(null);
+    expect(context?.status).toBe('active');
+    expect(context?.value).toBe('increment');
+    expect((context?.state as any)?.context.value).toBe(2);
+    expect((context?.state as any)?.context.modifier).toBe(2);
+    expect((context?.state as any)?.context.trend).toBe('linear');
+    expect((context?.state as any)?.context.error.length).toBe(0);
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe(incrementContract.type);
+    expect(events[0].to).toBe(incrementContract.type);
+    expect(events[0].source).toBe(incrementOrchestratorContract.type);
+    expect(events[0].data.init).toBe(2);
+    expect(events[0].data.increment).toBe(2);
+
+    await promiseTimeout();
+    events = await handlers.increment.execute(events[0], {
+      inheritFrom: 'EVENT',
+    });
+    context = await machineMemory.read(initEvent.subject);
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe('evt.increment.number.success');
+    expect(events[0].to).toBe(incrementOrchestratorContract.type);
+    expect(events[0].source).toBe(incrementContract.type);
+    expect(events[0].data.result).toBe(4);
+
+    await promiseTimeout();
+    events = await handlers.incrementAgent.execute(events[0], {
+      inheritFrom: 'EVENT',
+    });
+    context = await machineMemory.read(initEvent.subject);
+
+    expect(context?.subject).toBe(initEvent.subject);
+    expect(context?.parentSubject).toBe(null);
+    expect(context?.status).toBe('done');
+    expect(context?.value).toBe('done');
+    expect((context?.state as any)?.context.value).toBe(4);
+    expect((context?.state as any)?.context.modifier).toBe(2);
+    expect((context?.state as any)?.context.trend).toBe('linear');
+    expect((context?.state as any)?.context.error.length).toBe(0);
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe(
+      incrementOrchestratorContract.metadata.completeEventType,
+    );
+    expect(events[0].to).toBe('com.test.test');
+    expect(events[0].source).toBe(incrementOrchestratorContract.type);
+    expect(events[0].data.success).toBe(true);
+    expect(events[0].data.error.length).toBe(0);
+    expect(events[0].data.final).toBe(4);
   });
 
-  const incrementServiceContract = createArvoContract({
-    uri: '#/test/service/increment',
-    type: 'com.number.increment',
-    versions: {
-      '0.0.1': {
-        accepts: z.object({
-          delta: z.number(),
-        }),
-        emits: {
-          'evt.number.increment.success': z.object({
-            newValue: z.number(),
-          }),
-        },
+  it('should throw error if lock not acquired', async () => {
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        key: 'test.key',
+        modifier: 2,
+        trend: 'linear',
+        parentSubject$$: null,
       },
-    },
+    });
+
+    await machineMemory.lock(initEvent.subject);
+
+    let events = await handlers.incrementAgent.execute(initEvent, {
+      inheritFrom: 'EVENT',
+    });
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe(incrementOrchestratorContract.systemError.type);
+    expect(events[0].data.errorMessage).toBe(
+      'Lock acquisition denied - Unable to obtain exclusive access to event processing',
+    );
+    expect(events[0].to).toBe(initEvent.source);
+
+    const result = await machineMemory.lock(initEvent.subject);
+    expect(result).toBe(false);
   });
 
-  const decrementServiceContract = createArvoContract({
-    uri: '#/test/service/decrement',
-    type: 'com.number.decrement',
-    versions: {
-      '0.0.1': {
-        accepts: z.object({
-          delta: z.number(),
-        }),
-        emits: {
-          'evt.number.decrement.success': z.object({
-            newValue: z.number(),
-          }),
-        },
+  it('should throw error if contract unresolved', async () => {
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        key: 'test.key',
+        modifier: 2,
+        trend: 'linear',
+        parentSubject$$: null,
       },
-    },
+    });
+
+    let events = await handlers.incrementAgent.execute(initEvent, {
+      inheritFrom: 'EVENT',
+    });
+
+    events = await handlers.incrementAgent.execute(events[0], {
+      inheritFrom: 'EVENT',
+    });
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe(incrementOrchestratorContract.systemError.type);
+    expect(events[0].data.errorMessage).toBe(
+      'Contract validation failed - Event does not match any registered contract schemas in the machine',
+    );
+    expect(events[0].to).toBe('com.test.test');
+
+    const fetchEvent = createArvoEvent({
+      subject: initEvent.subject,
+      source: 'com.test.test',
+      type: 'evt.value.read.success',
+      data: {
+        value: 'saad' as any,
+      },
+      dataschema: EventDataschemaUtil.create(
+        valueReadContract.version('0.0.1'),
+      ),
+    });
+
+    events = await handlers.incrementAgent.execute(fetchEvent, {
+      inheritFrom: 'EVENT',
+    });
+
+    expect(events.length).toBe(1);
+    expect(events[0].type).toBe(incrementOrchestratorContract.systemError.type);
+    expect(
+      (events[0].data.errorMessage as string).includes(
+        'Input validation failed - Event data does not meet contract requirements:',
+      ),
+    ).toBe(true);
+    expect(events[0].to).toBe('com.test.test');
+
+    expect(await machineMemory.lock(initEvent.subject)).toBe(true);
   });
 
-  const numberUpdateNotificationContract = createArvoContract({
-    uri: '#/test/notification/decrement',
-    type: 'notif.number.update',
-    versions: {
-      '0.0.1': {
-        accepts: z.object({
-          delta: z.number(),
-          type: z.enum(['increment', 'decrement']),
-        }),
-        emits: {},
+  it('should conducting nested orchestrators', async () => {
+    const broker = createSimpleEventBroker(Object.values(handlers));
+    let finalEvent: ArvoEvent | null = null;
+    broker.subscribe('com.test.test', async (event) => {
+      finalEvent = event;
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      numberModifierOrchestratorContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        init: 1,
+        modifier: 4,
+        trend: 'linear',
+        operation: 'decrement',
+        parentSubject$$: null,
       },
-    },
+    });
+
+    await broker.publish(initEvent);
+    expect(finalEvent).not.toBe(null)
+    expect(finalEvent!.data.success).toBe(true)
+    expect(finalEvent!.data.error.length).toBe(0)
+    expect(finalEvent!.data.final).toBe(-3)
+    expect(broker.events.length).toBe(
+      1 + // Number modifier orchestrator init event
+      1 + // Write event
+      1 + // Sucess event for write
+      1 + // Init decrement orchestrator event
+      1 + // Read event
+      1 + // Read success event
+      1 + // Decrement event
+      1 + // Decrement success event
+      1 + // Decrement orchestrator completion event
+      1   // Number modifier orchestrator completion event
+    )
+
+    expect(broker.events[0].type).toBe('arvo.orc.number.modifier')
+    expect(broker.events[0].to).toBe('arvo.orc.number.modifier')
+    
+    expect(broker.events[1].type).toBe('com.value.write')
+    expect(broker.events[1].to).toBe('com.value.write')
+    expect(broker.events[1].subject).toBe(initEvent.subject)
+    expect(broker.events[1].data.key).toBe(initEvent.subject)
+    expect(broker.events[1].data.value).toBe(initEvent.data.init)
+
+    expect(broker.events[3].type).toBe('arvo.orc.dec')
+    expect(broker.events[3].data.parentSubject$$).toBe(initEvent.subject)
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.name).toBe('arvo.orc.dec')
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.version).toBe('0.0.1')
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).execution.initiator).toBe('arvo.orc.number.modifier')
+
+    const result = await handlers.numberModifierAgent.execute(createArvoEvent({
+      source: 'com.test.test',
+      subject: 'test',
+      data: {},
+      type: numberModifierOrchestratorContract.type
+    }), {inheritFrom: 'EVENT'})
+
+    expect(result[0].type).toBe(numberModifierOrchestratorContract.systemError.type)
+    expect(result[0].data.errorMessage).toBe(
+      `Invalid event subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` + 
+      `Error -> incorrect header check\n` + 
+      `subject -> test`
+    )
   });
 
-  const setupV001 = setupArvoMachine({
-    contracts: {
-      self: testMachineContract.version('0.0.1'),
-      services: {
-        increment: incrementServiceContract.version('0.0.1'),
-        decrement: decrementServiceContract.version('0.0.1'),
-        notification: numberUpdateNotificationContract.version('0.0.1'),
-        test: testMachineContract.version('0.0.1'),
-      },
-    },
-    types: {
-      context: {} as {
-        currentSubject$$: string;
-        delta: number;
-        type: 'increment' | 'decrement';
-        errors: z.infer<typeof ArvoErrorSchema>[];
-      },
-    },
-    actions: {
-      log: ({ context, event }) => console.log({ context, event }),
-      assignEventError: assign({
-        errors: ({ context, event }) => [
-          ...context.errors,
-          event.data as z.infer<typeof ArvoErrorSchema>,
-        ],
-      }),
-    },
-    guards: {
-      isIncrement: ({ context }) => context.type === 'increment',
-      isDecrement: ({ context }) => context.type === 'decrement',
-    },
-  });
-
-  const setupV002 = setupArvoMachine({
-    contracts: {
-      self: testMachineContract.version('0.0.2'),
-      services: {
-        increment: incrementServiceContract.version('0.0.1'),
-        decrement: decrementServiceContract.version('0.0.1'),
-        notification: numberUpdateNotificationContract.version('0.0.1'),
-      },
-    },
-    types: {
-      context: {} as {
-        delta: number;
-        type: 'increment' | 'decrement';
-        errors: z.infer<typeof ArvoErrorSchema>[];
-      },
-    },
-    actions: {
-      log: ({ context, event }) => console.log({ context, event }),
-      assignEventError: assign({
-        errors: ({ context, event }) => [
-          ...context.errors,
-          event.data as z.infer<typeof ArvoErrorSchema>,
-        ],
-      }),
-    },
-    guards: {
-      isIncrement: ({ context }) => context.type === 'increment',
-      isDecrement: ({ context }) => context.type === 'decrement',
-    },
-  });
-
-  const machineV001 = setupV001.createMachine({
-    id: 'counter',
-    context: ({ input }) => ({
-      ...input.data,
-      currentSubject$$: input.subject,
-      errors: [] as z.infer<typeof ArvoErrorSchema>[],
-    }),
-    initial: 'route',
-    states: {
-      route: {
-        always: [
-          {
-            guard: 'isIncrement',
-            target: 'increment',
-          },
-          {
-            guard: 'isDecrement',
-            target: 'decrement',
-          },
-          {
-            target: 'error',
-            actions: assign({
-              errors: ({ context, event }) => [
-                ...context.errors,
-                {
-                  errorName: 'Invalid type',
-                  errorMessage: `Invalid operation type => ${context.type}`,
-                  errorStack: null,
-                },
-              ],
-            }),
-          },
-        ],
-      },
-      increment: {
-        entry: [
-          emit(({ context }) => ({
-            type: 'com.number.increment',
-            data: {
-              delta: context.delta,
-            },
-          })),
-        ],
-        on: {
-          'evt.number.increment.success': { target: 'notification' },
-          'sys.com.number.increment.error': {
-            target: 'error',
-            actions: [{ type: 'assignEventError' }],
-          },
-        },
-      },
-      decrement: {
-        entry: [
-          emit(({ context }) => ({
-            type: 'com.number.decrement',
-            data: {
-              delta: context.delta,
-            },
-          })),
-        ],
-        on: {
-          'evt.number.decrement.success': { target: 'notification' },
-          'sys.com.number.increment.error': {
-            target: 'error',
-            actions: [{ type: 'assignEventError' }],
-          },
-        },
-      },
-      notification: {
-        entry: [
-          { type: 'log' },
-          {
-            type: 'enqueueArvoEvent',
-            params: ({ context }) => ({
-              type: 'notif.number.update',
-              data: {
-                delta: context.delta,
-                type: context.type,
-              },
-            }),
-          },
-          emit(({ context }) => ({
-            type: 'arvo.orc.test',
-            data: {
-              parentSubject$$: context.currentSubject$$,
-              type: 'decrement',
-              delta: 1,
-            },
-          })),
-          emit(({ context }) => ({
-            type: 'arvo.orc.test',
-            data: {
-              parentSubject$$: null,
-              type: 'decrement',
-              delta: 1,
-            },
-          })),
-        ],
-        always: { target: 'done' },
-      },
-      done: { type: 'final' },
-      error: { type: 'final' },
-    },
-    output: ({ context }) => ({
-      final: context.delta,
-    }),
-  });
-
-  const machineV002 = setupV002.createMachine({
-    id: 'counter',
-    context: ({ input }) => ({
-      ...input.data,
-      errors: [] as z.infer<typeof ArvoErrorSchema>[],
-    }),
-    initial: 'route',
-    states: {
-      route: {
-        always: [
-          {
-            guard: 'isIncrement',
-            target: 'increment',
-          },
-          {
-            guard: 'isDecrement',
-            target: 'decrement',
-          },
-          {
-            target: 'error',
-            actions: assign({
-              errors: ({ context, event }) => [
-                ...context.errors,
-                {
-                  errorName: 'Invalid type',
-                  errorMessage: `Invalid operation type => ${context.type}`,
-                  errorStack: null,
-                },
-              ],
-            }),
-          },
-        ],
-      },
-      increment: {
-        entry: [
-          emit(({ context }) => ({
-            type: 'com.number.increment.1' as any,
-            data: {
-              delta: context.delta,
-            },
-          })),
-        ],
-        on: {
-          'evt.number.increment.success': { target: 'notification' },
-          'sys.com.number.increment.error': {
-            target: 'error',
-            actions: [{ type: 'assignEventError' }],
-          },
-        },
-      },
-      decrement: {
-        entry: [
-          emit(({ context }) => ({
-            type: 'com.number.decrement',
-            data: {
-              delta: context.delta,
-            },
-          })),
-        ],
-        on: {
-          'evt.number.decrement.success': { target: 'notification' },
-          'sys.com.number.increment.error': {
-            target: 'error',
-            actions: [{ type: 'assignEventError' }],
-          },
-        },
-      },
-      notification: {
-        entry: [
-          { type: 'log' },
-          {
-            type: 'enqueueArvoEvent',
-            params: ({ context }) => ({
-              type: 'notif.number.update',
-              data: {
-                delta: context.delta,
-                type: context.type,
-              },
-            }),
-          },
-        ],
-        always: { target: 'done' },
-      },
-      done: { type: 'final' },
-      error: { type: 'final' },
-    },
-    output: ({ context }) => ({
-      final: context.delta,
-    }),
-  });
-
-  const orchestrator = createArvoOrchestrator({
-    contract: testMachineContract,
-    executionunits: 1,
-    machines: {
-      '0.0.1': machineV001,
-      '0.0.2': machineV002,
-    },
-  });
-
-  test('should initialize correctly', () => {
-    expect(orchestrator.source).toBe(testMachineContract.type);
-    expect(orchestrator.executionunits).toBe(1);
-    expect(Object.values(orchestrator.machines)).toHaveLength(2);
-    expect(orchestrator.machines['0.0.1']).toBe(machineV001);
-  });
-
-  test('should throw error if no machines are provided', () => {
-    expect(() =>
+  it('should throw error on different mahines', () => {
+    expect(() => {
       createArvoOrchestrator({
-        contract: testMachineContract,
-        executionunits: 1,
-        machines: {} as any,
-      }),
-    ).toThrow();
-  });
+        executionunits: 0.1,
+        memory: new SimpleMachineMemory(),
+        machines: [
+          ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+          ...(handlers.decrementAgent as ArvoOrchestrator).registry.machines,
+        ]
+      })
+    }).toThrow("All the machines in the orchestrator must have type 'arvo.orc.inc'")
+  })
 
-  test('should execute increment successfully', () => {
-    const event = createOrchestratorInitEvent(
-      testMachineContract.version('0.0.1'),
-      {
-        source: 'com.test.service',
-        data: {
-          parentSubject$$: null,
-          type: 'increment',
-          delta: 1,
-        },
-      },
-    );
+  it('should throw error on duplicate mahines', () => {
+    expect(() => {
+      createArvoOrchestrator({
+        executionunits: 0.1,
+        memory: new SimpleMachineMemory(),
+        machines: [
+          ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+          ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+        ]
+      })
+    }).toThrow("An orchestrator must have unique machine versions. Machine ID:machineV001 has duplicate version 0.0.1.")
+  })
 
-    const result = orchestrator.execute({
-      parentSubject: null,
-      event,
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('success');
-    expect(result.events).toHaveLength(1); // Increment event and notification event
-    expect(result.events[0].type).toBe('com.number.increment');
-    expect(result.events[0].dataschema).toBe(
-      `${incrementServiceContract.uri}/0.0.1`,
-    );
-    expect(result.state).toBeDefined();
-    expect(result.parentSubject).toBe(null);
-    expect(result.subject).toBe(event.subject);
-  });
-
-  test('should handle errors successfully', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.2',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: 'testsubject',
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.2'),
-      ).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          parentSubject$$: 'testsubject',
-          type: 'increment',
-          delta: 1,
-        },
-      }),
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.events[0].subject).toBe('testsubject');
-    expect(result.events[0].to).toBe('com.test.service');
-    expect(result.events[0].data.errorMessage).toBe(
-      "The emitted event (type=com.number.increment.1) does not correspond to a contract. If this is delibrate, the use the action 'enqueueArvoEvent' instead of the 'emit'",
-    );
-    expect(result.state).toBe(null);
-  });
-
-  test('should handle errors successfully: No machine found', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.3',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: 'testsubject',
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.2'),
-      ).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          parentSubject$$: 'testsubject',
-          type: 'increment',
-          delta: 1,
-        },
-      }),
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.events[0].subject).toBe('testsubject');
-    expect(result.events[0].to).toBe('com.test.service');
-    expect(result.events[0].data.errorMessage).toBe(
-      "Unsupported version: No machine found for orchestrator arvo.orc.test with version '0.0.3'. Please check the supported versions and update your request.",
-    );
-    expect(result.state).toBe(null);
-  });
-
-  test('should handle errors when wrong event.to is defined', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.2',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: null,
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.2'),
-      ).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          parentSubject$$: null,
-          type: 'increment',
-          delta: 1,
-        },
-        to: 'com.com.com',
-      }),
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.events[0].subject).toBe(eventSubject);
-    expect(result.state).toBe(null);
-  });
-
-  test('should handle errors when wrong event.subject.name is defined', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test.1',
-      version: '0.0.2',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: null,
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.2'),
-      ).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          parentSubject$$: null,
-          type: 'increment',
-          delta: 1,
-        },
-      }),
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.state).toBe(null);
-  });
-
-  test('should handle errors when wrong event.type is defined when no state is available', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.1',
-      initiator: 'com.test.service',
-    });
-
-    const result = orchestrator.execute({
-      parentSubject: null,
-      event: createArvoEventFactory(
-        incrementServiceContract.version('0.0.1'),
-      ).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          delta: 1,
-        },
-      }),
-      state: null,
-    });
-
-    expect(result.executionStatus).toBe('error');
-    expect(result.events).toHaveLength(1);
-    expect(result.events[0].type).toBe(testMachineContract.systemError.type);
-    expect(result.events[0].to).toBe('com.test.service');
-    expect(result.events[0].subject).toBe(eventSubject);
-    expect(result.state).toBe(null);
-  });
-
-  test('should have a complete successfull orchestration', () => {
-    const eventSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'arvo.orc.test',
-      version: '0.0.1',
-      initiator: 'com.test.service',
-    });
-
-    let result = orchestrator.execute({
-      parentSubject: null,
-      event: createArvoEventFactory(
-        testMachineContract.version('0.0.1'),
-      ).accepts({
-        source: 'com.test.service',
-        subject: eventSubject,
-        data: {
-          parentSubject$$: null,
-          type: 'increment',
-          delta: 1,
-        },
-      }),
-      state: null,
-    });
-
-    expect(result.events.length).toBe(1);
-    expect(result.events[0].type).toBe('com.number.increment');
-    expect(result.events[0].subject).toBe(eventSubject);
-    expect(result.subject).toBe(eventSubject);
-    expect(result.parentSubject).toBe(null);
-    expect(result.events[0].to).toBe('com.number.increment');
-    expect(result.events[0].data.delta).toBe(1);
-    expect(result.state).toBeDefined();
-
-    result = orchestrator.execute({
-      parentSubject: null,
-      state: result.state,
-      event: createArvoEventFactory(
-        incrementServiceContract.version('0.0.1'),
-      ).emits({
-        type: 'evt.number.increment.success',
-        subject: result.events[0].subject,
-        source: 'com.number.increment',
-        to: 'arvo.orc.test',
-        data: {
-          newValue: 1,
-        },
-        traceparent: result.events[0].traceparent ?? undefined,
-        tracestate: result.events[0].tracestate ?? undefined,
-      }),
-    });
-
-    expect(result.events.length).toBe(4);
-    expect(result.subject).toBe(eventSubject);
-    expect(result.parentSubject).toBe(null);
-
-    expect(result.events[0].type).toBe('arvo.orc.test');
-    expect(result.events[0].to).toBe('arvo.orc.test');
-
-    expect(result.events[0].data.parentSubject$$).toBe(eventSubject);
-    let parsedSubject = ArvoOrchestrationSubject.parse(
-      result.events[0].subject,
-    );
-    expect(parsedSubject.execution.initiator).toBe('arvo.orc.test');
-    expect(parsedSubject.orchestrator.name).toBe('arvo.orc.test');
-    expect(parsedSubject.orchestrator.version).toBe('0.0.1');
-
-    expect(result.events[1].data.parentSubject$$).toBe(null);
-    parsedSubject = ArvoOrchestrationSubject.parse(result.events[1].subject);
-    expect(parsedSubject.execution.initiator).toBe('arvo.orc.test');
-    expect(parsedSubject.orchestrator.name).toBe('arvo.orc.test');
-    expect(parsedSubject.orchestrator.version).toBe('0.0.1');
-
-    expect(result.events[2].type).toBe('notif.number.update');
-    expect(result.events[2].to).toBe('notif.number.update');
-    expect(result.events[2].subject).toBe(eventSubject);
-    expect(result.events[2].data.type).toBe('increment');
-    expect(result.events[2].data.delta).toBe(1);
-
-    expect(result.events[3].type).toBe('arvo.orc.test.done');
-    expect(result.events[3].to).toBe('com.test.service');
-    expect(result.events[3].subject).toBe(eventSubject);
-    expect(result.events[3].source).toBe('arvo.orc.test');
-    expect(result.events[3].data.final).toBe(1);
-  });
-
-  test('should have a complete successfull child orchestration', async () => {
-    const parentSubject = ArvoOrchestrationSubject.new({
-      orchestator: 'com.test.service',
-      version: '0.0.1',
-      initiator: 'com.test.saad',
-    });
-
-    const event = createOrchestratorInitEvent(
-      testMachineContract.version('0.0.1'),
-      {
-        source: 'com.test.service',
-        data: {
-          parentSubject$$: parentSubject,
-          type: 'increment',
-          delta: 1,
-        },
-      },
-    );
-
-    let result = orchestrator.execute({
-      parentSubject: parentSubject,
-      event,
-      state: null,
-    });
-
-    expect(result.events.length).toBe(1);
-    expect(result.events[0].type).toBe('com.number.increment');
-    expect(result.events[0].subject).toBe(event.subject);
-    expect(result.subject).toBe(event.subject);
-    expect(result.parentSubject).toBe(parentSubject);
-    expect(result.events[0].to).toBe('com.number.increment');
-    expect(result.events[0].data.delta).toBe(1);
-    expect(result.state).toBeDefined();
-
-    const incrementHandler = createArvoEventHandler({
+  it('should throw error on execute in case of faulty locking mechanism', async () => {
+    const orchestrator = createArvoOrchestrator({
       executionunits: 0.1,
-      contract: incrementServiceContract,
-      handler: {
-        '0.0.1': async () => ({
-          type: 'evt.number.increment.success',
-          data: {
-            newValue: 1,
-          },
-        }),
+      memory: {
+        read: async (id: string) => null,
+        write: async (id: string, data: MachineMemoryRecord) => {},
+        lock: async (id: string) => {
+          throw new Error('Locking system failure!')
+        },
+        unlock: async (id: string) => true
       },
-    });
+      machines: [
+        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+      ]
+    })
 
-    result = orchestrator.execute({
-      parentSubject: result.parentSubject,
-      state: result.state,
-      event: (
-        await incrementHandler.execute(result.events[0] as any)
-      )[0] as any,
-    });
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1')
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        key: 'test',
+        modifier: 2,
+        trend: 'linear',
+      }
+    })
 
-    expect(result.events.length).toBe(4);
-    expect(result.subject).toBe(event.subject);
-    expect(result.parentSubject).toBe(parentSubject);
-    expect(result.events[2].type).toBe('notif.number.update');
-    expect(result.events[2].to).toBe('notif.number.update');
-    expect(result.events[2].subject).toBe(event.subject);
-    expect(result.events[2].data.type).toBe('increment');
-    expect(result.events[2].data.delta).toBe(1);
+    await expect(orchestrator.execute(initEvent))
+      .rejects.toThrow(`Error acquiring lock (id=${initEvent.subject}): Locking system failure!`)
+  })
 
-    expect(result.events[3].type).toBe('arvo.orc.test.done');
-    expect(result.events[3].to).toBe('com.test.service');
-    expect(result.events[3].subject).toBe(parentSubject);
-    expect(result.events[3].source).toBe('arvo.orc.test');
-    expect(result.events[3].dataschema).toBe(
-      `${testMachineContract.uri}/0.0.1`,
-    );
-    expect(result.events[3].data.final).toBe(1);
-  });
+  it('should throw error on execute in case of faulty locking mechanism', async () => {
+    const orchestrator = createArvoOrchestrator({
+      executionunits: 0.1,
+      memory: {
+        read: async (id: string) => {
+          throw new Error('Failed to acquire memory')
+        },
+        write: async (id: string, data: MachineMemoryRecord) => {},
+        lock: async (id: string) => true,
+        unlock: async (id: string) => true
+      },
+      machines: [
+        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+      ]
+    })
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1')
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        key: 'test',
+        modifier: 2,
+        trend: 'linear',
+      }
+    })
+
+    await expect(orchestrator.execute(initEvent))
+      .rejects.toThrow(`Error reading state (id=${initEvent.subject}): Failed to acquire memory`)
+  })
 });

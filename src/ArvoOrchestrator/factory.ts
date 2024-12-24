@@ -1,31 +1,36 @@
-import { IArvoOrchestrator } from './types';
-import { ArvoOrchestratorContract } from 'arvo-core';
-import ArvoOrchestrator from '.';
+import { ArvoOrchestrator } from '.';
+import { MachineExecutionEngine } from '../MachineExecutionEngine';
+import { MachineRegistry } from '../MachineRegistry';
+import { ICreateArvoOrchestrator } from './types';
 
 /**
- * Creates and returns a new ArvoOrchestrator instance.
+ * Creates a new Arvo orchestrator instance with default components.
+ * For custom components, use ArvoOrchestrator constructor directly.
  *
- * This factory function simplifies the process of creating an ArvoOrchestrator by handling
- * the complex generic type parameters and instantiation.
+ * @param config - Orchestrator configuration:
+ *   - memory: State persistence interface
+ *   - executionunits: Cost units for execution
+ *   - machines: State machines to manage
+ * @returns Configured ArvoOrchestrator with default components
  *
- * @template TSelfContract - The self contract
- *
- * @param param - Configuration parameters for the ArvoOrchestrator. This object should
- *                conform to the IArvoOrchestrator interface, which includes all necessary
- *                configuration options such as machines, execution units, etc.
- *
- * @returns A new instance of ArvoOrchestrator, fully typed and configured according to
- *          the provided generic parameters and configuration object.
- *
- * @throws Will throw an error if the provided parameters do not meet the requirements
- *         specified in the ArvoOrchestrator constructor.
- *
- * @see {@link ArvoOrchestrator} for more details on the orchestrator's functionality and usage.
+ * @example
+ * ```ts
+ * const orchestrator = createArvoOrchestrator({
+ *   memory: new MyMemoryImplementation(),
+ *   executionunits: 100,
+ *   machines: [machineA, machineB]
+ * });
+ * ```
  */
-export const createArvoOrchestrator = <
-  TSelfContract extends ArvoOrchestratorContract,
->(
-  param: IArvoOrchestrator<TSelfContract>,
-) => {
-  return new ArvoOrchestrator<TSelfContract>(param);
+export const createArvoOrchestrator = ({
+  executionunits,
+  memory,
+  machines,
+}: ICreateArvoOrchestrator): ArvoOrchestrator => {
+  return new ArvoOrchestrator({
+    executionunits,
+    memory,
+    registry: new MachineRegistry(...machines),
+    executionEngine: new MachineExecutionEngine(),
+  });
 };

@@ -1,191 +1,69 @@
-import {
-  ArvoContract,
-  ArvoSemanticVersion,
-  ArvoOrchestratorContract,
-  ArvoEvent,
-  VersionedArvoContract,
-} from 'arvo-core';
+import { Snapshot } from 'xstate';
+import { IMachineMemory } from '../MachineMemory/interface';
+import { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
+import { IMachineRegistry } from '../MachineRegistry/interface';
 import ArvoMachine from '../ArvoMachine';
-import { AnyActorLogic } from 'xstate';
-import { z } from 'zod';
-import { XStatePersistanceSchema } from './schema';
-import { OpenTelemetryConfig } from 'arvo-event-handler';
+
+export type TryFunctionOutput<TData, TError extends Error> =
+  | {
+      type: 'success';
+      data: TData;
+    }
+  | {
+      type: 'error';
+      error: TError;
+    };
 
 /**
- * Core interface for an Arvo Orchestrator, responsible for managing and coordinating
- * multiple state machines in a type-safe manner.
- *
- * The orchestrator handles versioning, state management, and coordination between
- * multiple ArvoMachine instances. It ensures type safety across different versions
- * of the orchestration contract.
- *
- * @template TSelfContract Extends ArvoOrchestratorContract - Defines the contract
- * that this orchestrator implements, including supported versions and their specifications
+ * Represents the state record stored in machine memory.
  */
-export interface IArvoOrchestrator<
-  TSelfContract extends ArvoOrchestratorContract,
-> {
-  /** The contract defining the orchestrator's capabilities and supported versions */
-  contract: TSelfContract;
+export type MachineMemoryRecord = {
+  /** Unique identifier for the machine instance */
+  subject: string;
 
-  /**
-   * Resource limit defining the maximum number of execution units available.
-   * Used to prevent infinite loops and ensure resource constraints are respected.
-   */
+  /** Optional reference to parent orchestration subject */
+  parentSubject: string | null;
+
+  /** Current execution status of the machine */
+  status: 'active' | 'done' | 'error' | 'stopped' | string;
+
+  /** Current value stored in the machine state */
+  value: string | Record<string, any> | null;
+
+  /** XState snapshot representing the machine's current state */
+  state: Snapshot<any>;
+};
+
+/**
+ * Interface defining the core components of an Arvo orchestrator.
+ */
+export interface IArvoOrchestrator {
+  /** The cost of the execution of the orchestrator */
   executionunits: number;
 
-  /**
-   * Collection of versioned state machines managed by this orchestrator.
-   *
-   * Each version corresponds to a specific implementation of the orchestrator's
-   * contract, allowing for backward compatibility and gradual upgrades.
-   *
-   * @remarks
-   * The type mapping ensures that each machine version correctly implements
-   * its corresponding contract version, maintaining type safety across versions.
-   */
-  machines: {
-    [V in keyof TSelfContract['versions'] & ArvoSemanticVersion]: ArvoMachine<
-      string,
-      V,
-      VersionedArvoContract<TSelfContract, V>,
-      Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
-      AnyActorLogic
-    >;
-  };
+  /** Memory interface for storing and retrieving machine state */
+  memory: IMachineMemory<MachineMemoryRecord>;
+
+  /** Registry for managing and resolving machine instances */
+  registry: IMachineRegistry;
+
+  /** Engine responsible for machine execution */
+  executionEngine: IMachineExectionEngine;
 }
 
 /**
- * Input parameters for executing an Arvo Orchestrator.
- *
- * @remarks
- * This type defines all necessary information needed to start or continue
- * an orchestration execution cycle. It supports both new orchestrations
- * and continuation of existing ones through state management.
+ * Configuration interface for creating an Arvo orchestrator instance.
  */
-export type ArvoOrchestratorExecuteInput = {
-  /**
-   * The triggering event for this execution cycle.
-   *
-   * Contains the payload and metadata needed to drive the orchestration process.
-   * The event's type and data should match the orchestrator's contract specifications.
-   */
-  event: ArvoEvent;
+export interface ICreateArvoOrchestrator {
+  /** Memory interface for storing and retrieving machine state */
+  memory: IMachineMemory<MachineMemoryRecord>;
+
+  /** The cost of the execution of the orchestrator */
+  executionunits: number;
 
   /**
-   * Compressed state representation of the orchestrator.
-   *
-   * @remarks
-   * - Stored as a base64-encoded zipped string for efficient transmission
-   * - Null indicates a new orchestration should be initialized
-   * - When provided, represents the previous state to resume from
+   * Collection of state machines to be managed by the orchestrator.
+   * All machines must have the same source identifier.
    */
-  state: string | null;
-
-  /**
-   * Identifier of the parent orchestration process.
-   *
-   * @remarks
-   * Critical for nested orchestrations and event routing:
-   * - Null represents a root-level orchestration
-   * - Non-null indicates a child orchestration
-   * - Used for:
-   *   1. Event routing in hierarchical orchestrations
-   *   2. State management and retrieval
-   *   3. Error and completion event propagation
-   *   4. Maintaining process hierarchies
-   *
-   * @example
-   * Storage structure for state management:
-   * ```
-   * {
-   *   subject: "current-execution-id",
-   *   parentSubject: "parent-execution-id",
-   *   state: "compressed-state-data"
-   * }
-   * ```
-   */
-  parentSubject: string | null;
-
-  /**
-   * Optional OpenTelemetry configuration for observability.
-   *
-   * @remarks
-   * Enables distributed tracing, metrics collection, and logging across
-   * the orchestration process. Useful for monitoring performance,
-   * debugging, and understanding system behavior.
-   */
-  opentelemetry?: OpenTelemetryConfig;
-};
-
-/**
- * Output produced by an Arvo Orchestrator execution cycle.
- *
- * @remarks
- * Encapsulates all results and side effects of an orchestration execution,
- * including state changes, emitted events, and execution status.
- */
-export type ArvoOrchestratorExecuteOutput = {
-  /**
-   * Unique identifier for this orchestration execution.
-   *
-   * @remarks
-   * - Matches the subject from the triggering event
-   * - Used for:
-   *   1. Correlation between input and output
-   *   2. State storage and retrieval
-   *   3. Event routing
-   *   4. Execution tracing
-   */
-  subject: string;
-
-  /**
-   * Reference to the parent orchestration's identifier.
-   *
-   * @remarks
-   * - Null for root orchestrations
-   * - Used for:
-   *   1. Maintaining orchestration hierarchies
-   *   2. Event routing to parent processes
-   *   3. State management in nested structures
-   *   4. Debugging and monitoring complex workflows
-   */
-  parentSubject: string | null;
-
-  /**
-   * Compressed state after execution completion.
-   *
-   * @remarks
-   * - Base64-encoded zipped string of the orchestrator's state
-   * - Null if the orchestration has completed or failed
-   * - Used as input for subsequent execution cycles
-   */
-  state: string | null;
-
-  /**
-   * Collection of events generated during execution.
-   *
-   * @remarks
-   * Events represent state transitions, decisions, or other significant
-   * occurrences during the orchestration process.
-   */
-  events: ArvoEvent[];
-
-  /**
-   * Final status of the execution cycle.
-   *
-   * @remarks
-   * - 'success': Orchestration completed normally
-   * - 'error': Orchestration encountered an error
-   */
-  executionStatus: 'success' | 'error';
-
-  /**
-   * Uncompressed state representation.
-   *
-   * @remarks
-   * Raw state data before compression and encoding.
-   * Useful for debugging and direct state inspection.
-   */
-  snapshot: z.infer<typeof XStatePersistanceSchema> | null;
-};
+  machines: ArvoMachine<any, any, any, any, any>[];
+}
