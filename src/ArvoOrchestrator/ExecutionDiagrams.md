@@ -1,75 +1,100 @@
+# ArvoOrchestrator Technical Documentation
+
+The ArvoOrchestrator is a critical component that orchestrates state machine execution and lifecycle management. It handles machine resolution, state management, event processing, and error handling while maintaining comprehensive telemetry through OpenTelemetry integration.
+
+## Core Responsibilities
+
+The orchestrator manages several key aspects:
+
+1. State machine lifecycle management
+2. Lock acquisition and state management
+3. Event validation and processing
+4. Machine resolution and execution
+5. Error handling and cleanup
+6. Event emission and routing
+
+## Execution Flow
+
+The state diagram below illustrates the core execution flow:
+
 ```mermaid
 stateDiagram-v2
     [*] --> StartExecution
-    StartExecution --> AcquireLock
-    
-    state AcquireLock {
-        [*] --> TryLock
-        TryLock --> LockSuccess: acquired
-        TryLock --> LockError: failed
-        LockError --> [*]: throw ArvoOrchestratorError
-        LockSuccess --> [*]
+
+    state SpanManagement {
+        StartExecution --> InitSpan: Create Producer Span
+        InitSpan --> SetAttributes: Set Execution Attributes
     }
-    
-    AcquireLock --> AcquireState
-    
-    state AcquireState {
-        [*] --> ReadMemory
-        ReadMemory --> StateRead: success
-        ReadMemory --> ReadError: failed
-        ReadError --> [*]: throw ArvoOrchestratorError
-        StateRead --> [*]
+
+    state LockAndStateManagement {
+        SetAttributes --> AcquireLock
+        AcquireLock --> AcquireState: Lock Success
+        AcquireLock --> HandleError: Lock Failed
+        AcquireState --> ValidateSubject: State Retrieved
+        AcquireState --> HandleError: State Read Failed
     }
-    
-    AcquireState --> ValidateAndExecute
-    
-    state ValidateAndExecute {
-        [*] --> ValidateLockStatus
-        ValidateLockStatus --> ValidateSubject: lock confirmed
-        ValidateSubject --> ResolveMachine
-        ResolveMachine --> ValidateEventInput
-        ValidateEventInput --> ExecuteMachine: validation passed
-        ValidateEventInput --> ValidationError: invalid input
-        ValidationError --> [*]: throw Error
+
+    state MachineProcessing {
+        ValidateSubject --> ResolveMachine: Valid Subject
+        ValidateSubject --> HandleError: Invalid Subject Format
+
+        ResolveMachine --> ValidateInput: Machine Resolved
+        ValidateInput --> ExecuteMachine: Valid Input
+        ValidateInput --> HandleError: Invalid Input
     }
-    
-    ValidateAndExecute --> ProcessExecution
-    
-    state ProcessExecution {
-        [*] --> ExecuteStateMachine
-        ExecuteStateMachine --> GenerateEvents
-        GenerateEvents --> ProcessFinalOutput
-        ProcessFinalOutput --> CreateEmittableEvents
+
+    state EventProcessing {
+        ExecuteMachine --> ProcessExecutionResult: Execution Complete
+        ProcessExecutionResult --> CreateEmittableEvents: Has Events
+        ProcessExecutionResult --> CreateCompleteEvent: Has Final Output
+
+        CreateEmittableEvents --> ValidateEventSchema
+        CreateCompleteEvent --> ValidateEventSchema
+
+        ValidateEventSchema --> WriteState: Events Valid
+        ValidateEventSchema --> HandleError: Schema Validation Failed
     }
-    
-    state CreateEmittableEvents {
-        [*] --> DetermineEventType
-        DetermineEventType --> CompleteEvent: completion event
-        DetermineEventType --> ServiceEvent: service event
-        CompleteEvent --> ValidateEventData
-        ServiceEvent --> ValidateEventData
-        ValidateEventData --> CreateEvent
-    }
-    
-    ProcessExecution --> UpdateState
-    
-    state UpdateState {
-        [*] --> WriteMemory
-        WriteMemory --> ReleaseLock
-    }
-    
-    UpdateState --> Success: no errors
-    UpdateState --> ErrorHandling: execution error
-    
+
     state ErrorHandling {
-        [*] --> LogError
-        LogError --> CreateSystemErrorEvent
-        CreateSystemErrorEvent --> [*]
+        HandleError --> CreateSystemErrorEvent
+        CreateSystemErrorEvent --> UnlockResource
     }
-    
-    Success --> [*]: return emittable events
-    ErrorHandling --> [*]: return error event
+
+    WriteState --> UnlockResource: State Written
+    WriteState --> HandleError: Write Failed
+    UnlockResource --> [*]
+
+    note right of SpanManagement
+        Initializes OpenTelemetry span
+        Sets execution attributes
+    end note
+
+    note right of LockAndStateManagement
+        Handles resource locking
+        Retrieves machine state
+    end note
+
+    note right of MachineProcessing
+        Resolves and validates machine
+        Processes input validation
+    end note
+
+    note right of EventProcessing
+        Processes execution results
+        Creates and validates events
+        Updates machine state
+    end note
+
+    note right of ErrorHandling
+        Creates system error events
+        Ensures resource cleanup
+    end note
 ```
+
+## Component Interactions
+
+The sequence diagram below shows the detailed interactions between components:
+
 
 ```mermaid
 sequenceDiagram
@@ -138,3 +163,11 @@ sequenceDiagram
     OT->>-O: span.end()
     O-->>-C: complete
 ```
+
+## Detailed Phase Descriptions
+
+The ArvoOrchestrator execution process begins with span management, where it creates OpenTelemetry producer spans and establishes proper telemetry context. This is followed by the critical lock and state management phase, where it acquires exclusive locks on subjects, retrieves current machine states, and validates subject formats. The machine processing phase then resolves appropriate versions, validates inputs against contracts, and prepares machines for execution.
+
+Once initial setup is complete, the orchestrator moves into event processing, where it executes machine logic, creates and validates emittable events, updates machine states, and handles event routing. Error handling runs parallel to all phases, creating system error events when needed, ensuring proper resource cleanup, maintaining telemetry context, and returning appropriate error responses. The orchestrator implements robust state management through exclusive locking mechanisms, persistent storage, and careful validation.
+
+Throughout the entire process, the orchestrator maintains comprehensive telemetry integration via OpenTelemetry, providing detailed execution attributes and resource usage metrics. It enforces strict schema validation and contract enforcement for all events, generates appropriate subjects, and ensures proper event routing and completion notification. This comprehensive approach ensures reliable state machine orchestration while maintaining observability and proper error handling throughout the execution lifecycle.

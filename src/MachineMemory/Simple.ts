@@ -11,7 +11,7 @@ import { IMachineMemory } from './interface';
  * const memory = new SimpleMachineMemory();
  * const orchestrator = createArvoOrchestrator({
  *   memory,
- *   executionunits: 100,
+ *   executionunits: 0.1,
  *   machines: [workflow]
  * });
  */
