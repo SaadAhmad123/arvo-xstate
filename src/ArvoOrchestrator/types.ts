@@ -24,8 +24,19 @@ export type MachineMemoryRecord = {
   /** Optional reference to parent orchestration subject */
   parentSubject: string | null;
 
-  /** Current execution status of the machine */
-  status: 'active' | 'done' | 'error' | 'stopped' | string;
+  /**
+   * Current execution status of the machine. The status field represents the current
+   * state of the machine's lifecycle. While commonly used values are:
+   * - 'active': Machine is currently executing
+   * - 'done': Machine has completed its execution successfully
+   * - 'error': Machine encountered an error during execution
+   * - 'stopped': Machine execution was explicitly stopped
+   * 
+   * Due to XState dependency, the status can be any string value defined in the 
+   * state machine definition. This allows for custom states specific to the 
+   * business logic implemented in the state machine.
+   */
+  status: string;
 
   /** Current value stored in the machine state */
   value: string | Record<string, any> | null;

@@ -52,7 +52,7 @@ export class SimpleEventBroker {
   private readonly maxQueueSize: number;
   private readonly onError: (error: Error, event: ArvoEvent) => void;
   private isProcessing: boolean;
-  private eventProcessDelay: number = 5;
+  private readonly eventProcessDelay: number = 1;
 
   constructor(options: EventBusOptions) {
     this.subscribers = new Map();
