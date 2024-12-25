@@ -18,6 +18,9 @@
     "projectDocuments": [
       "src/ArvoMachine/README.md",
       "src/ArvoOrchestrator/README.md",
+      "src/MachineRegistry/README.md",
+      "src/MachineExecutionEngine/README.md",
+      "src/MachineRegistry/README.md",
       "CHANGELOG.md",
       "LICENSE.md"
     ],

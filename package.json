@@ -1,6 +1,6 @@
 {
   "name": "arvo-xstate",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "This package allows you to use xstate Actors and State Machines to act as orchestrators in an Arvo Event Driven System",
   "main": "dist/index.js",
   "scripts": {
@@ -50,8 +50,8 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/core": "^1.28.0",
-    "arvo-core": "^2.1.15",
-    "arvo-event-handler": "^2.1.12",
+    "arvo-core": "^2.2.0",
+    "arvo-event-handler": "^2.2.0",
     "uuid": "^10.0.0",
     "xstate": "^5.19.0",
     "zod": "^3.23.8"

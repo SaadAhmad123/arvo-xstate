@@ -9,3 +9,7 @@
 ## [2.0.4] - 2024-11-30
 
 - Refactored the execute function of the ArvoOrchestrator. It more maintainable long term now. Moreover, the event choreography between machines is not easier
+## [2.2.0] - 2024-12-25
+
+- Stable release of version 2 of Arvo
+
