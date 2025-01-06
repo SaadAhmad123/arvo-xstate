@@ -13,3 +13,8 @@
 
 - Stable release of version 2 of Arvo
 
+## [2.2.2] - 2025-01-06
+
+- Added smart locking strategy so that the locking only happens when the machine implementation requires it otherwise the orchestrator skips locking of the resources. This is because it is observed that the machine's state and logic by itself maintains
+a very high degree of idempotency for sequential machines
+
