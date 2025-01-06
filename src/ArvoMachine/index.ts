@@ -50,6 +50,9 @@ export default class ArvoMachine<
    *
    * @param logic - The XState actor logic that defines the machine's behavior,
    *               including states, transitions, and actions.
+   * @param [requiresResourceLocking] - Optional flag indicating if the machine needs distributed locks. 
+   *                                    False when machine has no parallel states and executes sequentially. 
+   *                                    Defaults to true.
    *
    * @throws {Error} When contracts are invalid or incompatible with the specified version
    */
@@ -61,6 +64,7 @@ export default class ArvoMachine<
       services: TServiceContract;
     },
     public readonly logic: TLogic,
+    public readonly requiresResourceLocking: boolean = true,
   ) {}
 
   /**

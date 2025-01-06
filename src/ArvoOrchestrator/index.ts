@@ -48,6 +48,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   readonly memory: IMachineMemory<MachineMemoryRecord>;
   readonly registry: IMachineRegistry;
   readonly executionEngine: IMachineExectionEngine;
+  readonly requiresResourceLocking: boolean;
 
   /**
    * Gets the source identifier for this orchestrator
@@ -66,6 +67,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     memory,
     registry,
     executionEngine,
+    requiresResourceLocking,
   }: IArvoOrchestrator) {
     super();
     this.executionunits = executionunits;
@@ -88,11 +90,22 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
     this.registry = registry;
     this.executionEngine = executionEngine;
+    this.requiresResourceLocking = requiresResourceLocking
   }
 
   protected async acquireLock(
     event: ArvoEvent,
   ): Promise<TryFunctionOutput<boolean, ArvoOrchestratorError>> {
+    if (!this.requiresResourceLocking) {
+      logToSpan({
+        level: 'INFO',
+        message: 'Skipping acquiring lock as the orchestrator implements only sequential machines.'
+      })
+      return {
+        type: 'success',
+        data: true
+      }
+    }
     const id: string = event.subject;
     try {
       logToSpan({
@@ -392,7 +405,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           } else {
             logToSpan({
               level: 'INFO',
-              message: `This execetion acquired lock at resource '${event.subject}'`,
+              message: `This execution acquired lock at resource '${event.subject}'`,
             });
             thisSessionAcquiredLock = true;
           }
@@ -592,7 +605,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         } finally {
           // Finally, if this machine execution session acquired the lock
           // release the lock before closing
-          if (thisSessionAcquiredLock) {
+          if (this.requiresResourceLocking && thisSessionAcquiredLock) {
             await this.memory.unlock(event.subject).catch((err: Error) => {
               logToSpan(
                 {
