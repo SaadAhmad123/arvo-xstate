@@ -129,8 +129,10 @@ sequenceDiagram
     O->>+OT: startActiveSpan()
     
     %% Lock and State Management
+    alt Requires locking
     O->>+M: lock(event.subject)
     M-->>-O: lock result
+    end
     alt Lock Failed
         O->>OT: logToSpan(ERROR)
         O-->>C: throw ArvoOrchestratorError

@@ -1,5 +1,6 @@
 /**
  * Manages machine state memory operations for reading, writing and locking.
+ * The mindset while implementing the locking strategy must be "fail fast on acquire, be tolerant on release"
  * @template T - Structure of stored data
  */
 export interface IMachineMemory<T extends Record<string, any>> {
