@@ -38,5 +38,7 @@ export const telemetrySdkStart = () => {
 };
 
 export const telemetrySdkStop = () => {
-  telemetrySdk.shutdown();
+  try {
+    telemetrySdk.shutdown();
+  } catch {}
 };

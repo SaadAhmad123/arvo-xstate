@@ -109,7 +109,7 @@ describe('ArvoOrchestrator', () => {
     expect(context?.subject).toBe(initEvent.subject);
     expect(context?.parentSubject).toBe(null);
     expect(context?.status).toBe('active');
-    expect(context?.value).toBe('increment');
+    expect(JSON.stringify(context?.value ?? {})).toBe(JSON.stringify({'increment' : {}}));
     expect((context?.state as any)?.context.value).toBe(2);
     expect((context?.state as any)?.context.modifier).toBe(2);
     expect((context?.state as any)?.context.trend).toBe('linear');

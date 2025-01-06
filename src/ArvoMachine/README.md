@@ -169,6 +169,16 @@ const llmMachine = setupArvoMachine({
 
 As a best practice, always prefer `emit` when possible for better type safety and validation. Use `enqueueArvoEvent` sparingly and only when dealing with truly dynamic or external events. When using `enqueueArvoEvent`, consider adding runtime checks to ensure the emitted events still meet your system's requirements.
 
+## Resource Locking and Parallel States
+
+ArvoMachine optimizes its distributed execution through automatic analysis of state machine structure. During creation, it analyzes the machine configuration to determine if distributed resource locking is necessary by detecting the presence of parallel states.
+
+When a machine contains no parallel states, its execution is inherently sequential - state transitions happen one after another without possibility of race conditions. In these cases, ArvoMachine automatically sets `requiresResourceLocking` to false, eliminating unnecessary distributed lock overhead.
+
+For machines with parallel states where multiple states can be active simultaneously, the locking mechanism remains enabled to ensure safe concurrent operations.
+
+This locking flag is passed to implementations of the `IMachineMemory` interface, allowing memory managers to implement appropriate locking strategies based on their specific requirements. The entire process is automatic and requires no additional configuration from developers.
+
 ## Conclusion
 
 The Arvo Machine, composed of `setupArvoMachine`, `createMachine`, and the `ArvoMachine` class, forms the backbone of creating state machines in the Arvo event-driven architecture. By understanding these components and how to properly emit events, you can build robust, type-safe, and Arvo-compatible state machines for your event-driven systems.

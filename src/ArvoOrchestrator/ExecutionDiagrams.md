@@ -24,10 +24,17 @@ stateDiagram-v2
     state SpanManagement {
         StartExecution --> InitSpan: Create Producer Span
         InitSpan --> SetAttributes: Configure OTEL
+        SetAttributes --> CheckLockingRequired
     }
 
     state LockAndStateManagement {
-        SetAttributes --> AcquireLock
+
+        state CheckLockingRequired {
+            [*] --> RequiresLocking: requiresResourceLocking=true
+            [*] --> SkipLocking: requiresResourceLocking=false
+        }
+        SkipLocking --> AcquireState: Skip Lock
+
         AcquireLock --> AcquireState: Lock Success
         AcquireLock --> HandleError: Lock Failed
         AcquireState --> StateValidation: State Retrieved
@@ -41,13 +48,13 @@ stateDiagram-v2
         state NewExecution {
             [*] --> ValidateInitEvent
             ValidateInitEvent --> InitSuccess: Source Type Match
-            ValidateInitEvent --> IgnoreEvent: Type Mismatch
+            ValidateInitEvent --> CleanupResources: Type Mismatch
         }
 
         state ExistingExecution {
             [*] --> ValidateOrchestratorMatch
             ValidateOrchestratorMatch --> ResumeSuccess: Match
-            ValidateOrchestratorMatch --> IgnoreEvent: Mismatch
+            ValidateOrchestratorMatch --> CleanupResources: Mismatch
         }
     }
 
@@ -122,8 +129,10 @@ sequenceDiagram
     O->>+OT: startActiveSpan()
     
     %% Lock and State Management
+    alt Requires locking
     O->>+M: lock(event.subject)
     M-->>-O: lock result
+    end
     alt Lock Failed
         O->>OT: logToSpan(ERROR)
         O-->>C: throw ArvoOrchestratorError

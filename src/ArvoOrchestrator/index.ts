@@ -48,6 +48,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   readonly memory: IMachineMemory<MachineMemoryRecord>;
   readonly registry: IMachineRegistry;
   readonly executionEngine: IMachineExectionEngine;
+  readonly requiresResourceLocking: boolean;
 
   /**
    * Gets the source identifier for this orchestrator
@@ -66,6 +67,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     memory,
     registry,
     executionEngine,
+    requiresResourceLocking,
   }: IArvoOrchestrator) {
     super();
     this.executionunits = executionunits;
@@ -88,20 +90,32 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
     this.registry = registry;
     this.executionEngine = executionEngine;
+    this.requiresResourceLocking = requiresResourceLocking
   }
 
   protected async acquireLock(
     event: ArvoEvent,
-  ): Promise<TryFunctionOutput<boolean, ArvoOrchestratorError>> {
+  ): Promise<TryFunctionOutput<'NOOP' | 'ACQUIRED' | 'NOT_ACQUIRED', ArvoOrchestratorError>> {
+    if (!this.requiresResourceLocking) {
+      logToSpan({
+        level: 'INFO',
+        message: 'Skipping acquiring lock as the orchestrator implements only sequential machines.'
+      })
+      return {
+        type: 'success',
+        data: 'NOOP'
+      }
+    }
     const id: string = event.subject;
     try {
       logToSpan({
         level: 'INFO',
         message: 'Attempting to acquire lock for event ',
       });
+      const acquired = await this.memory.lock(id)
       return {
         type: 'success',
-        data: await this.memory.lock(id),
+        data: acquired ? 'ACQUIRED' : 'NOT_ACQUIRED',
       };
     } catch (e) {
       exceptionToSpan(e as Error);
@@ -112,7 +126,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       return {
         type: 'error',
         error: new ArvoOrchestratorError({
-          name: 'ACQUIRE_LOCK',
+          name: 'LOCK_MACHINE_MEMORY',
           message: `Error acquiring lock (id=${id}): ${(e as Error).message}`,
           initiatingEvent: event,
         }),
@@ -313,7 +327,6 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       inheritFrom: 'EVENT',
     },
   ): Promise<ArvoEvent[]> {
-    let thisSessionAcquiredLock = false;
     return await ArvoOpenTelemetry.getInstance().startActiveSpan({
       name: `Orchestrator<${this.registry.machines[0].contracts.self.uri}>`,
       spanOptions: {
@@ -348,8 +361,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           level: 'INFO',
           message: `Orchestrator starting execution for ${event.type} on subject ${event.subject}`,
         });
-        let lockAcquired: boolean = false;
-        let state: MachineMemoryRecord | null = null;
+        
+        // Acquiring lock
         const lockAcquiryProcess = await this.acquireLock(event);
         if (lockAcquiryProcess.type === 'error') {
           logToSpan({
@@ -359,6 +372,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           span.end();
           throw lockAcquiryProcess.error;
         }
+
+        // Acquiring state
         const stateAcquiryProcess = await this.acquireState(event);
         if (stateAcquiryProcess.type === 'error') {
           logToSpan({
@@ -368,14 +383,14 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           span.end();
           throw stateAcquiryProcess.error;
         }
-        lockAcquired = lockAcquiryProcess.data;
-        state = stateAcquiryProcess.data;
+        const state = stateAcquiryProcess.data;
         const otelHeaders = currentOpenTelemetryHeaders();
         let orchestrationParentSubject: string | null =
           state?.parentSubject ?? null;
+
         try {
+          // Validate the input event subject
           try {
-            // Validate the input event subject
             ArvoOrchestrationSubject.parse(event.subject);
           } catch (e) {
             throw new Error(
@@ -385,16 +400,21 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             );
           }
 
-          if (!lockAcquired) {
+          // If the lock was not acquired. This is not the error raised by
+          // locking rather this means that the locking executed successfully
+          // but could not acquire the lock
+          if (lockAcquiryProcess.data === 'NOT_ACQUIRED') {
             throw new Error(
               'Lock acquisition denied - Unable to obtain exclusive access to event processing',
             );
-          } else {
+          }
+
+          // Log if lock successfully acquired
+          if (lockAcquiryProcess.data === 'ACQUIRED') {
             logToSpan({
               level: 'INFO',
-              message: `This execetion acquired lock at resource '${event.subject}'`,
+              message: `This execution acquired lock at resource '${event.subject}'`,
             });
-            thisSessionAcquiredLock = true;
           }
 
           if(!state) {
@@ -592,7 +612,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         } finally {
           // Finally, if this machine execution session acquired the lock
           // release the lock before closing
-          if (thisSessionAcquiredLock) {
+          if (lockAcquiryProcess.data === 'ACQUIRED') {
             await this.memory.unlock(event.subject).catch((err: Error) => {
               logToSpan(
                 {

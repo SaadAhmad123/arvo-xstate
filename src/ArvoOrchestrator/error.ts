@@ -1,6 +1,11 @@
 import { ArvoEvent } from 'arvo-core';
 
 /**
+ * Possible orchestrator error types
+ */
+type ErrorName = 'READ_MACHINE_MEMORY' | 'LOCK_MACHINE_MEMORY';
+
+/**
  * Error thrown during Arvo orchestration operations
  */
 export class ArvoOrchestratorError extends Error {
@@ -28,8 +33,3 @@ export class ArvoOrchestratorError extends Error {
     this.initiatingEvent = param.initiatingEvent;
   }
 }
-
-/**
- * Possible orchestrator error types
- */
-type ErrorName = 'READ_MACHINE_MEMORY' | 'ACQUIRE_LOCK';
