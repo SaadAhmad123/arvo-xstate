@@ -126,7 +126,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       return {
         type: 'error',
         error: new ArvoOrchestratorError({
-          name: 'ACQUIRE_LOCK',
+          name: 'LOCK_MACHINE_MEMORY',
           message: `Error acquiring lock (id=${id}): ${(e as Error).message}`,
           initiatingEvent: event,
         }),

@@ -3,7 +3,7 @@ import { ArvoEvent } from 'arvo-core';
 /**
  * Possible orchestrator error types
  */
-type ErrorName = 'READ_MACHINE_MEMORY' | 'ACQUIRE_LOCK' | 'RELEASE_LOCK';
+type ErrorName = 'READ_MACHINE_MEMORY' | 'LOCK_MACHINE_MEMORY';
 
 /**
  * Error thrown during Arvo orchestration operations
