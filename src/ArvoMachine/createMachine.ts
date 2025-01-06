@@ -25,6 +25,7 @@ import {
 import { getAllPaths } from '../utils/object';
 import { z } from 'zod';
 import ArvoMachine from '.';
+import { detectParallelStates } from './utils';
 
 /**
  * Establishes the foundation for creating Arvo-compatible state machines.
@@ -458,7 +459,13 @@ export function setupArvoMachine<
       TSelfContract,
       TServiceContracts,
       typeof machine
-    >(config.id, machineVersion, param.contracts, machine);
+    >(
+      config.id,
+      machineVersion, 
+      param.contracts, 
+      machine,
+      detectParallelStates(machine.config)
+    );
   };
   return { createMachine };
 }

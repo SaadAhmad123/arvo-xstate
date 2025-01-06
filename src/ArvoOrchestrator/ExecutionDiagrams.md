@@ -23,78 +23,98 @@ stateDiagram-v2
 
     state SpanManagement {
         StartExecution --> InitSpan: Create Producer Span
-        InitSpan --> SetAttributes: Set Execution Attributes
+        InitSpan --> SetAttributes: Configure OTEL
+        SetAttributes --> CheckLockingRequired
     }
 
     state LockAndStateManagement {
-        SetAttributes --> AcquireLock
+
+        state CheckLockingRequired {
+            [*] --> RequiresLocking: requiresResourceLocking=true
+            [*] --> SkipLocking: requiresResourceLocking=false
+        }
+        SkipLocking --> AcquireState: Skip Lock
+
         AcquireLock --> AcquireState: Lock Success
         AcquireLock --> HandleError: Lock Failed
-        AcquireState --> ValidateSubject: State Retrieved
+        AcquireState --> StateValidation: State Retrieved
         AcquireState --> HandleError: State Read Failed
     }
 
-    state MachineProcessing {
-        ValidateSubject --> ResolveMachine: Valid Subject
-        ValidateSubject --> HandleError: Invalid Subject Format
+    state StateValidation {
+        ValidateState --> NewExecution: No State
+        ValidateState --> ExistingExecution: Has State
+        
+        state NewExecution {
+            [*] --> ValidateInitEvent
+            ValidateInitEvent --> InitSuccess: Source Type Match
+            ValidateInitEvent --> CleanupResources: Type Mismatch
+        }
 
+        state ExistingExecution {
+            [*] --> ValidateOrchestratorMatch
+            ValidateOrchestratorMatch --> ResumeSuccess: Match
+            ValidateOrchestratorMatch --> CleanupResources: Mismatch
+        }
+    }
+
+    state MachineProcessing {
+        InitSuccess --> ResolveMachine
+        ResumeSuccess --> ResolveMachine
         ResolveMachine --> ValidateInput: Machine Resolved
         ValidateInput --> ExecuteMachine: Valid Input
         ValidateInput --> HandleError: Invalid Input
     }
 
     state EventProcessing {
-        ExecuteMachine --> ProcessExecutionResult: Execution Complete
-        ProcessExecutionResult --> CreateEmittableEvents: Has Events
-        ProcessExecutionResult --> CreateCompleteEvent: Has Final Output
-
-        CreateEmittableEvents --> ValidateEventSchema
-        CreateCompleteEvent --> ValidateEventSchema
-
-        ValidateEventSchema --> WriteState: Events Valid
-        ValidateEventSchema --> HandleError: Schema Validation Failed
+        ExecuteMachine --> ProcessResult: Execution Complete
+        ProcessResult --> HandleRawEvents: Has Events
+        ProcessResult --> CreateCompleteEvent: Has Final Output
+        HandleRawEvents --> CreateEmittableEvents
+        CreateCompleteEvent --> CreateEmittableEvents
+        CreateEmittableEvents --> ValidateEvents
+        ValidateEvents --> WriteState: Valid
+        ValidateEvents --> HandleError: Invalid
     }
 
     state ErrorHandling {
         HandleError --> CreateSystemErrorEvent
-        CreateSystemErrorEvent --> UnlockResource
+        CreateSystemErrorEvent --> CleanupResources
     }
 
-    WriteState --> UnlockResource: State Written
+    WriteState --> CleanupResources: State Written
     WriteState --> HandleError: Write Failed
-    UnlockResource --> [*]
+    CleanupResources --> [*]
+    IgnoreEvent --> CleanupResources
 
-    note right of SpanManagement
-        Initializes OpenTelemetry span
-        Sets execution attributes
-    end note
-
-    note right of LockAndStateManagement
-        Handles resource locking
-        Retrieves machine state
+    note right of StateValidation
+        Differentiates between new and
+        existing execution states
+        Validates orchestrator matching
     end note
 
     note right of MachineProcessing
-        Resolves and validates machine
-        Processes input validation
+        Resolves appropriate machine version
+        Validates input against contracts
+        Executes machine logic
     end note
 
     note right of EventProcessing
-        Processes execution results
-        Creates and validates events
-        Updates machine state
+        Processes machine output
+        Handles completion events
+        Creates validated events
     end note
 
     note right of ErrorHandling
-        Creates system error events
-        Ensures resource cleanup
+        Generates system error events
+        Ensures proper cleanup
+        Routes errors to initiator
     end note
 ```
 
 ## Component Interactions
 
 The sequence diagram below shows the detailed interactions between components:
-
 
 ```mermaid
 sequenceDiagram
@@ -104,58 +124,95 @@ sequenceDiagram
     participant M as MachineMemory
     participant R as MachineRegistry
     participant E as ExecutionEngine
-    participant EH as EventHandler
 
     C->>+O: execute(event, opentelemetry)
     O->>+OT: startActiveSpan()
-
+    
+    %% Lock and State Management
+    alt Requires locking
     O->>+M: lock(event.subject)
     M-->>-O: lock result
+    end
     alt Lock Failed
+        O->>OT: logToSpan(ERROR)
         O-->>C: throw ArvoOrchestratorError
     end
 
     O->>+M: read(event.subject)
     M-->>-O: state data
     alt State Read Failed
+        O->>OT: logToSpan(ERROR)
         O-->>C: throw ArvoOrchestratorError
     end
 
+    %% State Validation
+    O->>O: validate event subject
+    alt Invalid Subject
+        O->>OT: logToSpan(ERROR)
+        O-->>C: throw Error
+    end
+
+    %% State Initialization Check
+    alt No State Found
+        O->>OT: logToSpan(INFO)
+        alt Invalid Init Event
+            O->>OT: logToSpan(WARNING)
+            O-->>C: return []
+        end
+    else State Exists
+        O->>OT: logToSpan(INFO)
+        alt Orchestrator Mismatch
+            O->>OT: logToSpan(WARNING)
+            O-->>C: return []
+        end
+    end
+
+    %% Machine Resolution and Execution
     O->>+R: resolve(event)
     R-->>-O: machine instance
 
-    O->>O: validateInput(event)
+    O->>+R: validateInput(event)
+    R-->>-O: validate result
+    
     alt Validation Failed
+        O->>OT: logToSpan(ERROR)
         O-->>C: throw Error
     end
 
     O->>+E: execute(state, event, machine)
     E-->>-O: execution result
 
+    %% Event Processing
     rect rgb(200, 200, 240)
-        Note over O,EH: For each event in result
-        loop Process Events
-            O->>+EH: createEmittableEvent()
-            EH->>EH: validate contract & schema
-            EH->>EH: generate subject
-            EH-->>-O: ArvoEvent
+        Note over O: Process Machine Events
+        loop For Each Event
+            O->>O: createEmittableEvent()
+            alt Invalid Event
+                O->>OT: logToSpan(ERROR)
+                O-->>C: throw Error
+            end
         end
     end
 
+    %% State Persistence
     O->>+M: write(subject, newState)
     M-->>-O: write confirmation
+    O->>OT: logToSpan(INFO)
 
-    alt thisMachineAcquiredLock
+    %% Cleanup
+    alt Lock Was Acquired
         O->>+M: unlock(event.subject)
         M-->>-O: unlock result
         alt Unlock Failed
-            Note over O: Log warning
+            O->>OT: logToSpan(WARNING)
         end
     end
 
+    %% Response
     alt Execution Success
         O-->>C: return emittable events
     else Execution Failed
+        O->>OT: logToSpan(ERROR)
         O->>O: create system error event
         O-->>C: return error event
     end

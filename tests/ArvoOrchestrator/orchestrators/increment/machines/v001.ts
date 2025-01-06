@@ -57,6 +57,8 @@ export const machineV001 = setupArvoMachine({
       },
     },
     increment: {
+      type: 'parallel',
+      states: {},
       entry: emit(({ context }) => ({
         type: 'com.increment.number',
         data: {

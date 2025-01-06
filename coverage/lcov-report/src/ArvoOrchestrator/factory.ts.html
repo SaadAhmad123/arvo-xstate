@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">92.85% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>9/9</span>
+                <span class='fraction'>13/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">60% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>3/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/1</span>
+                <span class='fraction'>2/2</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">92.3% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>8/8</span>
+                <span class='fraction'>12/13</span>
             </div>
         
             
@@ -99,9 +99,24 @@
 <a name='L34'></a><a href='#L34'>34</a>
 <a name='L35'></a><a href='#L35'>35</a>
 <a name='L36'></a><a href='#L36'>36</a>
-<a name='L37'></a><a href='#L37'>37</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -123,10 +138,25 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">8x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -143,18 +173,24 @@ import { ICreateArvoOrchestrator } from './types';
 /**
  * Creates a new Arvo orchestrator instance with default components.
  * For custom components, use ArvoOrchestrator constructor directly.
- *
- * @param config - Orchestrator configuration:
- *   - memory: State persistence interface
- *   - executionunits: Cost units for execution
- *   - machines: State machines to manage
- * @returns Configured ArvoOrchestrator with default components
- *
+ * 
+ * @param config - Orchestrator configuration
+ * @param config.memory - State persistence interface for storing machine states
+ * @param config.executionunits - Cost units for execution tracking
+ * @param config.machines - Array of state machines to manage. Their resource locking flags determine orchestrator's locking behavior
+ * @returns Configured ArvoOrchestrator instance with default registry and execution engine
+ * 
+ * @remarks
+ * The orchestrator's resource locking is enabled if any machine requires it. Locking is needed when:
+ * - Machine contains parallel states where multiple states can be active simultaneously
+ * - Race conditions need to be prevented in concurrent processing
+ * - State consistency must be maintained across distributed executions
+ * 
  * @example
- * ```ts
+ * ```typescript
  * const orchestrator = createArvoOrchestrator({
  *   memory: new MyMemoryImplementation(),
- *   executionunits: 100,
+ *   executionunits: 1,
  *   machines: [machineA, machineB]
  * });
  * ```
@@ -164,21 +200,30 @@ export const createArvoOrchestrator = ({
   memory,
   machines,
 }: ICreateArvoOrchestrator): ArvoOrchestrator =&gt; {
+  <span class="missing-if-branch" title="if path not taken" >I</span>if (!machines<span class="branch-0 cbranch-no" title="branch not covered" >?.l</span>ength) {
+<span class="cstat-no" title="statement not covered" >    throw new Error('At least one machine must be provided');</span>
+  }
+&nbsp;
+  const registry = new MachineRegistry(...machines);
+  const requiresResourceLocking = machines.some(
+    machine =&gt; machine.requiresResourceLocking
+  );
+&nbsp;
   return new ArvoOrchestrator({
     executionunits,
     memory,
-    registry: new MachineRegistry(...machines),
+    registry,
     executionEngine: new MachineExecutionEngine(),
+    requiresResourceLocking
   });
-};
-&nbsp;</pre></td></tr></table></pre>
+};</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2024-12-24T04:18:48.421Z
+                at 2025-01-06T05:54:58.830Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

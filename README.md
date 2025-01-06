@@ -37,14 +37,6 @@ Arvo is a collection of libraries which allows you to build the event driven sys
 
 Arvo's event-driven system requires an orchestration mechanism capable of emitting events based on predefined rules. Arvo utilizes a state machine approach, where orchestration is defined in the form of a state chart. This state chart is then interpreted by a state machine engine to calculate the next events to emit and the resulting system state. It should be noted that this package does not impose a storage solution and it is upto the implementation to choose the best storage for events and state snapshots.
 
-## Documentation & Resources
-
-| Source       | Link                                                       |
-| ------------ | ---------------------------------------------------------- |
-| Package      | https://www.npmjs.com/package/arvo-xstate?activeTab=readme |
-| Github       | https://github.com/SaadAhmad123/arvo-xstate                |
-| Documenation | https://saadahmad123.github.io/arvo-xstate/index.html      |
-
 ## Core Concept
 
 The fundamental idea behind this orchestration is to enable the development of a simple functional model. For demonstration purposes, consider the following conceptual code:
@@ -116,11 +108,11 @@ This package provides functions and classes to leverage xstate as state machine 
 You can install the core package via `npm` or `yarn`
 
 ```bash
-npm install arvo-xstate arvo-core xstate@5.18.1
+npm install arvo-xstate arvo-core
 ```
 
 ```bash
-yarn add arvo-xstate arvo-core xstate@5.18.1
+yarn add arvo-xstate arvo-core
 ```
 
 ## Arvo - Detailed Usage Guide
@@ -220,6 +212,8 @@ This contract acts as a blueprint for your machine, ensuring that it receives th
 ### 3. Set Up Machine Environment
 
 ```typescript
+import { xstate } from 'arvo-xstate';
+
 const setup = setupArvoMachine({
   contracts: {
     self: testMachineContract.version('0.0.1'),
@@ -238,7 +232,7 @@ const setup = setupArvoMachine({
   },
   actions: {
     log: ({ context, event }) => console.log({ context, event }),
-    assignEventError: assign({
+    assignEventError: xstate.assign({
       errors: ({ context, event }) => [
         ...context.errors,
         event.data as z.infer<typeof ArvoErrorSchema>,
@@ -286,7 +280,7 @@ const machineV100 = setup.createMachine({
         },
         {
           target: 'error',
-          actions: assign({
+          actions: xstate.assign({
             errors: ({ context, event }) => [
               ...context.errors,
               {
@@ -301,7 +295,7 @@ const machineV100 = setup.createMachine({
     },
     increment: {
       entry: [
-        emit(({ context }) => ({
+        xstate.emit(({ context }) => ({
           type: 'com.number.increment',
           data: {
             delta: context.delta,
@@ -318,7 +312,7 @@ const machineV100 = setup.createMachine({
     },
     decrement: {
       entry: [
-        emit(({ context }) => ({
+        xstate.emit(({ context }) => ({
           type: 'com.number.decrement',
           data: {
             delta: context.delta,
@@ -373,14 +367,9 @@ This is where the logic of your system lives. The structure provided by Arvo hel
 
 ```typescript
 const orchestrator = createArvoOrchestrator({
-  contract: testMachineContract,
-  executionunits: 1,
-  machines: {
-    '0.0.1': machineV100,
-  },
-  opentelemetry: {
-    inheritFrom: 'event',
-  },
+  executionunits: 0.1,
+  memory: new SimpleMachineMemory(),
+  machines: [machineV100]
 });
 ```
 
@@ -389,7 +378,7 @@ The orchestrator is the runtime that executes your state machines. By creating i
 
 - How many execution units to use (for concurrency)
 - Which machine versions to include
-- How to handle OpenTelemetry for tracing and monitoring
+- A memory module to handle the orchestrator state
 
 This step bridges the gap between your machine definitions and their actual execution. It's where your static definitions become a running system.
 
@@ -411,8 +400,19 @@ const event = createArvoEventFactory(testMachineContract.version('0.0.1)).accept
   },
 });
 
-let { state, events, executionStatus, snapshot } = orchestrator.execute({
-  event: event,
+// Or create the init event via the orchestrator event factory
+const initEvent = createArvoOrchestratorEventFactory(
+  testMachineContract.version('0.0.1')
+).init({
+  source: 'com.test.test',
+  data: {
+    parentSubject$$: null,
+    // ...
+  }
+})
+
+let result = await orchestrator.execute({
+  event: event // or initEvent,
   state: null,
 });
 ```
@@ -424,12 +424,7 @@ This is where your system comes to life. You're:
 2. Creating an initial event to kick off the orchestration
 3. Executing the orchestrator with this event
 
-The orchestrator returns:
-
-- The new state of the system
-- Any events that need to be emitted
-- The execution status
-- A snapshot of the current state
+The orchestrator returns all the events that need to be emitted.
 
 This step is crucial because it's where your system actually starts doing work in response to events.
 
@@ -439,7 +434,7 @@ This step is crucial because it's where your system actually starts doing work i
 const nextEvent = createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
   type: 'evt.number.increment.success',
   source: 'com.test.service',
-  subject: eventSubject,
+  subject: result[0].subject, // or initEvent.subject or event.subject
   data: {
     newValue: 10,
   },
@@ -448,7 +443,7 @@ const nextEvent = createArvoEventFactory(incrementServiceContract.version('0.0.1
   tracestate: events[0].tracestate ?? undefined,
 });
 
-{ state, events, executionStatus, snapshot } = orchestrator.execute({ event: nextEvent, state: state });
+result = orchestrator.execute({ event: nextEvent, state: state });
 ```
 
 **Commentary:**
