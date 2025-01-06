@@ -23,6 +23,13 @@ import { SimpleMachineMemory } from './MachineMemory/Simple';
 import { createArvoOrchestrator } from './ArvoOrchestrator/factory';
 import { SimpleEventBroker } from './utils/SimpleEventBroker';
 import { createSimpleEventBroker } from './utils/SimpleEventBroker/helper';
+import { TelemetredSimpleMachineMemory } from './MachineMemory/TelemetredSimple';
+import { assign, emit } from 'xstate';
+
+const xstate = {
+  emit,
+  assign
+}
 
 export {
   ArvoMachine,
@@ -44,4 +51,6 @@ export {
   createArvoOrchestrator,
   SimpleEventBroker,
   createSimpleEventBroker,
+  TelemetredSimpleMachineMemory,
+  xstate
 };

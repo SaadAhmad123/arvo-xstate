@@ -71,7 +71,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     this.executionunits = executionunits;
     this.memory = memory;
     const representativeMachine = registry.machines[0];
-    let lastSeenVersions: ArvoSemanticVersion[] = []
+    let lastSeenVersions: ArvoSemanticVersion[] = [];
     for (const machine of registry.machines) {
       if (representativeMachine.source !== machine.source) {
         throw new Error(
@@ -80,11 +80,10 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       }
       if (lastSeenVersions.includes(machine.version)) {
         throw new Error(
-          `An orchestrator must have unique machine versions. Machine ID:${machine.id} has duplicate version ${machine.version}.`
-        )
-      }
-      else {
-        lastSeenVersions.push(machine.version)
+          `An orchestrator must have unique machine versions. Machine ID:${machine.id} has duplicate version ${machine.version}.`,
+        );
+      } else {
+        lastSeenVersions.push(machine.version);
       }
     }
     this.registry = registry;
@@ -204,22 +203,21 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       schema = serviceContract[event.type].accepts.schema;
 
       // If the event is to call another orchestrator then, extract the parent subject
-      // passed to it and then form an new subject. This allows for event chaining 
+      // passed to it and then form an new subject. This allows for event chaining
       // between orchestrators
       if (
         (contract as any).metadata.contractType === 'ArvoOrchestratorContract'
       ) {
-
         if (event.data.parentSubject$$) {
           try {
-            ArvoOrchestrationSubject.parse(event.data.parentSubject$$)
+            ArvoOrchestrationSubject.parse(event.data.parentSubject$$);
           } catch (e) {
             throw new Error(
-              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema}')` + 
-              'It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the ' + 
-              'current orchestration subject by storing the subject via the context block in the machine' + 
-              'definition'
-            )
+              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema ?? EventDataschemaUtil.create(contract)}').` +
+                'It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the ' +
+                'current orchestration subject by storing the subject via the context block in the machine' +
+                'definition.',
+            );
           }
         }
 
@@ -229,12 +227,18 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               orchestator: contract.accepts.type,
               version: contract.version,
               subject: event.data.parentSubject$$,
+              meta: {
+                redirectto: event.redirectto ?? this.source,
+              },
             });
           } else {
             subject = ArvoOrchestrationSubject.new({
               version: contract.version,
               orchestator: contract.accepts.type,
               initiator: this.source,
+              meta: {
+                redirectto: event.redirectto ?? this.source,
+              },
             });
           }
         } catch (error) {
@@ -278,7 +282,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         accesscontrol:
           event.accesscontrol ?? sourceEvent.accesscontrol ?? undefined,
         // The orchestrator does not respect redirectto from the source event
-        redirectto: event.redirectto ?? undefined,
+        redirectto: event.redirectto ?? this.source,
         executionunits: event.executionunits ?? this.executionunits,
         traceparent: otelHeaders.traceparent ?? undefined,
         tracestate: otelHeaders.tracestate ?? undefined,
@@ -367,17 +371,17 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         lockAcquired = lockAcquiryProcess.data;
         state = stateAcquiryProcess.data;
         const otelHeaders = currentOpenTelemetryHeaders();
-        let orchestrationParentSubject: string | null = state?.parentSubject ?? null;
+        let orchestrationParentSubject: string | null =
+          state?.parentSubject ?? null;
         try {
-
           try {
             // Validate the input event subject
-            ArvoOrchestrationSubject.parse(event.subject)
-          } catch(e) {
+            ArvoOrchestrationSubject.parse(event.subject);
+          } catch (e) {
             throw new Error(
-              `Invalid event subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. ` + 
-              `The subject must follow the format specified by ArvoOrchestrationSubject schema. ` +
-              `Parsing error: ${(e as Error).message}`
+              `Invalid event subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. ` +
+                `The subject must follow the format specified by ArvoOrchestrationSubject schema. ` +
+                `Parsing error: ${(e as Error).message}`,
             );
           }
 
@@ -393,7 +397,42 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             thisSessionAcquiredLock = true;
           }
 
-          // In case the event is the init event then 
+          if(!state) {
+            logToSpan({
+              level: 'INFO', 
+              message: `Initializing new execution state for subject: ${event.subject}`,
+            })
+          
+            if (event.type !== this.source) {
+              logToSpan({
+                level: 'WARNING',
+                message: (
+                  `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. ` +
+                  `This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`
+                )
+              })
+              return []
+            }
+          } else {
+            logToSpan({
+              level: 'INFO',
+              message: `Resuming execution with existing state for subject: ${event.subject}`
+            })
+          
+            if (ArvoOrchestrationSubject.parse(event.subject).orchestrator.name !== this.source) {
+              logToSpan({
+                level: 'WARNING',
+                message: (
+                  `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates ` +
+                  `'${ArvoOrchestrationSubject.parse(event.subject).orchestrator.name}'. ` +
+                  `This indicates either a routing error or a non-applicable event that can be safely ignored.`
+                )
+              })
+              return []
+            }
+          }
+
+          // In case the event is the init event then
           // extract the parent subject from it and assume
           // it to be the orchestration parent subject
           if (event.type === this.source) {
@@ -417,7 +456,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           // Validate the event againt the events that can be
           // recieved by the machine. The orchestrator must only
           // allow event which the machine is expecting as input
-          // to be futher processed. 
+          // to be futher processed.
           // The machine however should be able to emit any events
           const inputValidation = machine.validateInput(event);
 
@@ -436,7 +475,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           }
 
           // Execute the raw machine and collect the result
-          // The result basically contain RAW events from the 
+          // The result basically contain RAW events from the
           // machine which will then transformed to be real ArvoEvents
           const executionResult = this.executionEngine.execute(
             {
@@ -448,7 +487,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           );
 
           const rawMachineEmittedEvents = executionResult.events;
-          
+
           // In case execution of the machine has finished
           // and the final output has been created, then in
           // that case, make the raw event as the final output
@@ -520,7 +559,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: (e as Error).message,
           });
 
-          // In case of the system error send the event back 
+          // In case of the system error send the event back
           // to the initiator. In as good of a format as possible
           let parsedEventSubject: ArvoOrchestrationSubjectContent | null = null;
           try {

@@ -1,5 +1,4 @@
-import { assign, emit } from 'xstate';
-import { setupArvoMachine } from '../../../../../src';
+import { setupArvoMachine, xstate } from '../../../../../src';
 import {
   decrementOrchestratorContract,
   incrementOrchestratorContract,
@@ -43,7 +42,7 @@ export const machineV001 = setupArvoMachine({
   initial: 'init_value',
   states: {
     init_value: {
-      entry: emit(({ context }) => ({
+      entry: xstate.emit(({ context }) => ({
         type: 'com.value.write',
         data: {
           key: context.key,
@@ -55,7 +54,7 @@ export const machineV001 = setupArvoMachine({
           {
             guard: ({ event }) => !event.data.success,
             target: 'error',
-            actions: assign({
+            actions: xstate.assign({
               errors: ({ context }) => [
                 ...context.errors,
                 {
@@ -72,7 +71,7 @@ export const machineV001 = setupArvoMachine({
         ],
         'sys.com.value.write.error': {
           target: 'error',
-          actions: assign({
+          actions: xstate.assign({
             errors: ({ context, event }) => [...context.errors, event.data],
           }),
         },
@@ -90,7 +89,7 @@ export const machineV001 = setupArvoMachine({
         },
         {
           target: 'error',
-          actions: assign({
+          actions: xstate.assign({
             errors: ({ context }) => [
               ...context.errors,
               {
@@ -104,21 +103,30 @@ export const machineV001 = setupArvoMachine({
       ],
     },
     decrement: {
-      entry: emit(({ context }) => ({
-        type: 'arvo.orc.dec',
-        data: {
-          parentSubject$$: context.currentSubject$$,
-          key: context.key,
-          modifier: context.modifier,
-          trend: context.trend,
+      entry: [
+        xstate.emit(({ context }) => ({
+          type: 'arvo.orc.dec',
+          data: {
+            parentSubject$$: context.currentSubject$$,
+            key: context.key,
+            modifier: context.modifier,
+            trend: context.trend,
+          },
+        })),
+        {
+          type: 'enqueueArvoEvent',
+          params: {
+            type: 'com.notif.test',
+            data: {},
+          },
         },
-      })),
+      ],
       on: {
         'arvo.orc.dec.done': [
           {
             guard: ({ event }) => !event.data.success,
             target: 'error',
-            actions: assign({
+            actions: xstate.assign({
               errors: ({ context, event }) => [
                 ...context.errors,
                 ...event.data.error,
@@ -127,33 +135,42 @@ export const machineV001 = setupArvoMachine({
           },
           {
             target: 'done',
-            actions: assign({ final_value: ({ event }) => event.data.final }),
+            actions: xstate.assign({ final_value: ({ event }) => event.data.final }),
           },
         ],
         'sys.arvo.orc.dec.error': {
           target: 'error',
-          actions: assign({
+          actions: xstate.assign({
             errors: ({ context, event }) => [...context.errors, event.data],
           }),
         },
       },
     },
     increment: {
-      entry: emit(({ context }) => ({
-        type: 'arvo.orc.inc',
-        data: {
-          parentSubject$$: context.currentSubject$$,
-          key: context.key,
-          modifier: context.modifier,
-          trend: context.trend,
+      entry: [
+        xstate.emit(({ context }) => ({
+          type: 'arvo.orc.inc',
+          data: {
+            parentSubject$$: context.currentSubject$$,
+            key: context.key,
+            modifier: context.modifier,
+            trend: context.trend,
+          },
+        })),
+        {
+          type: 'enqueueArvoEvent',
+          params: {
+            type: 'com.notif.test',
+            data: {},
+          },
         },
-      })),
+      ],
       on: {
         'arvo.orc.inc.done': [
           {
             guard: ({ event }) => !event.data.success,
             target: 'error',
-            actions: assign({
+            actions: xstate.assign({
               errors: ({ context, event }) => [
                 ...context.errors,
                 ...event.data.error,
@@ -162,12 +179,12 @@ export const machineV001 = setupArvoMachine({
           },
           {
             target: 'done',
-            actions: assign({ final_value: ({ event }) => event.data.final }),
+            actions: xstate.assign({ final_value: ({ event }) => event.data.final }),
           },
         ],
         'sys.arvo.orc.inc.error': {
           target: 'error',
-          actions: assign({
+          actions: xstate.assign({
             errors: ({ context, event }) => [...context.errors, event.data],
           }),
         },

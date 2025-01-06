@@ -12,5 +12,5 @@ export type ExecuteMachineInput = {
 export type ExecuteMachineOutput = {
   state: Snapshot<any>;
   events: EnqueueArvoEventActionParam[];
-  finalOutput: any | null;
+  finalOutput: any;
 };
