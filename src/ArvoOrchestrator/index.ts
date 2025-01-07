@@ -591,7 +591,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               initiatingEvent: event
             })
             logToSpan({
-              level: "CRITICAL",
+              level: "ERROR",
               message: error.message,
             })
             exceptionToSpan(error)
