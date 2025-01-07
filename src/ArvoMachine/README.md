@@ -1,5 +1,5 @@
 ---
-title: "ArvoMachine: Core Components and Event Emission"
+title: 'ArvoMachine: Core Components and Event Emission'
 group: Guides
 ---
 
@@ -71,7 +71,7 @@ const machine = setup.createMachine({
   context: ({ input }) => ({
     // Initial context based on input
   }),
-  output: ({context}) => ({ ... }), 
+  output: ({context}) => ({ ... }),
   initial: 'initialState',
   states: {
     initialState: {
@@ -126,7 +126,7 @@ const llmMachine = setupArvoMachine({
   // ... other machine config
   states: {
     someState: {
-      entry: [        
+      entry: [
         xstate.emit(({ context }) => ({
           type: 'com.openai.completions',
           data: {
@@ -155,7 +155,7 @@ const llmMachine = setupArvoMachine({
         },
       },
     }),
-  },  
+  },
 }).createMachine({
   // ... other machine config
   states: {
@@ -185,6 +185,6 @@ The Arvo Machine, composed of `setupArvoMachine`, `createMachine`, and the `Arvo
 
 Remember, the Arvo Machine is designed to work hand-in-hand with the Arvo Orchestrator. The Orchestrator consumes Arvo Machines and executes them as part of larger, event-driven workflows. By adhering to the principles and best practices outlined in this guide, you can ensure your state machines integrate seamlessly into the Arvo ecosystem.
 
-## Additional Information 
+## Additional Information
 
 A more detailed information is provided [here](https://github.com/SaadAhmad123/arvo-xstate/blob/main/src/ArvoMachine/ExecutionDiagrams.md) on machine input validation which is used by the orchestrator to perform gatekeeping actions.

@@ -369,7 +369,7 @@ This is where the logic of your system lives. The structure provided by Arvo hel
 const orchestrator = createArvoOrchestrator({
   executionunits: 0.1,
   memory: new SimpleMachineMemory(),
-  machines: [machineV100]
+  machines: [machineV100],
 });
 ```
 
@@ -431,7 +431,9 @@ This step is crucial because it's where your system actually starts doing work i
 ### 7. Handle Subsequent Events
 
 ```typescript
-const nextEvent = createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
+const nextEvent = createArvoEventFactory(
+  incrementServiceContract.version('0.0.1'),
+).emits({
   type: 'evt.number.increment.success',
   source: 'com.test.service',
   subject: result[0].subject, // or initEvent.subject or event.subject

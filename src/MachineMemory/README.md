@@ -35,7 +35,7 @@ const memory = new SimpleMachineMemory();
 const orchestrator = createArvoOrchestrator({
   memory,
   executionunits: 0.1,
-  machines: [workflow]
+  machines: [workflow],
 });
 ```
 
@@ -48,7 +48,7 @@ Example of a Redis-based implementation considering these factors:
 ```typescript
 class RedisMachineMemory implements IMachineMemory<MachineMemoryRecord> {
   constructor(private redis: Redis) {}
-  
+
   async read(id: string): Promise<MachineMemoryRecord | null> {
     // Implementation with retry strategy
   }

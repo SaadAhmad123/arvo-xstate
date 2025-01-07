@@ -109,7 +109,9 @@ describe('ArvoOrchestrator', () => {
     expect(context?.subject).toBe(initEvent.subject);
     expect(context?.parentSubject).toBe(null);
     expect(context?.status).toBe('active');
-    expect(JSON.stringify(context?.value ?? {})).toBe(JSON.stringify({'increment' : {}}));
+    expect(JSON.stringify(context?.value ?? {})).toBe(
+      JSON.stringify({ increment: {} }),
+    );
     expect((context?.state as any)?.context.value).toBe(2);
     expect((context?.state as any)?.context.modifier).toBe(2);
     expect((context?.state as any)?.context.trend).toBe('linear');
@@ -175,16 +177,13 @@ describe('ArvoOrchestrator', () => {
 
     await machineMemory.lock(initEvent.subject);
 
-    let events = await handlers.incrementAgent.execute(initEvent, {
-      inheritFrom: 'EVENT',
-    });
-
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe(incrementOrchestratorContract.systemError.type);
-    expect(events[0].data.errorMessage).toBe(
+    expect(async () => {
+      await handlers.incrementAgent.execute(initEvent, {
+        inheritFrom: 'EVENT',
+      });
+    }).rejects.toThrow(
       'Lock acquisition denied - Unable to obtain exclusive access to event processing',
     );
-    expect(events[0].to).toBe(initEvent.source);
 
     const result = await machineMemory.lock(initEvent.subject);
     expect(result).toBe(false);
@@ -310,21 +309,18 @@ describe('ArvoOrchestrator', () => {
         .initiator,
     ).toBe('arvo.orc.number.modifier');
 
-    const result = await handlers.numberModifierAgent.execute(
-      createArvoEvent({
-        source: 'com.test.test',
-        subject: 'test',
-        data: {},
-        type: numberModifierOrchestratorContract.type,
-      }),
-      { inheritFrom: 'EVENT' },
-    );
-
-    expect(result[0].type).toBe(
-      numberModifierOrchestratorContract.systemError.type,
-    );
-    expect(result[0].data.errorMessage).toBe(
-      `Invalid event subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` +
+    const badEvent = createArvoEvent({
+      source: 'com.test.test',
+      subject: 'test',
+      data: {},
+      type: numberModifierOrchestratorContract.type,
+    });
+    expect(async () => {
+      await handlers.numberModifierAgent.execute(badEvent, {
+        inheritFrom: 'EVENT',
+      });
+    }).rejects.toThrow(
+      `Invalid event (id=${badEvent.id}) subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` +
         `Error -> incorrect header check\n` +
         `subject -> test`,
     );
@@ -393,7 +389,7 @@ describe('ArvoOrchestrator', () => {
     );
   });
 
-  it('should throw error on execute in case of faulty locking mechanism', async () => {
+  it('should throw error on execute in case of faulty reading locking mechanism', async () => {
     const orchestrator = createArvoOrchestrator({
       executionunits: 0.1,
       memory: {
@@ -423,6 +419,39 @@ describe('ArvoOrchestrator', () => {
 
     await expect(orchestrator.execute(initEvent)).rejects.toThrow(
       `Error reading state (id=${initEvent.subject}): Failed to acquire memory`,
+    );
+  });
+
+  it('should throw error on execute in case of faulty writing locking mechanism', async () => {
+    const orchestrator = createArvoOrchestrator({
+      executionunits: 0.1,
+      memory: {
+        read: async (id: string) => null,
+        write: async (id: string, data: MachineMemoryRecord) => {
+          throw new Error('Failed to write memory');
+        },
+        lock: async (id: string) => true,
+        unlock: async (id: string) => true,
+      },
+      machines: [
+        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
+      ],
+    });
+
+    const initEvent = createArvoOrchestratorEventFactory(
+      incrementOrchestratorContract.version('0.0.1'),
+    ).init({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        key: 'test',
+        modifier: 2,
+        trend: 'linear',
+      },
+    });
+
+    await expect(orchestrator.execute(initEvent)).rejects.toThrow(
+      `Error writing state for event (id=${initEvent.subject}): Failed to write memory`,
     );
   });
 
@@ -502,7 +531,7 @@ describe('ArvoOrchestrator', () => {
       1 + // Number modifier orchestrator init event
         1 + // Write event
         1 + // Sucess event for write
-        1 // Error event for faulty parent subject
+        1, // Error event for faulty parent subject
     );
     expect(finalEventFromTest1).toBe(null);
     expect(finalEventFromTest).not.toBe(null);
@@ -530,7 +559,6 @@ describe('ArvoOrchestrator', () => {
     });
 
     await broker.publish(initEvent);
-    console.log(JSON.stringify(await machineMemory.read(initEvent.subject), null, 2))
     expect(broker.events.length).toBe(
       1 + // Number modifier orchestrator init event
         1 + // Write event
@@ -540,7 +568,7 @@ describe('ArvoOrchestrator', () => {
         1 + // Read event
         1 + // Read success event
         1 + // Increment event
-        1 + // Increment success event 1 
+        1 + // Increment success event 1
         1 + // Increment success event 2
         1 + // Increment orchestrator completion event
         1 + // Number modifier orchestrator completion event
@@ -549,11 +577,9 @@ describe('ArvoOrchestrator', () => {
         1 + // Increment event
         1 + // Increment success event 1
         1 + // Increment success event 2
-        1 // Increment orchestrator completion event
+        1, // Increment orchestrator completion event
     );
     expect(finalEventFromTest).not.toBe(null);
     expect(finalEventFromTest!.to).toBe('com.test.test');
-
-
   });
 });

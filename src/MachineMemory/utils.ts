@@ -1,5 +1,5 @@
-import { logToSpan } from "arvo-core";
-import { MachineMemoryRecord } from "../ArvoOrchestrator/types";
+import { logToSpan } from 'arvo-core';
+import { MachineMemoryRecord } from '../ArvoOrchestrator/types';
 
 export function getJsonSize(obj: MachineMemoryRecord): number {
   try {
@@ -9,8 +9,8 @@ export function getJsonSize(obj: MachineMemoryRecord): number {
   } catch (e) {
     logToSpan({
       level: 'WARNING',
-      message: `Error while calculating the size of the machine memory record. Error: ${(e as Error).message}`
-    })
-    return -1
+      message: `Error while calculating the size of the machine memory record. Error: ${(e as Error).message}`,
+    });
+    return -1;
   }
 }

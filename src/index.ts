@@ -16,7 +16,10 @@ import {
   MachineMemoryRecord,
   IArvoOrchestrator,
 } from './ArvoOrchestrator/types';
-import { ArvoOrchestratorError } from './ArvoOrchestrator/error';
+import {
+  ArvoTransactionError,
+  ArvoTransactionErrorName,
+} from './ArvoOrchestrator/error';
 import { ArvoOrchestrator } from './ArvoOrchestrator';
 import { IMachineRegistry } from './MachineRegistry/interface';
 import { SimpleMachineMemory } from './MachineMemory/Simple';
@@ -28,8 +31,8 @@ import { assign, emit } from 'xstate';
 
 const xstate = {
   emit,
-  assign
-}
+  assign,
+};
 
 export {
   ArvoMachine,
@@ -46,11 +49,12 @@ export {
   SimpleMachineMemory,
   MachineMemoryRecord,
   IArvoOrchestrator,
-  ArvoOrchestratorError,
+  ArvoTransactionError,
+  ArvoTransactionErrorName,
   ArvoOrchestrator,
   createArvoOrchestrator,
   SimpleEventBroker,
   createSimpleEventBroker,
   TelemetredSimpleMachineMemory,
-  xstate
+  xstate,
 };

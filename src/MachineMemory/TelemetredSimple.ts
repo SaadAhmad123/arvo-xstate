@@ -37,15 +37,15 @@ export class TelemetredSimpleMachineMemory
         kind: SpanKind.INTERNAL,
         attributes: {
           'arvo.memory.id': id,
-        }
+        },
       },
       fn: async () => {
         if (!id) {
           throw new Error('Machine ID is required for read operation');
         }
         return this.memoryMap.get(id) ?? null;
-      }
-    })
+      },
+    });
   }
 
   /**
@@ -61,8 +61,8 @@ export class TelemetredSimpleMachineMemory
         kind: SpanKind.INTERNAL,
         attributes: {
           'arvo.memory.id': id,
-          'arvo.memory.record.bytes': data ? getJsonSize(data) : 0
-        }
+          'arvo.memory.record.bytes': data ? getJsonSize(data) : 0,
+        },
       },
       fn: async () => {
         if (!id) {
@@ -72,8 +72,8 @@ export class TelemetredSimpleMachineMemory
           throw new Error('Data is required for write operation');
         }
         this.memoryMap.set(id, { ...data });
-      }
-    })
+      },
+    });
   }
 
   /**
@@ -89,7 +89,7 @@ export class TelemetredSimpleMachineMemory
         kind: SpanKind.INTERNAL,
         attributes: {
           'arvo.memory.id': id,
-        }
+        },
       },
       fn: async () => {
         if (!id) {
@@ -100,8 +100,8 @@ export class TelemetredSimpleMachineMemory
         }
         this.lockMap.set(id, true);
         return true;
-      }
-    })
+      },
+    });
   }
 
   /**
@@ -116,8 +116,8 @@ export class TelemetredSimpleMachineMemory
       spanOptions: {
         kind: SpanKind.INTERNAL,
         attributes: {
-          'arvo.memory.id': id
-        }
+          'arvo.memory.id': id,
+        },
       },
       fn: async () => {
         if (!id) {
@@ -125,8 +125,8 @@ export class TelemetredSimpleMachineMemory
         }
         this.lockMap.delete(id);
         return true;
-      }
-    })
+      },
+    });
   }
 
   /**

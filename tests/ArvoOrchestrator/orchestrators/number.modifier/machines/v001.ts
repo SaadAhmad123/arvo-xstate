@@ -135,7 +135,9 @@ export const machineV001 = setupArvoMachine({
           },
           {
             target: 'done',
-            actions: xstate.assign({ final_value: ({ event }) => event.data.final }),
+            actions: xstate.assign({
+              final_value: ({ event }) => event.data.final,
+            }),
           },
         ],
         'sys.arvo.orc.dec.error': {
@@ -179,7 +181,9 @@ export const machineV001 = setupArvoMachine({
           },
           {
             target: 'done',
-            actions: xstate.assign({ final_value: ({ event }) => event.data.final }),
+            actions: xstate.assign({
+              final_value: ({ event }) => event.data.final,
+            }),
           },
         ],
         'sys.arvo.orc.inc.error': {

@@ -85,13 +85,13 @@ sequenceDiagram
     participant OT as OpenTelemetry
     participant ME as MachineExecution
     participant A as Actor
-    
+
     C->>OT: execute(machine, state, event, opentelemetry)
     OT->>OT: startActiveSpan("Execute Machine")
     OT->>ME: Begin execution with span context
-    
+
     ME->>ME: Initialize eventQueue[] & errors[]
-    
+
     alt No existing state
         ME->>OT: Log "Starting new orchestration"
         ME->>ME: Validate event.type === machine.source
@@ -103,35 +103,35 @@ sequenceDiagram
         ME->>OT: Log "Resuming orchestration"
         ME->>A: createActor(machine.logic, {snapshot: state})
     end
-    
+
     ME->>A: Subscribe to all events (*.on)
     ME->>A: Subscribe to errors
     ME->>A: start()
-    
+
     alt Has existing state
         ME->>A: send(event.toJSON())
     end
-    
+
     ME->>OT: Log "Execution completed"
     ME->>OT: Log "Extracting final state"
     ME->>A: getPersistedSnapshot()
     A-->>ME: Return snapshot
-    
+
     alt Has volatile context
         ME->>ME: Process volatile.eventQueue
         ME->>ME: Remove volatile context
     end
-    
+
     alt Has errors
         ME-->>C: Throw first error
     end
-    
+
     ME->>ME: Extract finalOutput from extracted snapshot
     ME->>ME: Extract existingOutput from existing state
     alt finalOutput equals existingOutput
         ME->>ME: Set finalOutput to null
     end
-    
+
     ME->>ME: Prepare return object
     ME-->>OT: Return {state, events, finalOutput}
     OT-->>C: Return execution result

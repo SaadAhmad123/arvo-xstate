@@ -29,9 +29,9 @@ The engine exposes a clean, deterministic interface for machine execution that p
 ```typescript
 interface IMachineExecutionEngine {
   execute({
-    machine,  // Resolved machine definition
-    state,    // Current state (null for new executions)
-    event     // Triggering event
+    machine, // Resolved machine definition
+    state, // Current state (null for new executions)
+    event, // Triggering event
   }: ExecuteMachineInput): ExecuteMachineOutput;
 }
 ```
@@ -54,18 +54,18 @@ The system's flexible architecture allows for custom execution engine implementa
 class CustomExecutionEngine implements IMachineExecutionEngine {
   execute({ machine, state, event }: ExecuteMachineInput) {
     // Initialize or resume execution based on state presence
-    const executor = state 
+    const executor = state
       ? this.resumeExecution(state)
       : this.startExecution(machine);
-      
+
     // Process the incoming event
     const result = executor.process(event);
-    
+
     // Return execution output with updated state and events
     return {
       state: result.snapshot,
       events: result.emittedEvents,
-      finalOutput: result.output
+      finalOutput: result.output,
     };
   }
 }
@@ -80,10 +80,10 @@ The execution engine integrates seamlessly with other system components through 
 ```typescript
 class ArvoOrchestrator {
   constructor({
-    executionEngine,  // IMachineExecutionEngine
-    memory,          // IMachineMemory
-    registry         // IMachineRegistry
-  })
+    executionEngine, // IMachineExecutionEngine
+    memory, // IMachineMemory
+    registry, // IMachineRegistry
+  });
 }
 ```
 
