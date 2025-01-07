@@ -427,7 +427,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
                 level: 'INFO',
                 message: `Orchestration executed with issues and emitted 0 events`,
               });
-              
+
               return [];
             }
           } else {
@@ -611,7 +611,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Orchestrator execution failed: ${(e as Error).message}`,
           });
 
-          // In case of none transation errors like errors from
+          // In case of none transaction errors like errors from
           // the machine or the event creation etc, the are workflow
           // error and shuold be handled by the workflow. Then are
           // called system error and must be sent
@@ -669,7 +669,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
    */
   get systemErrorSchema(): ArvoContractRecord {
     return {
-      type: `sys.${this.source}.error`,
+      type: this.registry.machines[0].contracts.self.systemError.type,
       schema: ArvoErrorSchema,
     };
   }
