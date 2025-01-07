@@ -44,7 +44,7 @@ stateDiagram-v2
     state StateValidation {
         ValidateState --> NewExecution: No State
         ValidateState --> ExistingExecution: Has State
-        
+
         state NewExecution {
             [*] --> ValidateInitEvent
             ValidateInitEvent --> InitSuccess: Source Type Match
@@ -127,7 +127,7 @@ sequenceDiagram
 
     C->>+O: execute(event, opentelemetry)
     O->>+OT: startActiveSpan()
-    
+
     %% Lock and State Management
     alt Requires locking
     O->>+M: lock(event.subject)
@@ -173,7 +173,7 @@ sequenceDiagram
 
     O->>+R: validateInput(event)
     R-->>-O: validate result
-    
+
     alt Validation Failed
         O->>OT: logToSpan(ERROR)
         O-->>C: throw Error

@@ -90,21 +90,27 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
     this.registry = registry;
     this.executionEngine = executionEngine;
-    this.requiresResourceLocking = requiresResourceLocking
+    this.requiresResourceLocking = requiresResourceLocking;
   }
 
   protected async acquireLock(
     event: ArvoEvent,
-  ): Promise<TryFunctionOutput<'NOOP' | 'ACQUIRED' | 'NOT_ACQUIRED', ArvoOrchestratorError>> {
+  ): Promise<
+    TryFunctionOutput<
+      'NOOP' | 'ACQUIRED' | 'NOT_ACQUIRED',
+      ArvoOrchestratorError
+    >
+  > {
     if (!this.requiresResourceLocking) {
       logToSpan({
         level: 'INFO',
-        message: 'Skipping acquiring lock as the orchestrator implements only sequential machines.'
-      })
+        message:
+          'Skipping acquiring lock as the orchestrator implements only sequential machines.',
+      });
       return {
         type: 'success',
-        data: 'NOOP'
-      }
+        data: 'NOOP',
+      };
     }
     const id: string = event.subject;
     try {
@@ -112,7 +118,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         level: 'INFO',
         message: 'Attempting to acquire lock for event ',
       });
-      const acquired = await this.memory.lock(id)
+      const acquired = await this.memory.lock(id);
       return {
         type: 'success',
         data: acquired ? 'ACQUIRED' : 'NOT_ACQUIRED',
@@ -126,7 +132,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       return {
         type: 'error',
         error: new ArvoOrchestratorError({
-          name: 'LOCK_MACHINE_MEMORY',
+          name: 'LOCK_MACHINE_MEMORY_FAILURE',
           message: `Error acquiring lock (id=${id}): ${(e as Error).message}`,
           initiatingEvent: event,
         }),
@@ -154,7 +160,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       return {
         type: 'error',
         error: new ArvoOrchestratorError({
-          name: 'READ_MACHINE_MEMORY',
+          name: 'READ_MACHINE_MEMORY_FAILURE',
           message: `Error reading state (id=${id}): ${(e as Error).message}`,
           initiatingEvent: event,
         }),
@@ -361,7 +367,32 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           level: 'INFO',
           message: `Orchestrator starting execution for ${event.type} on subject ${event.subject}`,
         });
-        
+
+        // Validate the input event subject
+        try {
+          logToSpan({
+            level: 'INFO',
+            message: 'Validating event subject',
+          });
+          ArvoOrchestrationSubject.parse(event.subject);
+        } catch (e) {
+          const error = new ArvoOrchestratorError({
+            name: 'INVALID_SUBJECT',
+            message:
+              `Invalid event subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. ` +
+              `The subject must follow the format specified by ArvoOrchestrationSubject schema. ` +
+              `Parsing error: ${(e as Error).message}`,
+            initiatingEvent: event,
+          });
+          logToSpan({
+            level: 'CRITICAL',
+            message: `Event subject validation failed: ${error.message}`,
+          });
+          exceptionToSpan(error);
+          span.end();
+          throw error;
+        }
+
         // Acquiring lock
         const lockAcquiryProcess = await this.acquireLock(event);
         if (lockAcquiryProcess.type === 'error') {
@@ -389,17 +420,6 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           state?.parentSubject ?? null;
 
         try {
-          // Validate the input event subject
-          try {
-            ArvoOrchestrationSubject.parse(event.subject);
-          } catch (e) {
-            throw new Error(
-              `Invalid event subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. ` +
-                `The subject must follow the format specified by ArvoOrchestrationSubject schema. ` +
-                `Parsing error: ${(e as Error).message}`,
-            );
-          }
-
           // If the lock was not acquired. This is not the error raised by
           // locking rather this means that the locking executed successfully
           // but could not acquire the lock
@@ -417,38 +437,39 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             });
           }
 
-          if(!state) {
+          if (!state) {
             logToSpan({
-              level: 'INFO', 
+              level: 'INFO',
               message: `Initializing new execution state for subject: ${event.subject}`,
-            })
-          
+            });
+
             if (event.type !== this.source) {
               logToSpan({
                 level: 'WARNING',
-                message: (
+                message:
                   `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. ` +
-                  `This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`
-                )
-              })
-              return []
+                  `This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`,
+              });
+              return [];
             }
           } else {
             logToSpan({
               level: 'INFO',
-              message: `Resuming execution with existing state for subject: ${event.subject}`
-            })
-          
-            if (ArvoOrchestrationSubject.parse(event.subject).orchestrator.name !== this.source) {
+              message: `Resuming execution with existing state for subject: ${event.subject}`,
+            });
+
+            if (
+              ArvoOrchestrationSubject.parse(event.subject).orchestrator
+                .name !== this.source
+            ) {
               logToSpan({
                 level: 'WARNING',
-                message: (
+                message:
                   `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates ` +
                   `'${ArvoOrchestrationSubject.parse(event.subject).orchestrator.name}'. ` +
-                  `This indicates either a routing error or a non-applicable event that can be safely ignored.`
-                )
-              })
-              return []
+                  `This indicates either a routing error or a non-applicable event that can be safely ignored.`,
+              });
+              return [];
             }
           }
 
@@ -554,13 +575,28 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           });
 
           // Write to the memory
-          await this.memory.write(event.subject, {
-            subject: event.subject,
-            parentSubject: orchestrationParentSubject,
-            status: executionResult.state.status,
-            value: (executionResult.state as any).value ?? null,
-            state: executionResult.state,
-          });
+          try {
+            await this.memory.write(event.subject, {
+              subject: event.subject,
+              parentSubject: orchestrationParentSubject,
+              status: executionResult.state.status,
+              value: (executionResult.state as any).value ?? null,
+              state: executionResult.state,
+            });
+          }
+          catch (e) {
+            const error = new ArvoOrchestratorError({
+              name: 'WRITE_MACHINE_MEMORY_FAILURE',
+              message: `Failed to update the machine state. Error message: ${(e as Error).message}`,
+              initiatingEvent: event
+            })
+            logToSpan({
+              level: "CRITICAL",
+              message: error.message,
+            })
+            exceptionToSpan(error)
+            throw error
+          }
 
           logToSpan({
             level: 'INFO',
@@ -569,6 +605,11 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
 
           return emittables;
         } catch (e) {
+
+          if ((e as ArvoOrchestratorError)?.name === 'WRITE_MACHINE_MEMORY_FAILURE') {
+            throw e
+          }
+          
           logToSpan({
             level: 'ERROR',
             message: `Orchestrator execution failed: ${(e as Error).message}`,

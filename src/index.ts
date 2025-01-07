@@ -28,8 +28,8 @@ import { assign, emit } from 'xstate';
 
 const xstate = {
   emit,
-  assign
-}
+  assign,
+};
 
 export {
   ArvoMachine,
@@ -52,5 +52,5 @@ export {
   SimpleEventBroker,
   createSimpleEventBroker,
   TelemetredSimpleMachineMemory,
-  xstate
+  xstate,
 };

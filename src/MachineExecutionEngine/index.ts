@@ -115,11 +115,14 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
         if (errors.length) {
           throw errors[0];
         }
-        
-        let finalOutput: any = extractedSnapshot?.output ?? null
-        let existingOutput: any = state?.output ?? null
-        if (JSON.stringify(finalOutput ?? {}) === JSON.stringify(existingOutput ?? {})) {
-          finalOutput = null
+
+        let finalOutput: any = extractedSnapshot?.output ?? null;
+        let existingOutput: any = state?.output ?? null;
+        if (
+          JSON.stringify(finalOutput ?? {}) ===
+          JSON.stringify(existingOutput ?? {})
+        ) {
+          finalOutput = null;
         }
 
         return {

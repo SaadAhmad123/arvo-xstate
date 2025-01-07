@@ -109,7 +109,9 @@ describe('ArvoOrchestrator', () => {
     expect(context?.subject).toBe(initEvent.subject);
     expect(context?.parentSubject).toBe(null);
     expect(context?.status).toBe('active');
-    expect(JSON.stringify(context?.value ?? {})).toBe(JSON.stringify({'increment' : {}}));
+    expect(JSON.stringify(context?.value ?? {})).toBe(
+      JSON.stringify({ increment: {} }),
+    );
     expect((context?.state as any)?.context.value).toBe(2);
     expect((context?.state as any)?.context.modifier).toBe(2);
     expect((context?.state as any)?.context.trend).toBe('linear');
@@ -502,7 +504,7 @@ describe('ArvoOrchestrator', () => {
       1 + // Number modifier orchestrator init event
         1 + // Write event
         1 + // Sucess event for write
-        1 // Error event for faulty parent subject
+        1, // Error event for faulty parent subject
     );
     expect(finalEventFromTest1).toBe(null);
     expect(finalEventFromTest).not.toBe(null);
@@ -530,7 +532,9 @@ describe('ArvoOrchestrator', () => {
     });
 
     await broker.publish(initEvent);
-    console.log(JSON.stringify(await machineMemory.read(initEvent.subject), null, 2))
+    console.log(
+      JSON.stringify(await machineMemory.read(initEvent.subject), null, 2),
+    );
     expect(broker.events.length).toBe(
       1 + // Number modifier orchestrator init event
         1 + // Write event
@@ -540,7 +544,7 @@ describe('ArvoOrchestrator', () => {
         1 + // Read event
         1 + // Read success event
         1 + // Increment event
-        1 + // Increment success event 1 
+        1 + // Increment success event 1
         1 + // Increment success event 2
         1 + // Increment orchestrator completion event
         1 + // Number modifier orchestrator completion event
@@ -549,11 +553,9 @@ describe('ArvoOrchestrator', () => {
         1 + // Increment event
         1 + // Increment success event 1
         1 + // Increment success event 2
-        1 // Increment orchestrator completion event
+        1, // Increment orchestrator completion event
     );
     expect(finalEventFromTest).not.toBe(null);
     expect(finalEventFromTest!.to).toBe('com.test.test');
-
-
   });
 });

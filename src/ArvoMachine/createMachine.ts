@@ -461,10 +461,10 @@ export function setupArvoMachine<
       typeof machine
     >(
       config.id,
-      machineVersion, 
-      param.contracts, 
+      machineVersion,
+      param.contracts,
       machine,
-      detectParallelStates(machine.config)
+      detectParallelStates(machine.config),
     );
   };
   return { createMachine };

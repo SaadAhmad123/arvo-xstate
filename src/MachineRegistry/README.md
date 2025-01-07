@@ -30,20 +30,21 @@ The system provides a default `MachineRegistry` class implementing the core inte
 ```typescript
 // Initialize with multiple machine versions
 const registry = new MachineRegistry(
-  machineV1,  // Initial version
-  machineV2,  // Updated version
-  machineV3   // Latest version
+  machineV1, // Initial version
+  machineV2, // Updated version
+  machineV3, // Latest version
 );
 
 // Resolve machine for incoming event
 const machine = registry.resolve(event, {
-  inheritFrom: 'CONTEXT'  // OpenTelemetry context configuration
+  inheritFrom: 'CONTEXT', // OpenTelemetry context configuration
 });
 ```
 
 ## Resolution Process
 
 The registry's resolution mechanism:
+
 1. Extracts orchestrator information from event subject
 2. Matches version and source against registered definitions
 3. Integrates with OpenTelemetry for monitoring
@@ -55,11 +56,11 @@ The registry throws specific errors for common failure cases:
 
 ```typescript
 // Initialization without machines
-new MachineRegistry() 
+new MachineRegistry();
 // Error: Machine registry initialization failed: No machines provided
 
 // Resolution with unknown version
-registry.resolve(eventWithUnknownVersion)
+registry.resolve(eventWithUnknownVersion);
 // Error: Machine resolution failed: No machine found matching orchestrator
 ```
 
@@ -81,11 +82,13 @@ class CustomRegistry implements IMachineRegistry {
 ## Best Practices
 
 1. Version Management
+
    - Use semantic versioning for machines
    - Document version compatibility
    - Plan version transitions
 
 2. Performance Optimization
+
    - Monitor resolution metrics
    - Optimize machine lookup
    - Cache frequently used machines

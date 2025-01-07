@@ -1,8 +1,7 @@
 ---
-title: "ArvoOrchestrator"
+title: 'ArvoOrchestrator'
 group: Guides
 ---
-
 
 # ArvoOrchestrator
 
@@ -45,6 +44,7 @@ The Arvo Orchestrator implements a sophisticated event routing mechanism that ma
 ### Core Routing Logic
 
 Event routing in the orchestrator is primarily determined by three key fields in the event structure:
+
 - `type`: Determines the event's purpose and target handler
 - `subject`: Contains orchestration routing information including version and chain data
 - `to`: Specifies the final destination service for the event
@@ -58,6 +58,7 @@ The orchestrator supports hierarchical workflow execution through parent-child r
 ### Routing Control
 
 Events can influence their routing through several mechanisms:
+
 - `redirectto`: Overrides default routing for completion events
 - `accesscontrol`: Carries permissions and routing restrictions
 - `parsed(event.subject).meta.redirectto`: Provides routing hints for orchestration chains
@@ -74,7 +75,7 @@ Event Processing follows a rigorous pipeline of validation and transformation. E
 
 ## Error Handling
 
-The Arvo Orchestrator implements a sophisticated dual-layer error handling strategy. 
+The Arvo Orchestrator implements a sophisticated dual-layer error handling strategy.
 
 ### ArvoOrchestratorError
 
@@ -88,7 +89,7 @@ The `ArvoOrchestratorError` is raised during critical infrastructure failures th
 
 System error events in the Arvo Orchestrator represent a sophisticated approach to state machine workflow-level error handling. These events `(sys.{source}.error)` are generated at various critical stages: during event subject validation, contract validation, machine execution, event transformation, and state persistence. In each case, the error event carries detailed context about the failure, including the original event, the stage of failure, and relevant error details. This rich error context enables precise error handling and state machine workflow recovery strategies while maintaining the system's operational integrity.
 
-The orchestrator creates these error events instead of throwing errors because state machine workflow failures should be handled as part of the normal event flow rather than as system exceptions. This design allows state machine workflows to implement sophisticated error handling patterns, including retry mechanisms, compensation state machine workflows, or graceful degradation paths. When an error event is generated, it is automatically routed back to the state machine workflow initiator, ensuring that the originating system is notified of t  he failure while preserving the state machine workflow's state and execution context. This approach maintains system stability by treating state machine workflow errors as normal business events rather than system failures, enabling robust error recovery without compromising the orchestrator's core operations.
+The orchestrator creates these error events instead of throwing errors because state machine workflow failures should be handled as part of the normal event flow rather than as system exceptions. This design allows state machine workflows to implement sophisticated error handling patterns, including retry mechanisms, compensation state machine workflows, or graceful degradation paths. When an error event is generated, it is automatically routed back to the state machine workflow initiator, ensuring that the originating system is notified of t he failure while preserving the state machine workflow's state and execution context. This approach maintains system stability by treating state machine workflow errors as normal business events rather than system failures, enabling robust error recovery without compromising the orchestrator's core operations.
 
 ## Telemetry Integration
 
@@ -125,7 +126,7 @@ const orchestrator = new ArvoOrchestrator({
   executionunits: 1,
   memory: customMemory,
   registry: customRegistry,
-  executionEngine: customEngine
+  executionEngine: customEngine,
 });
 ```
 

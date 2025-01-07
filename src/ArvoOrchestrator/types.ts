@@ -62,7 +62,7 @@ export interface IArvoOrchestrator {
   executionEngine: IMachineExectionEngine;
 
   /* A flag notifying the orchestrator if the resource locking is needed or not */
-  requiresResourceLocking: boolean
+  requiresResourceLocking: boolean;
 }
 
 /**
