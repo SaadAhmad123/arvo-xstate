@@ -17,6 +17,7 @@ import {
   ArvoEvent,
   ArvoOrchestrationSubject,
   createArvoEvent,
+  createArvoEventFactory,
   createArvoOrchestratorEventFactory,
   EventDataschemaUtil,
 } from 'arvo-core';
@@ -25,6 +26,7 @@ import {
   incrementOrchestratorContract,
   valueReadContract,
   numberModifierOrchestrator as numberModifierOrchestratorContract,
+  decrementOrchestratorContract,
 } from './contracts';
 
 const promiseTimeout = (timeout: number = 10) =>
@@ -582,4 +584,31 @@ describe('ArvoOrchestrator', () => {
     expect(finalEventFromTest).not.toBe(null);
     expect(finalEventFromTest!.to).toBe('com.test.test');
   });
+
+  it ('shoud not emit any event on a non init event with no state', async () => {
+    const subject = ArvoOrchestrationSubject.new({
+      initiator: 'com.test.test',
+      orchestator: incrementOrchestratorContract.version('0.0.1').accepts.type,
+      version: incrementOrchestratorContract.version('0.0.1').version
+    })
+
+    const event = createArvoEventFactory(
+      incrementContract.version('0.0.1')
+    ).emits({
+      subject: subject,
+      source: 'com.test.test',
+      type: 'evt.increment.number.success',
+      data: {
+        result: 12
+      }
+    })
+
+    const events = await handlers.incrementAgent.execute(event, {inheritFrom: 'EVENT'})
+
+    expect(events.length).toBe(0)
+  })
+  
+  it ('should have system error schema which is standard', () => {
+    expect(handlers.decrementAgent.systemErrorSchema.type).toBe(decrementOrchestratorContract.systemError.type)
+  })
 });
