@@ -73,23 +73,17 @@ State Management forms the foundation of workflow processing. After securing exe
 
 Event Processing follows a rigorous pipeline of validation and transformation. Each incoming event undergoes multiple validation stages to verify subject format, contract compliance, and business rules. The Machine Registry handles sophisticated event routing based on version and type information, ensuring proper workflow targeting. Event transformation maintains data integrity while converting raw machine events into fully-formed Arvo events, preserving ordering guarantees crucial for distributed scenarios.
 
-## Error Handling
+Here's an addition to the documentation explaining the error handling approach:
 
-The Arvo Orchestrator implements a sophisticated dual-layer error handling strategy.
+## Error Handling Philosophy: Transaction Errors vs System Error Events
 
-### ArvoOrchestratorError
+The ArvoOrchestrator implements a carefully designed dual-layered error handling strategy that distinguishes between transaction errors and system error events. This separation reflects a fundamental principle in distributed systems: infrastructure failures should be handled differently from workflow-level errors.
 
-The `ArvoOrchestratorError` is raised during critical infrastructure failures that prevent the orchestrator from performing its core functions. These are specifically thrown during two critical operations: lock acquisition and state reading. These errors indicate fundamental system issues rather than state machine workflow-specific problems.
+Transaction errors, implemented through the `ArvoTransactionError` class, represent critical infrastructure failures that prevent the orchestrator from maintaining its core guarantees. These errors occur during fundamental operations like event subject invalidation, lock acquisition, state rading or state persistence, where the system cannot ensure data consistency or execution isolation. When a transaction error occurs, the orchestrator immediately halts execution and throws the error upward, allowing infrastructure-level error handling to take over. This immediate propagation is crucial because these errors indicate the system cannot safely continue operation without compromising data integrity or execution guarantees.
 
-**Lock acquisition** failures raise this error when the orchestrator cannot obtain exclusive access to a state machine workflow instance. This could occur due to deadlocks, system overload, or infrastructure issues. The error carries both the failure reason and the initiating event, providing context for system operators to diagnose the root cause.
+System error events, on the other hand, represent workflow-level failures that occur during normal business operations. These events manifest as special sys.{source}.error type events and handle scenarios like invalid event data, contract violations, or machine execution failures. Unlike transaction errors, system error events become part of the normal event flow, allowing workflows to implement sophisticated error handling and recovery mechanisms. This approach treats workflow failures as expected business scenarios rather than exceptional cases, enabling graceful degradation and maintaining system stability. The orchestrator automatically routes these error events back to the workflow initiator, ensuring proper notification while preserving the execution context.
 
-**State** reading failures trigger this error when the orchestrator cannot retrieve state machine workflow state from storage. This might happen due to corrupted data, storage system failures, or network issues. Like lock failures, these errors include context about the attempted operation and the triggering event.
-
-### System Error Events
-
-System error events in the Arvo Orchestrator represent a sophisticated approach to state machine workflow-level error handling. These events `(sys.{source}.error)` are generated at various critical stages: during event subject validation, contract validation, machine execution, event transformation, and state persistence. In each case, the error event carries detailed context about the failure, including the original event, the stage of failure, and relevant error details. This rich error context enables precise error handling and state machine workflow recovery strategies while maintaining the system's operational integrity.
-
-The orchestrator creates these error events instead of throwing errors because state machine workflow failures should be handled as part of the normal event flow rather than as system exceptions. This design allows state machine workflows to implement sophisticated error handling patterns, including retry mechanisms, compensation state machine workflows, or graceful degradation paths. When an error event is generated, it is automatically routed back to the state machine workflow initiator, ensuring that the originating system is notified of t he failure while preserving the state machine workflow's state and execution context. This approach maintains system stability by treating state machine workflow errors as normal business events rather than system failures, enabling robust error recovery without compromising the orchestrator's core operations.
+The rationale behind this separation stems from the different requirements for handling infrastructure failures versus business logic errors. Infrastructure failures require immediate attention and often indicate system-wide issues that need operational intervention. Business logic errors, while important, should be handled within the workflow's context, allowing for retry mechanisms, compensation workflows, or alternative execution paths. This dual-layer approach enables the orchestrator to maintain robust error handling while providing flexibility for workflow-specific error recovery strategies, ultimately contributing to a more resilient and maintainable system.
 
 ## Telemetry Integration
 

@@ -1,22 +1,23 @@
 import { ArvoEvent } from 'arvo-core';
 
-/**
- * Possible orchestrator error types
- */
-type ErrorName =
-  | 'READ_MACHINE_MEMORY_FAILURE'
-  | 'LOCK_MACHINE_MEMORY_FAILURE'
-  | 'INVALID_SUBJECT'
-  | 'WRITE_MACHINE_MEMORY_FAILURE';
+export enum ArvoTransactionErrorName {
+  READ_FAILURE = 'READ_MACHINE_MEMORY_FAILURE',
+  LOCK_FAILURE = 'LOCK_MACHINE_MEMORY_FAILURE',
+  WRITE_FAILURE = 'WRITE_MACHINE_MEMORY_FAILURE',
+  LOCK_UNACQUIRED = 'LOCK_UNACQUIRED',
+  INVALID_SUBJECT = 'INVALID_SUBJECT',
+}
 
 /**
  * Error thrown during Arvo orchestration operations
  */
-export class ArvoOrchestratorError extends Error {
+export class ArvoTransactionError extends Error {
+  readonly name = 'ArvoTransactionError' as const;
+
   /**
    * Type of error that occurred
    */
-  readonly name: ErrorName;
+  readonly type: ArvoTransactionErrorName;
 
   /**
    * Event that triggered the error
@@ -28,12 +29,12 @@ export class ArvoOrchestratorError extends Error {
    * @param param Error parameters
    */
   constructor(param: {
-    name: ErrorName;
+    type: ArvoTransactionErrorName;
     message: string;
     initiatingEvent: ArvoEvent;
   }) {
     super(param.message);
-    this.name = param.name;
+    this.type = param.type;
     this.initiatingEvent = param.initiatingEvent;
   }
 }

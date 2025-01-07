@@ -1,66 +1,68 @@
+
 <!doctype html>
 <html lang="en">
-  <head>
-    <title>
-      Code coverage report for src/MachineMemory/TelemetredSimple.ts
-    </title>
+
+<head>
+    <title>Code coverage report for src/MachineMemory/TelemetredSimple.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../prettify.css" />
     <link rel="stylesheet" href="../../base.css" />
     <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style type="text/css">
-      .coverage-summary .sorter {
-        background-image: url(../../sort-arrow-sprite.png);
-      }
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
     </style>
-  </head>
-
-  <body>
-    <div class="wrapper">
-      <div class="pad1">
-        <h1>
-          <a href="../../index.html">All files</a> /
-          <a href="index.html">src/MachineMemory</a> TelemetredSimple.ts
-        </h1>
-        <div class="clearfix">
-          <div class="fl pad1y space-right2">
-            <span class="strong">100% </span>
-            <span class="quiet">Statements</span>
-            <span class="fraction">45/45</span>
-          </div>
-
-          <div class="fl pad1y space-right2">
-            <span class="strong">100% </span>
-            <span class="quiet">Branches</span>
-            <span class="fraction">20/20</span>
-          </div>
-
-          <div class="fl pad1y space-right2">
-            <span class="strong">100% </span>
-            <span class="quiet">Functions</span>
-            <span class="fraction">10/10</span>
-          </div>
-
-          <div class="fl pad1y space-right2">
-            <span class="strong">100% </span>
-            <span class="quiet">Lines</span>
-            <span class="fraction">40/40</span>
-          </div>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/MachineMemory</a> TelemetredSimple.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>45/45</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>20/20</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>10/10</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>40/40</span>
+            </div>
+        
+            
         </div>
         <p class="quiet">
-          Press <em>n</em> or <em>j</em> to go to the next uncovered block,
-          <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
         </p>
         <template id="filterTemplate">
-          <div class="quiet">
-            Filter:
-            <input type="search" id="fileSearch" />
-          </div>
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
         </template>
-      </div>
-      <div class="status-line high"></div>
-      <pre><table class="coverage">
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
 <a name='L3'></a><a href='#L3'>3</a>
@@ -378,15 +380,15 @@ export class TelemetredSimpleMachineMemory
         kind: SpanKind.INTERNAL,
         attributes: {
           'arvo.memory.id': id,
-        }
+        },
       },
       fn: async () =&gt; {
         if (!id) {
           throw new Error('Machine ID is required for read operation');
         }
         return this.memoryMap.get(id) ?? null;
-      }
-    })
+      },
+    });
   }
 &nbsp;
   /**
@@ -402,8 +404,8 @@ export class TelemetredSimpleMachineMemory
         kind: SpanKind.INTERNAL,
         attributes: {
           'arvo.memory.id': id,
-          'arvo.memory.record.bytes': data ? getJsonSize(data) : 0
-        }
+          'arvo.memory.record.bytes': data ? getJsonSize(data) : 0,
+        },
       },
       fn: async () =&gt; {
         if (!id) {
@@ -413,8 +415,8 @@ export class TelemetredSimpleMachineMemory
           throw new Error('Data is required for write operation');
         }
         this.memoryMap.set(id, { ...data });
-      }
-    })
+      },
+    });
   }
 &nbsp;
   /**
@@ -430,7 +432,7 @@ export class TelemetredSimpleMachineMemory
         kind: SpanKind.INTERNAL,
         attributes: {
           'arvo.memory.id': id,
-        }
+        },
       },
       fn: async () =&gt; {
         if (!id) {
@@ -441,8 +443,8 @@ export class TelemetredSimpleMachineMemory
         }
         this.lockMap.set(id, true);
         return true;
-      }
-    })
+      },
+    });
   }
 &nbsp;
   /**
@@ -457,8 +459,8 @@ export class TelemetredSimpleMachineMemory
       spanOptions: {
         kind: SpanKind.INTERNAL,
         attributes: {
-          'arvo.memory.id': id
-        }
+          'arvo.memory.id': id,
+        },
       },
       fn: async () =&gt; {
         if (!id) {
@@ -466,8 +468,8 @@ export class TelemetredSimpleMachineMemory
         }
         this.lockMap.delete(id);
         return true;
-      }
-    })
+      },
+    });
   }
 &nbsp;
   /**
@@ -480,27 +482,21 @@ export class TelemetredSimpleMachineMemory
 }
 &nbsp;</pre></td></tr></table></pre>
 
-      <div class="push"></div>
-      <!-- for sticky footer -->
-    </div>
-    <!-- /wrapper -->
-    <div class="footer quiet pad2 space-top1 center small">
-      Code coverage generated by
-      <a
-        href="https://istanbul.js.org/"
-        target="_blank"
-        rel="noopener noreferrer"
-        >istanbul</a
-      >
-      at 2025-01-06T05:54:58.830Z
-    </div>
-    <script src="../../prettify.js"></script>
-    <script>
-      window.onload = function () {
-        prettyPrint();
-      };
-    </script>
-    <script src="../../sorter.js"></script>
-    <script src="../../block-navigation.js"></script>
-  </body>
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2025-01-07T14:43:36.533Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
 </html>
+    

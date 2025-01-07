@@ -3,6 +3,8 @@ import { IMachineMemory } from '../MachineMemory/interface';
 import { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
 import { IMachineRegistry } from '../MachineRegistry/interface';
 import ArvoMachine from '../ArvoMachine';
+import { ArvoEvent } from 'arvo-core';
+import { ArvoTransactionError } from './error';
 
 export type TryFunctionOutput<TData, TError extends Error> =
   | {
@@ -43,6 +45,15 @@ export type MachineMemoryRecord = {
 
   /** XState snapshot representing the machine's current state */
   state: Snapshot<any>;
+
+  /** The event consumed by the machine */
+  consumed: ArvoEvent[];
+
+  /** A list events produced by the machine */
+  produced: ArvoEvent[];
+
+  /** Machine definition string */
+  machineDefinition: string | null;
 };
 
 /**
@@ -81,3 +92,5 @@ export interface ICreateArvoOrchestrator {
    */
   machines: ArvoMachine<any, any, any, any, any>[];
 }
+
+export type AcquiredLockStatusType = 'NOOP' | 'ACQUIRED' | 'NOT_ACQUIRED';

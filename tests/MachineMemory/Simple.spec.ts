@@ -12,6 +12,9 @@ describe('SimpleMachineMemory', () => {
       parentSubject: null,
       status: 'active',
       value: '',
+      machineDefinition: null,
+      consumed: [],
+      produced: [],
     };
   });
 

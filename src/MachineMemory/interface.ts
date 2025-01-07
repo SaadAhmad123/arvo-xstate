@@ -28,9 +28,10 @@ export interface IMachineMemory<T extends Record<string, any>> {
    * No retry logic as consistency is critical and caller handles failures.
    * @param id - Machine ID
    * @param data - State to save
+   * @param prevData - The previous snapshot of the data
    * @throws Error if write operation fails
    */
-  write(id: string, data: T): Promise<void>;
+  write(id: string, data: T, prevData: T | null): Promise<void>;
 
   /**
    * Acquires execution lock for machine ID (event.subject).
