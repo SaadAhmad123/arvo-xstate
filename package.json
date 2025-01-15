@@ -53,7 +53,7 @@
     "arvo-core": "^2.2.2",
     "arvo-event-handler": "^2.2.1",
     "uuid": "^10.0.0",
-    "xstate": "^5.19.0",
+    "xstate": "^5.19.1",
     "zod": "^3.23.8"
   }
 }
