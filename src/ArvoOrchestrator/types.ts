@@ -4,7 +4,6 @@ import { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
 import { IMachineRegistry } from '../MachineRegistry/interface';
 import ArvoMachine from '../ArvoMachine';
 import { ArvoEvent } from 'arvo-core';
-import { ArvoTransactionError } from './error';
 
 export type TryFunctionOutput<TData, TError extends Error> =
   | {

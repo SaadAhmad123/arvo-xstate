@@ -1,6 +1,6 @@
-import { ArvoEvent } from 'arvo-core';
+import { ArvoEvent, ViolationError } from 'arvo-core';
 
-export enum ArvoTransactionErrorName {
+export enum TransactionViolationCause {
   READ_FAILURE = 'READ_MACHINE_MEMORY_FAILURE',
   LOCK_FAILURE = 'LOCK_MACHINE_MEMORY_FAILURE',
   WRITE_FAILURE = 'WRITE_MACHINE_MEMORY_FAILURE',
@@ -8,33 +8,21 @@ export enum ArvoTransactionErrorName {
   INVALID_SUBJECT = 'INVALID_SUBJECT',
 }
 
-/**
- * Error thrown during Arvo orchestration operations
- */
-export class ArvoTransactionError extends Error {
-  readonly name = 'ArvoTransactionError' as const;
-
-  /**
-   * Type of error that occurred
-   */
-  readonly type: ArvoTransactionErrorName;
-
-  /**
-   * Event that triggered the error
-   */
-  readonly initiatingEvent: ArvoEvent;
-
-  /**
-   * Creates an orchestration error
-   * @param param Error parameters
-   */
+export class TransactionViolation extends ViolationError<'ArvoTransaction'> {
+  readonly cause: TransactionViolationCause
+  
   constructor(param: {
-    type: ArvoTransactionErrorName;
+    cause: TransactionViolationCause;
     message: string;
     initiatingEvent: ArvoEvent;
   }) {
-    super(param.message);
-    this.type = param.type;
-    this.initiatingEvent = param.initiatingEvent;
+    super({
+      type: 'ArvoTransaction',
+      message: `[${param.cause}] ${param.message}`,
+      metadata: {
+        initiatingEvent: param.initiatingEvent
+      }
+    });
+    this.cause = param.cause
   }
 }

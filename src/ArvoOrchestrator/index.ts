@@ -32,7 +32,7 @@ import {
   ArvoEventHandlerOpenTelemetryOptions,
 } from 'arvo-event-handler';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import { ArvoTransactionError, ArvoTransactionErrorName } from './error';
+import { TransactionViolation, TransactionViolationCause } from './error';
 import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import ArvoMachine from '../ArvoMachine';
 import { z } from 'zod';
@@ -114,8 +114,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       const acquired = await this.memory.lock(id);
       return acquired ? 'ACQUIRED' : 'NOT_ACQUIRED';
     } catch (e) {
-      throw new ArvoTransactionError({
-        type: ArvoTransactionErrorName.LOCK_FAILURE,
+      throw new TransactionViolation({
+        cause: TransactionViolationCause.LOCK_FAILURE,
         message: `Error acquiring lock (id=${id}): ${(e as Error)?.message}`,
         initiatingEvent: event,
       });
@@ -133,8 +133,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       });
       return await this.memory.read(id);
     } catch (e) {
-      throw new ArvoTransactionError({
-        type: ArvoTransactionErrorName.READ_FAILURE,
+      throw new TransactionViolation({
+        cause: TransactionViolationCause.READ_FAILURE,
         message: `Error reading state (id=${id}): ${(e as Error)?.message}`,
         initiatingEvent: event,
       });
@@ -154,8 +154,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       });
       await this.memory.write(id, record, prevRecord);
     } catch (e) {
-      throw new ArvoTransactionError({
-        type: ArvoTransactionErrorName.WRITE_FAILURE,
+      throw new TransactionViolation({
+        cause: TransactionViolationCause.WRITE_FAILURE,
         message: `Error writing state for event (id=${id}): ${(e as Error)?.message}`,
         initiatingEvent: event,
       });
@@ -170,8 +170,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       });
       ArvoOrchestrationSubject.parse(event.subject);
     } catch (e) {
-      throw new ArvoTransactionError({
-        type: ArvoTransactionErrorName.INVALID_SUBJECT,
+      throw new TransactionViolation({
+        cause: TransactionViolationCause.INVALID_SUBJECT,
         message:
           `Invalid event (id=${event.id}) subject format. Expected an ArvoOrchestrationSubject but ` +
           `received '${event.subject}'. The subject must follow the format specified by ` +
@@ -391,8 +391,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           acquiredLock = await this.acquireLock(event);
 
           if (acquiredLock === 'NOT_ACQUIRED') {
-            throw new ArvoTransactionError({
-              type: ArvoTransactionErrorName.LOCK_UNACQUIRED,
+            throw new TransactionViolation({
+              cause: TransactionViolationCause.LOCK_UNACQUIRED,
               message:
                 'Lock acquisition denied - Unable to obtain exclusive access to event processing',
               initiatingEvent: event,
@@ -598,7 +598,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           // For transation errors bubble them up to the
           // called of the function so that they can
           // be handled gracefully
-          if ((e as ArvoTransactionError).name === 'ArvoTransactionError') {
+          if ((e as TransactionViolation).name === 'ViolationError<ArvoTransaction>') {
             logToSpan({
               level: 'CRITICAL',
               message: `Orchestrator transaction failed: ${(e as Error).message}`,

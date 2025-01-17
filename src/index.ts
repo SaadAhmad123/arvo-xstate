@@ -17,8 +17,8 @@ import {
   IArvoOrchestrator,
 } from './ArvoOrchestrator/types';
 import {
-  ArvoTransactionError,
-  ArvoTransactionErrorName,
+  TransactionViolation,
+  TransactionViolationCause,
 } from './ArvoOrchestrator/error';
 import { ArvoOrchestrator } from './ArvoOrchestrator';
 import { IMachineRegistry } from './MachineRegistry/interface';
@@ -49,8 +49,8 @@ export {
   SimpleMachineMemory,
   MachineMemoryRecord,
   IArvoOrchestrator,
-  ArvoTransactionError,
-  ArvoTransactionErrorName,
+  TransactionViolation,
+  TransactionViolationCause,
   ArvoOrchestrator,
   createArvoOrchestrator,
   SimpleEventBroker,
