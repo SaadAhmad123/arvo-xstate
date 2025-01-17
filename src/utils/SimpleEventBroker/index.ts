@@ -1,5 +1,5 @@
-import { ArvoEvent } from 'arvo-core';
-import { EventBusListener, EventBusOptions } from './types';
+import type { ArvoEvent } from 'arvo-core';
+import type { EventBusListener, EventBusOptions } from './types';
 import { promiseTimeout } from './utils';
 
 /**
@@ -79,19 +79,16 @@ export class SimpleEventBroker {
    *                                otherwise, throws error
    * @returns Unsubscribe function
    */
-  subscribe(
-    topic: string,
-    handler: EventBusListener,
-    assertUnique: boolean = false,
-  ): () => void {
+  subscribe(topic: string, handler: EventBusListener, assertUnique = false): () => void {
     if (!this.subscribers.has(topic)) {
       this.subscribers.set(topic, new Set());
     }
 
-    if (assertUnique && this.subscribers.get(topic)!.size > 1) {
+    if (assertUnique && (this.subscribers.get(topic)?.size ?? 0) > 1) {
       throw new Error(`Only one subscriber allowed per topic: ${topic}`);
     }
 
+    // biome-ignore lint/style/noNonNullAssertion: non issue
     const handlers = this.subscribers.get(topic)!;
     handlers.add(handler);
 
@@ -157,15 +154,13 @@ export class SimpleEventBroker {
 
     try {
       while (this.queue.length > 0) {
-        const event = this.queue.shift()!;
+        const event = this.queue.pop();
+        if (!event) continue;
         await promiseTimeout(this.eventProcessDelay);
-        const handlers = this.subscribers.get(event.to!);
+        const handlers = this.subscribers.get(event.to ?? '');
 
         if (!handlers?.size) {
-          this.onError(
-            new Error(`No handlers registered for event type: ${event.to}`),
-            event,
-          );
+          this.onError(new Error(`No handlers registered for event type: ${event.to}`), event);
           continue;
         }
 

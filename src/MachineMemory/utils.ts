@@ -1,5 +1,5 @@
 import { logToSpan } from 'arvo-core';
-import { MachineMemoryRecord } from '../ArvoOrchestrator/types';
+import type { MachineMemoryRecord } from '../ArvoOrchestrator/types';
 
 export function getJsonSize(obj: MachineMemoryRecord): number {
   try {

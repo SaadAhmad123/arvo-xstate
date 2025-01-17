@@ -1,4 +1,4 @@
-import { ArvoErrorType } from 'arvo-core';
+import type { ArvoErrorType } from 'arvo-core';
 
 export type DecrementMachineContext = {
   key: string;

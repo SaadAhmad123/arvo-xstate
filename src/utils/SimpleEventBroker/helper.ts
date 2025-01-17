@@ -1,6 +1,6 @@
-import { ArvoEvent } from 'arvo-core';
+import type { ArvoEvent } from 'arvo-core';
+import type { AbstractArvoEventHandler } from 'arvo-event-handler';
 import { SimpleEventBroker } from '.';
-import { AbstractArvoEventHandler } from 'arvo-event-handler';
 
 /**
  * Factory for creating local event brokers with domain event handlers.
@@ -40,6 +40,7 @@ export const createSimpleEventBroker = (
   });
 
   // Wire up each handler to its source topic
+  // biome-ignore lint/complexity/noForEach: TODO - fix later
   eventHandlers.forEach((handler) => {
     broker.subscribe(
       handler.source,
@@ -48,6 +49,7 @@ export const createSimpleEventBroker = (
           inheritFrom: 'EVENT',
         });
         // Propagate any resulting events
+        // biome-ignore lint/complexity/noForEach: TODO - fix later
         resultEvents.forEach((resultEvent) => broker.publish(resultEvent));
       },
       true,

@@ -1,44 +1,37 @@
+import { SpanKind, SpanStatusCode, context } from '@opentelemetry/api';
 import {
-  ArvoContractRecord,
+  type ArvoContract,
+  type ArvoContractRecord,
   ArvoErrorSchema,
-  ArvoEvent,
+  type ArvoEvent,
   ArvoExecution,
   ArvoExecutionSpanKind,
   ArvoOpenTelemetry,
-  ArvoSemanticVersion,
+  ArvoOrchestrationSubject,
+  type ArvoOrchestrationSubjectContent,
+  type ArvoOrchestratorContract,
+  type ArvoSemanticVersion,
+  EventDataschemaUtil,
+  OpenInference,
+  OpenInferenceSpanKind,
+  type OpenTelemetryHeaders,
+  type VersionedArvoContract,
+  createArvoEvent,
   createArvoOrchestratorEventFactory,
   currentOpenTelemetryHeaders,
   exceptionToSpan,
   logToSpan,
-  OpenInference,
-  OpenInferenceSpanKind,
-  VersionedArvoContract,
-  ArvoOrchestratorContract,
-  ArvoContract,
-  OpenTelemetryHeaders,
-  createArvoEvent,
-  EventDataschemaUtil,
-  ArvoOrchestrationSubject,
-  ArvoOrchestrationSubjectContent,
 } from 'arvo-core';
-import { IMachineMemory } from '../MachineMemory/interface';
-import {
-  IArvoOrchestrator,
-  MachineMemoryRecord,
-  AcquiredLockStatusType,
-} from './types';
-import {
-  AbstractArvoEventHandler,
-  ArvoEventHandlerOpenTelemetryOptions,
-} from 'arvo-event-handler';
-import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { AbstractArvoEventHandler, type ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import type { ActorLogic } from 'xstate';
+import type { z } from 'zod';
+import type ArvoMachine from '../ArvoMachine';
+import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
+import type { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
+import type { IMachineMemory } from '../MachineMemory/interface';
+import type { IMachineRegistry } from '../MachineRegistry/interface';
 import { TransactionViolation, TransactionViolationCause } from './error';
-import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
-import ArvoMachine from '../ArvoMachine';
-import { z } from 'zod';
-import { IMachineRegistry } from '../MachineRegistry/interface';
-import { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
-import { ActorLogic } from 'xstate';
+import type { AcquiredLockStatusType, IArvoOrchestrator, MachineMemoryRecord } from './types';
 
 /**
  * Orchestrates state machine execution and lifecycle management.
@@ -63,40 +56,29 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
    * @param params - Configuration parameters
    * @throws Error if machines in registry have different sources
    */
-  constructor({
-    executionunits,
-    memory,
-    registry,
-    executionEngine,
-    requiresResourceLocking
-  }: IArvoOrchestrator) {
+  constructor({ executionunits, memory, registry, executionEngine, requiresResourceLocking }: IArvoOrchestrator) {
     super();
     this.executionunits = executionunits;
     this.memory = memory;
     const representativeMachine = registry.machines[0];
-    let lastSeenVersions: ArvoSemanticVersion[] = [];
+    const lastSeenVersions: ArvoSemanticVersion[] = [];
     for (const machine of registry.machines) {
       if (representativeMachine.source !== machine.source) {
-        throw new Error(
-          `All the machines in the orchestrator must have type '${representativeMachine.source}'`,
-        );
+        throw new Error(`All the machines in the orchestrator must have type '${representativeMachine.source}'`);
       }
       if (lastSeenVersions.includes(machine.version)) {
         throw new Error(
           `An orchestrator must have unique machine versions. Machine ID:${machine.id} has duplicate version ${machine.version}.`,
         );
-      } else {
-        lastSeenVersions.push(machine.version);
       }
+      lastSeenVersions.push(machine.version);
     }
     this.registry = registry;
     this.executionEngine = executionEngine;
     this.requiresResourceLocking = requiresResourceLocking;
   }
 
-  protected async acquireLock(
-    event: ArvoEvent,
-  ): Promise<AcquiredLockStatusType> {
+  protected async acquireLock(event: ArvoEvent): Promise<AcquiredLockStatusType> {
     const id: string = event.subject;
     if (!this.requiresResourceLocking) {
       logToSpan({
@@ -122,9 +104,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
   }
 
-  protected async acquireState(
-    event: ArvoEvent,
-  ): Promise<MachineMemoryRecord | null> {
+  protected async acquireState(event: ArvoEvent): Promise<MachineMemoryRecord | null> {
     const id: string = event.subject;
     try {
       logToSpan({
@@ -141,11 +121,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
   }
 
-  protected async persistState(
-    event: ArvoEvent,
-    record: MachineMemoryRecord,
-    prevRecord: MachineMemoryRecord | null,
-  ) {
+  protected async persistState(event: ArvoEvent, record: MachineMemoryRecord, prevRecord: MachineMemoryRecord | null) {
     const id = event.subject;
     try {
       logToSpan({
@@ -201,20 +177,14 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       message: `Creating emittable event: ${event.type}`,
     });
 
-    const selfContract: VersionedArvoContract<
-      ArvoOrchestratorContract,
-      ArvoSemanticVersion
-    > = machine.contracts.self;
+    const selfContract: VersionedArvoContract<ArvoOrchestratorContract, ArvoSemanticVersion> = machine.contracts.self;
     const serviceContract: Record<
       string,
       VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
     > = Object.fromEntries(
-      (
-        Object.values(machine.contracts.services) as VersionedArvoContract<
-          ArvoContract,
-          ArvoSemanticVersion
-        >[]
-      ).map((item) => [item.accepts.type, item]),
+      (Object.values(machine.contracts.services) as VersionedArvoContract<ArvoContract, ArvoSemanticVersion>[]).map(
+        (item) => [item.accepts.type, item],
+      ),
     );
     let schema: z.ZodTypeAny | null = null;
     let contract: VersionedArvoContract<any, any> | null = null;
@@ -238,18 +208,13 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
       // If the event is to call another orchestrator then, extract the parent subject
       // passed to it and then form an new subject. This allows for event chaining
       // between orchestrators
-      if (
-        (contract as any).metadata.contractType === 'ArvoOrchestratorContract'
-      ) {
+      if ((contract as any).metadata.contractType === 'ArvoOrchestratorContract') {
         if (event.data.parentSubject$$) {
           try {
             ArvoOrchestrationSubject.parse(event.data.parentSubject$$);
           } catch (e) {
             throw new Error(
-              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema ?? EventDataschemaUtil.create(contract)}').` +
-                'It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the ' +
-                'current orchestration subject by storing the subject via the context block in the machine' +
-                'definition.',
+              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema ?? EventDataschemaUtil.create(contract)}').It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the current orchestration subject by storing the subject via the context block in the machinedefinition.`,
             );
           }
         }
@@ -312,8 +277,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         dataschema: finalDataschema ?? undefined,
         data: finalData,
         to: event.to ?? event.type,
-        accesscontrol:
-          event.accesscontrol ?? sourceEvent.accesscontrol ?? undefined,
+        accesscontrol: event.accesscontrol ?? sourceEvent.accesscontrol ?? undefined,
         // The orchestrator does not respect redirectto from the source event
         redirectto: event.redirectto ?? this.source,
         executionunits: event.executionunits ?? this.executionunits,
@@ -354,10 +318,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           [ArvoExecution.ATTR_SPAN_KIND]: ArvoExecutionSpanKind.ORCHESTRATOR,
           [OpenInference.ATTR_SPAN_KIND]: OpenInferenceSpanKind.CHAIN,
           ...Object.fromEntries(
-            Object.entries(event.otelAttributes).map(([key, value]) => [
-              `to_process.0.${key}`,
-              value,
-            ]),
+            Object.entries(event.otelAttributes).map(([key, value]) => [`to_process.0.${key}`, value]),
           ),
         },
       },
@@ -393,8 +354,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           if (acquiredLock === 'NOT_ACQUIRED') {
             throw new TransactionViolation({
               cause: TransactionViolationCause.LOCK_UNACQUIRED,
-              message:
-                'Lock acquisition denied - Unable to obtain exclusive access to event processing',
+              message: 'Lock acquisition denied - Unable to obtain exclusive access to event processing',
               initiatingEvent: event,
             });
           }
@@ -419,13 +379,11 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             if (event.type !== this.source) {
               logToSpan({
                 level: 'WARNING',
-                message:
-                  `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. ` +
-                  `This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`,
+                message: `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`,
               });
               logToSpan({
                 level: 'INFO',
-                message: `Orchestration executed with issues and emitted 0 events`,
+                message: 'Orchestration executed with issues and emitted 0 events',
               });
 
               return [];
@@ -436,22 +394,16 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               message: `Resuming execution with existing state for subject: ${event.subject}`,
             });
 
-            if (
-              ArvoOrchestrationSubject.parse(event.subject).orchestrator
-                .name !== this.source
-            ) {
+            if (ArvoOrchestrationSubject.parse(event.subject).orchestrator.name !== this.source) {
               logToSpan({
                 level: 'WARNING',
-                message:
-                  `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates ` +
-                  `'${ArvoOrchestrationSubject.parse(event.subject).orchestrator.name}'. ` +
-                  `This indicates either a routing error or a non-applicable event that can be safely ignored.`,
+                message: `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates '${ArvoOrchestrationSubject.parse(event.subject).orchestrator.name}'. This indicates either a routing error or a non-applicable event that can be safely ignored.`,
               });
 
               logToSpan({
                 level: 'INFO',
-                message: `Orchestration executed with issues and emitted 0 events`
-              })
+                message: 'Orchestration executed with issues and emitted 0 events',
+              });
               return [];
             }
           }
@@ -489,10 +441,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               'Contract validation failed - Event does not match any registered contract schemas in the machine',
             );
           }
-          if (
-            inputValidation.type === 'INVALID_DATA' ||
-            inputValidation.type === 'INVALID'
-          ) {
+          if (inputValidation.type === 'INVALID_DATA' || inputValidation.type === 'INVALID') {
             throw new Error(
               `Input validation failed - Event data does not meet contract requirements: ${inputValidation.error.message}`,
             );
@@ -510,7 +459,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             { inheritFrom: 'CONTEXT' },
           );
 
-          span.setAttribute('arvo.orchestration.status', executionResult.state.status)
+          span.setAttribute('arvo.orchestration.status', executionResult.state.status);
 
           const rawMachineEmittedEvents = executionResult.events;
 
@@ -519,36 +468,23 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           // that case, make the raw event as the final output
           // is not even raw enough to be called an event yet
           if (executionResult.finalOutput) {
-            const _parsedSubject = ArvoOrchestrationSubject.parse(
-              event.subject,
-            );
+            const _parsedSubject = ArvoOrchestrationSubject.parse(event.subject);
             rawMachineEmittedEvents.push({
-              type: (
-                machine.contracts.self as VersionedArvoContract<
-                  ArvoOrchestratorContract,
-                  ArvoSemanticVersion
-                >
-              ).metadata.completeEventType,
+              type: (machine.contracts.self as VersionedArvoContract<ArvoOrchestratorContract, ArvoSemanticVersion>)
+                .metadata.completeEventType,
               data: executionResult.finalOutput,
-              to:
-                _parsedSubject?.meta?.redirectto ??
-                _parsedSubject.execution.initiator,
+              to: _parsedSubject?.meta?.redirectto ?? _parsedSubject.execution.initiator,
             });
           }
 
           // Create the final emittable events after performing
           // validations and subject creations etc.
           const emittables = rawMachineEmittedEvents.map((item) =>
-            this.createEmittableEvent(
-              item,
-              machine,
-              otelHeaders,
-              orchestrationParentSubject,
-              event,
-            ),
+            this.createEmittableEvent(item, machine, otelHeaders, orchestrationParentSubject, event),
           );
 
           emittables.forEach((item, index) => {
+            // biome-ignore lint/complexity/noForEach: non issue
             Object.entries(item.otelAttributes).forEach(([key, value]) => {
               span.setAttribute(`to_emit.${index}.${key}`, value);
             });
@@ -570,9 +506,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               state: executionResult.state,
               consumed: [event],
               produced: emittables,
-              machineDefinition: JSON.stringify(
-                (machine.logic as ActorLogic<any, any, any, any, any>).config,
-              ),
+              machineDefinition: JSON.stringify((machine.logic as ActorLogic<any, any, any, any, any>).config),
             },
             state,
           );
@@ -584,8 +518,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
 
           logToSpan({
             level: 'INFO',
-            message: `Orchestration successfully executed and emitted ${emittables.length} events`
-          })
+            message: `Orchestration successfully executed and emitted ${emittables.length} events`,
+          });
 
           return emittables;
         } catch (e: unknown) {
@@ -626,9 +560,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             });
           }
 
-          const errorEvent = createArvoOrchestratorEventFactory(
-            this.registry.machines[0].contracts.self,
-          ).systemError({
+          const errorEvent = createArvoOrchestratorEventFactory(this.registry.machines[0].contracts.self).systemError({
             source: this.source,
             subject: orchestrationParentSubject ?? event.subject,
             // The system error must always go back to
@@ -640,6 +572,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             accesscontrol: event.accesscontrol ?? undefined,
             executionunits: this.executionunits,
           });
+          // biome-ignore lint/complexity/noForEach: non issue
           Object.entries(errorEvent.otelAttributes).forEach(([key, value]) => {
             span.setAttribute(`to_emit.0.${key}`, value);
           });

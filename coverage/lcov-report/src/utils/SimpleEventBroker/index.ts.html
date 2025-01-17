@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">77.19% </span>
+                <span class="strong">76.27% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>44/57</span>
+                <span class='fraction'>45/59</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">42.3% </span>
+                <span class="strong">51.28% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>11/26</span>
+                <span class='fraction'>20/39</span>
             </div>
         
             
@@ -246,12 +246,7 @@
 <a name='L181'></a><a href='#L181'>181</a>
 <a name='L182'></a><a href='#L182'>182</a>
 <a name='L183'></a><a href='#L183'>183</a>
-<a name='L184'></a><a href='#L184'>184</a>
-<a name='L185'></a><a href='#L185'>185</a>
-<a name='L186'></a><a href='#L186'>186</a>
-<a name='L187'></a><a href='#L187'>187</a>
-<a name='L188'></a><a href='#L188'>188</a>
-<a name='L189'></a><a href='#L189'>189</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L184'></a><a href='#L184'>184</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -330,19 +325,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">40x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">34x</span>
@@ -411,14 +403,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">48x</span>
 <span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-yes">44x</span>
 <span class="cline-any cline-yes">88x</span>
 <span class="cline-any cline-yes">44x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">44x</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -439,8 +429,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { ArvoEvent } from 'arvo-core';
-import { EventBusListener, EventBusOptions } from './types';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import type { ArvoEvent } from 'arvo-core';
+import type { EventBusListener, EventBusOptions } from './types';
 import { promiseTimeout } from './utils';
 &nbsp;
 /**
@@ -520,19 +510,16 @@ export class SimpleEventBroker {
    *                                otherwise, throws error
    * @returns Unsubscribe function
    */
-  subscribe(
-    topic: string,
-    handler: EventBusListener,
-    assertUnique: boolean = false,
-  ): () =&gt; void {
+  subscribe(topic: string, handler: EventBusListener, assertUnique = false): () =&gt; void {
     if (!this.subscribers.has(topic)) {
       this.subscribers.set(topic, new Set());
     }
 &nbsp;
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (assertUnique &amp;&amp; this.subscribers.get(topic)!.size &gt; 1) {
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (assertUnique &amp;&amp; (this.subscribers.get(topic)<span class="branch-0 cbranch-no" title="branch not covered" >?.s</span>ize ?? <span class="branch-1 cbranch-no" title="branch not covered" >0)</span> &gt; 1) {
 <span class="cstat-no" title="statement not covered" >      throw new Error(`Only one subscriber allowed per topic: ${topic}`);</span>
     }
 &nbsp;
+    // biome-ignore lint/style/noNonNullAssertion: non issue
     const handlers = this.subscribers.get(topic)!;
     handlers.add(handler);
 &nbsp;
@@ -598,15 +585,13 @@ export class SimpleEventBroker {
 &nbsp;
     try {
       while (this.queue.length &gt; 0) {
-        const event = this.queue.shift()!;
+        const event = this.queue.pop();
+        <span class="missing-if-branch" title="if path not taken" >I</span>if (!event) continue;<span class="cstat-no" title="statement not covered" ></span>
         await promiseTimeout(this.eventProcessDelay);
-        const handlers = this.subscribers.get(event.to!);
+        const handlers = this.subscribers.get(event.to ?? <span class="branch-1 cbranch-no" title="branch not covered" >'')</span>;
 &nbsp;
         if (!handlers?.size) {
-          this.onError(
-            new Error(`No handlers registered for event type: ${event.to}`),
-            event,
-          );
+          this.onError(new Error(`No handlers registered for event type: ${event.to}`), event);
           continue;
         }
 &nbsp;
@@ -634,7 +619,7 @@ export class SimpleEventBroker {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-17T14:00:47.930Z
+                at 2025-01-17T14:30:51.237Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -1,8 +1,4 @@
-import {
-  getAllPaths,
-  pathValueToString,
-  PathValue,
-} from '../../../src/utils/object'; // Adjust the import path as needed
+import { type PathValue, getAllPaths, pathValueToString } from '../../../src/utils/object'; // Adjust the import path as needed
 
 describe('getAllPaths', () => {
   it('should return correct paths for a simple object', () => {

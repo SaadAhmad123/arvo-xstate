@@ -1,6 +1,6 @@
-import { ArvoEvent } from 'arvo-core';
-import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
-import ArvoMachine from '../ArvoMachine';
+import type { ArvoEvent } from 'arvo-core';
+import type { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import type ArvoMachine from '../ArvoMachine';
 
 /**
  * Interface for managing and resolving state machine instances.

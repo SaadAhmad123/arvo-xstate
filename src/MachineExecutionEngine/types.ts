@@ -1,7 +1,7 @@
-import { Snapshot } from 'xstate';
-import ArvoMachine from '../ArvoMachine';
-import { ArvoEvent } from 'arvo-core';
-import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
+import type { ArvoEvent } from 'arvo-core';
+import type { Snapshot } from 'xstate';
+import type ArvoMachine from '../ArvoMachine';
+import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 
 export type ExecuteMachineInput = {
   machine: ArvoMachine<any, any, any, any, any>;

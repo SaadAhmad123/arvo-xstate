@@ -30,16 +30,19 @@ export function getAllPaths(obj: Record<string, any>): PathValue[] {
     );
   }
 
-  let result: PathValue[] = [];
-  let stack: { obj: any; path: string[] }[] = [{ obj, path: [] }];
+  const result: PathValue[] = [];
+  const stack: { obj: any; path: string[] }[] = [{ obj, path: [] }];
 
   while (stack.length > 0) {
-    let { obj: currentObj, path: currentPath } = stack.pop()!;
+    const stack_item = stack.pop();
+    if (!stack_item) continue;
+    const { obj: currentObj, path: currentPath } = stack_item;
 
     if (typeof currentObj !== 'object' || currentObj === null) {
       result.push({ path: currentPath, value: currentObj });
     } else {
       for (const key in currentObj) {
+        // biome-ignore lint/suspicious/noPrototypeBuiltins: no reason to entertain this lint issue
         if (currentObj.hasOwnProperty(key)) {
           stack.push({ obj: currentObj[key], path: currentPath.concat(key) });
         }
@@ -65,6 +68,6 @@ export const pathValueToString = (item: PathValue): string => {
   if (!(item.path || []).length) {
     return item.value.toString();
   }
-  const pathString = item.path.map((i) => '#' + i).join('.');
-  return pathString + '.' + item.value;
+  const pathString = item.path.map((i) => `#${i}`).join('.');
+  return `${pathString}.${item.value}`;
 };

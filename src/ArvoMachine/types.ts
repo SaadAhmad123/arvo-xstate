@@ -1,11 +1,4 @@
-import {
-  ParameterizedObject,
-  IsNever,
-  Values,
-  UnknownActorLogic,
-  Invert,
-} from 'xstate';
-import {
+import type {
   ArvoContract,
   ArvoEventData,
   ArvoOrchestratorEventTypeGen,
@@ -14,7 +7,8 @@ import {
   InferVersionedArvoContract,
   VersionedArvoContract,
 } from 'arvo-core';
-import { z } from 'zod';
+import type { Invert, IsNever, ParameterizedObject, UnknownActorLogic, Values } from 'xstate';
+import type { z } from 'zod';
 
 /**
  * Represents an extended context for Arvo XState machines, including additional properties
@@ -175,12 +169,7 @@ export type EnqueueArvoEventActionParam<
  * This is an internal type. Copied as it is from the
  * xstate core [here](https://github.com/statelyai/xstate/blob/main/packages/core/src/setup.ts#L26)
  */
-export type ToParameterizedObject<
-  TParameterizedMap extends Record<
-    string,
-    ParameterizedObject['params'] | undefined
-  >,
-> = // `silentNeverType` to `never` conversion (explained in `ToProvidedActor`)
+export type ToParameterizedObject<TParameterizedMap extends Record<string, ParameterizedObject['params'] | undefined>> = // `silentNeverType` to `never` conversion (explained in `ToProvidedActor`)
   IsNever<TParameterizedMap> extends true
     ? never
     : Values<{
@@ -198,20 +187,19 @@ export type ToParameterizedObject<
 export type ToProvidedActor<
   TChildrenMap extends Record<string, string>,
   TActors extends Record<string, UnknownActorLogic>,
-> =
-  IsNever<TActors> extends true
-    ? never
-    : Values<{
-        [K in keyof TActors & string]: {
-          src: K;
-          logic: TActors[K];
-          id: IsNever<TChildrenMap> extends true
-            ? string | undefined
-            : K extends keyof Invert<TChildrenMap>
-              ? Invert<TChildrenMap>[K] & string
-              : string | undefined;
-        };
-      }>;
+> = IsNever<TActors> extends true
+  ? never
+  : Values<{
+      [K in keyof TActors & string]: {
+        src: K;
+        logic: TActors[K];
+        id: IsNever<TChildrenMap> extends true
+          ? string | undefined
+          : K extends keyof Invert<TChildrenMap>
+            ? Invert<TChildrenMap>[K] & string
+            : string | undefined;
+      };
+    }>;
 
 /**
  * Infers emittable events from a versioned Arvo contract.
@@ -239,9 +227,7 @@ export type InferEmittableEventsFromVersionedArvoContract<
  * Parses the specific orchestrator type from a fully qualified event type string.
  */
 export type ExtractOrchestratorType<T extends string> =
-  T extends `${typeof ArvoOrchestratorEventTypeGen.prefix}.${infer Type}`
-    ? Type
-    : never;
+  T extends `${typeof ArvoOrchestratorEventTypeGen.prefix}.${infer Type}` ? Type : never;
 
 /**
  * Infers the complete service contract from a record of versioned Arvo contracts.
@@ -255,17 +241,9 @@ export type ExtractOrchestratorType<T extends string> =
  * @property emitted - Events that can be emitted by the orchestrator
  * @property events - Events that can be received by the orchestrator
  */
-export type InferServiceContract<
-  T extends Record<
-    string,
-    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
-  >,
-> = {
+export type InferServiceContract<T extends Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>> = {
   emitted: {
-    [K in keyof T]: EnqueueArvoEventActionParam<
-      z.input<T[K]['accepts']['schema']>,
-      T[K]['accepts']['type']
-    >;
+    [K in keyof T]: EnqueueArvoEventActionParam<z.input<T[K]['accepts']['schema']>, T[K]['accepts']['type']>;
   }[keyof T];
 
   events: {

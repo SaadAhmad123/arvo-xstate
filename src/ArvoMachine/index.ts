@@ -1,15 +1,15 @@
 import {
-  ArvoContract,
-  ArvoEvent,
-  ArvoOrchestratorContract,
-  ArvoSemanticVersion,
+  type ArvoContract,
+  type ArvoEvent,
+  type ArvoOrchestratorContract,
+  type ArvoSemanticVersion,
   EventDataschemaUtil,
+  type VersionedArvoContract,
   isWildCardArvoSematicVersion,
   logToSpan,
-  VersionedArvoContract,
 } from 'arvo-core';
-import { AnyActorLogic } from 'xstate';
-import { z } from 'zod';
+import type { AnyActorLogic } from 'xstate';
+import type { z } from 'zod';
 
 /**
  * Represents an ArvoMachine object that can be consumed by an Arvo orchestrator.
@@ -25,14 +25,8 @@ import { z } from 'zod';
 export default class ArvoMachine<
   TId extends string,
   TVersion extends ArvoSemanticVersion,
-  TSelfContract extends VersionedArvoContract<
-    ArvoOrchestratorContract,
-    TVersion
-  >,
-  TServiceContract extends Record<
-    string,
-    VersionedArvoContract<ArvoContract, ArvoSemanticVersion>
-  >,
+  TSelfContract extends VersionedArvoContract<ArvoOrchestratorContract, TVersion>,
+  TServiceContract extends Record<string, VersionedArvoContract<ArvoContract, ArvoSemanticVersion>>,
   TLogic extends AnyActorLogic,
 > {
   /**
@@ -127,10 +121,10 @@ export default class ArvoMachine<
         Object.fromEntries(
           Object.values(this.contracts.services).reduce(
             (acc, cur) => [
+              // biome-ignore lint/performance/noAccumulatingSpread: TODO - fix this issue later
               ...acc,
               ...[...cur.emitList, cur.systemError].map(
-                (item) =>
-                  [item.type, cur] as [string, VersionedArvoContract<any, any>],
+                (item) => [item.type, cur] as [string, VersionedArvoContract<any, any>],
               ),
             ],
             [] as [string, VersionedArvoContract<any, any>][],
@@ -174,10 +168,7 @@ export default class ArvoMachine<
           ),
         };
       }
-      if (
-        !isWildCardArvoSematicVersion(dataschema.version) &&
-        dataschema.version !== resovledContract.version
-      ) {
+      if (!isWildCardArvoSematicVersion(dataschema.version) && dataschema.version !== resovledContract.version) {
         return {
           type: 'INVALID',
           error: new Error(
@@ -190,8 +181,7 @@ export default class ArvoMachine<
     const validationSchema: z.AnyZodObject =
       contractType === 'self'
         ? resovledContract.accepts.schema
-        : (resovledContract.emits[event.type] ??
-          resovledContract.systemError.schema);
+        : (resovledContract.emits[event.type] ?? resovledContract.systemError.schema);
     const error = validationSchema.safeParse(event.data).error ?? null;
     if (error) {
       return {

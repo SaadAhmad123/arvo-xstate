@@ -1,25 +1,20 @@
 import {
-  setupArvoMachine,
-  ArvoOrchestrator,
-  createArvoOrchestrator,
-  SimpleMachineMemory,
-} from '../../src';
-import { assign, emit } from 'xstate';
-import { telemetrySdkStart, telemetrySdkStop } from '../utils';
-import { z } from 'zod';
-import {
-  createArvoContract,
-  createArvoOrchestratorContract,
-  ArvoErrorSchema,
+  type ArvoErrorSchema,
+  type ArvoErrorType,
   ArvoOrchestrationSubject,
-  createArvoEventFactory,
-  ArvoErrorType,
-  createArvoOrchestratorEventFactory,
-  cleanString,
-  createArvoEvent,
   EventDataschemaUtil,
+  cleanString,
+  createArvoContract,
+  createArvoEvent,
+  createArvoEventFactory,
+  createArvoOrchestratorContract,
+  createArvoOrchestratorEventFactory,
 } from 'arvo-core';
 import { createArvoEventHandler } from 'arvo-event-handler';
+import { assign, emit } from 'xstate';
+import { z } from 'zod';
+import { SimpleMachineMemory, createArvoOrchestrator, setupArvoMachine } from '../../src';
+import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 
 describe('ArvoXState', () => {
   beforeAll(() => {
@@ -205,10 +200,7 @@ describe('ArvoXState', () => {
       actions: {
         log: ({ context, event }) => console.log({ context, event }),
         assignEventError: assign({
-          errors: ({ context, event }) => [
-            ...context.errors,
-            event.data as z.infer<typeof ArvoErrorSchema>,
-          ],
+          errors: ({ context, event }) => [...context.errors, event.data as z.infer<typeof ArvoErrorSchema>],
         }),
       },
       guards: {
@@ -222,9 +214,7 @@ describe('ArvoXState', () => {
         setup.createMachine({
           version: '0.0.3',
         } as any),
-      ).toThrow(
-        "Version mismatch: Machine version must be '0.0.1' or undefined, received '0.0.3'",
-      );
+      ).toThrow("Version mismatch: Machine version must be '0.0.1' or undefined, received '0.0.3'");
     });
 
     it('should create a valid machine', async () => {
@@ -340,9 +330,7 @@ describe('ArvoXState', () => {
         initiator: 'com.test.service',
       });
 
-      const initEvent = createArvoEventFactory(
-        testMachineContract.version('0.0.1'),
-      ).accepts({
+      const initEvent = createArvoEventFactory(testMachineContract.version('0.0.1')).accepts({
         source: 'com.test.service',
         subject: eventSubject,
         data: {
@@ -359,9 +347,7 @@ describe('ArvoXState', () => {
       expect(output[0].source).toBe('arvo.orc.test');
       expect(output[0].type).toBe('com.number.increment');
       expect(output[0].data.delta).toBe(1);
-      expect(output[0].dataschema).toBe(
-        `${incrementServiceContract.uri}/0.0.1`,
-      );
+      expect(output[0].dataschema).toBe(`${incrementServiceContract.uri}/0.0.1`);
 
       const incrementHandler = createArvoEventHandler({
         contract: incrementServiceContract,
@@ -422,9 +408,7 @@ describe('ArvoXState', () => {
 
       // TODO: test valid init event
       let validationResult = machine.validateInput(
-        createArvoOrchestratorEventFactory(
-          testMachineContract.version('0.0.1'),
-        ).init({
+        createArvoOrchestratorEventFactory(testMachineContract.version('0.0.1')).init({
           source: 'com.test.test',
           data: {
             parentSubject$$: null,
@@ -446,9 +430,7 @@ describe('ArvoXState', () => {
             delta: 1,
             type: 'test' as any,
           },
-          dataschema: EventDataschemaUtil.create(
-            testMachineContract.version('0.0.1'),
-          ),
+          dataschema: EventDataschemaUtil.create(testMachineContract.version('0.0.1')),
         }),
       );
       expect(validationResult.type).toBe('INVALID_DATA');
@@ -535,30 +517,26 @@ describe('ArvoXState', () => {
 
       // TODO: test valid increment success event
       validationResult = machine.validateInput(
-        createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits(
-          {
-            type: 'evt.number.increment.success',
-            source: 'test',
-            subject: 'test',
-            data: {
-              newValue: 1,
-            },
+        createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
+          type: 'evt.number.increment.success',
+          source: 'test',
+          subject: 'test',
+          data: {
+            newValue: 1,
           },
-        ),
+        }),
       );
       expect(validationResult.type).toBe('VALID');
 
       validationResult = machine.validateInput(
-        createArvoEventFactory(incrementServiceContract.version('0.0.2')).emits(
-          {
-            type: 'evt.number.increment.success',
-            source: 'test',
-            subject: 'test',
-            data: {
-              newValue: 1,
-            },
+        createArvoEventFactory(incrementServiceContract.version('0.0.2')).emits({
+          type: 'evt.number.increment.success',
+          source: 'test',
+          subject: 'test',
+          data: {
+            newValue: 1,
           },
-        ),
+        }),
       );
       expect(validationResult.type).toBe('INVALID');
       if (validationResult.type === 'INVALID') {

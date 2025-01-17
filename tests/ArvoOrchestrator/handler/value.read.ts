@@ -1,13 +1,8 @@
-import {
-  createArvoEventHandler,
-  EventHandlerFactory,
-} from 'arvo-event-handler';
+import { type EventHandlerFactory, createArvoEventHandler } from 'arvo-event-handler';
 import { valueReadContract } from '../contracts';
-import { ValueStoreConfig } from './types';
+import type { ValueStoreConfig } from './types';
 
-export const valueReadHandler: EventHandlerFactory<ValueStoreConfig> = ({
-  valueStore,
-}) =>
+export const valueReadHandler: EventHandlerFactory<ValueStoreConfig> = ({ valueStore }) =>
   createArvoEventHandler({
     contract: valueReadContract,
     executionunits: 0,

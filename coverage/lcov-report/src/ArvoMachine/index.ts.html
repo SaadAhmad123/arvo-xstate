@@ -259,17 +259,7 @@
 <a name='L194'></a><a href='#L194'>194</a>
 <a name='L195'></a><a href='#L195'>195</a>
 <a name='L196'></a><a href='#L196'>196</a>
-<a name='L197'></a><a href='#L197'>197</a>
-<a name='L198'></a><a href='#L198'>198</a>
-<a name='L199'></a><a href='#L199'>199</a>
-<a name='L200'></a><a href='#L200'>200</a>
-<a name='L201'></a><a href='#L201'>201</a>
-<a name='L202'></a><a href='#L202'>202</a>
-<a name='L203'></a><a href='#L203'>203</a>
-<a name='L204'></a><a href='#L204'>204</a>
-<a name='L205'></a><a href='#L205'>205</a>
-<a name='L206'></a><a href='#L206'>206</a>
-<a name='L207'></a><a href='#L207'>207</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
+<a name='L197'></a><a href='#L197'>197</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -294,12 +284,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -446,9 +430,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -460,7 +441,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">37x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">37x</span>
@@ -476,17 +456,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import {
-  ArvoContract,
-  ArvoEvent,
-  ArvoOrchestratorContract,
-  ArvoSemanticVersion,
+  type ArvoContract,
+  type ArvoEvent,
+  type ArvoOrchestratorContract,
+  type ArvoSemanticVersion,
   EventDataschemaUtil,
+  type VersionedArvoContract,
   isWildCardArvoSematicVersion,
   logToSpan,
-  VersionedArvoContract,
 } from 'arvo-core';
-import { AnyActorLogic } from 'xstate';
-import { z } from 'zod';
+import type { AnyActorLogic } from 'xstate';
+import type { z } from 'zod';
 &nbsp;
 /**
  * Represents an ArvoMachine object that can be consumed by an Arvo orchestrator.
@@ -502,14 +482,8 @@ import { z } from 'zod';
 export default class ArvoMachine&lt;
   TId extends string,
   TVersion extends ArvoSemanticVersion,
-  TSelfContract extends VersionedArvoContract&lt;
-    ArvoOrchestratorContract,
-    TVersion
-  &gt;,
-  TServiceContract extends Record&lt;
-    string,
-    VersionedArvoContract&lt;ArvoContract, ArvoSemanticVersion&gt;
-  &gt;,
+  TSelfContract extends VersionedArvoContract&lt;ArvoOrchestratorContract, TVersion&gt;,
+  TServiceContract extends Record&lt;string, VersionedArvoContract&lt;ArvoContract, ArvoSemanticVersion&gt;&gt;,
   TLogic extends AnyActorLogic,
 &gt; {
   /**
@@ -604,10 +578,10 @@ export default class ArvoMachine&lt;
         Object.fromEntries(
           Object.values(this.contracts.services).reduce(
             (acc, cur) =&gt; [
+              // biome-ignore lint/performance/noAccumulatingSpread: TODO - fix this issue later
               ...acc,
               ...[...cur.emitList, cur.systemError].map(
-                (item) =&gt;
-                  [item.type, cur] as [string, VersionedArvoContract&lt;any, any&gt;],
+                (item) =&gt; [item.type, cur] as [string, VersionedArvoContract&lt;any, any&gt;],
               ),
             ],
             [] as [string, VersionedArvoContract&lt;any, any&gt;][],
@@ -651,10 +625,7 @@ export default class ArvoMachine&lt;
           ),
         };
       }
-      if (
-        !isWildCardArvoSematicVersion(dataschema.version) &amp;&amp;
-        dataschema.version !== resovledContract.version
-      ) {
+      if (!isWildCardArvoSematicVersion(dataschema.version) &amp;&amp; dataschema.version !== resovledContract.version) {
         return {
           type: 'INVALID',
           error: new Error(
@@ -667,8 +638,7 @@ export default class ArvoMachine&lt;
     const validationSchema: z.AnyZodObject =
       contractType === 'self'
         ? resovledContract.accepts.schema
-        : (resovledContract.emits[event.type] ??
-<span class="branch-1 cbranch-no" title="branch not covered" >          resovledContract.systemError.schema)</span>;
+        : (resovledContract.emits[event.type] ?? <span class="branch-1 cbranch-no" title="branch not covered" >resovledContract.systemError.schema)</span>;
     const error = validationSchema.safeParse(event.data).error ?? null;
     if (error) {
       return {
@@ -688,7 +658,7 @@ export default class ArvoMachine&lt;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-17T14:00:47.930Z
+                at 2025-01-17T14:30:51.237Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

@@ -1,4 +1,4 @@
-export const promiseTimeout = (timeout: number = 10) =>
+export const promiseTimeout = (timeout = 10) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, timeout);
   });

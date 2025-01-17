@@ -1,4 +1,4 @@
-import { ArvoEvent, ViolationError } from 'arvo-core';
+import { type ArvoEvent, ViolationError } from 'arvo-core';
 
 export enum TransactionViolationCause {
   READ_FAILURE = 'READ_MACHINE_MEMORY_FAILURE',
@@ -9,8 +9,8 @@ export enum TransactionViolationCause {
 }
 
 export class TransactionViolation extends ViolationError<'ArvoTransaction'> {
-  readonly cause: TransactionViolationCause
-  
+  readonly cause: TransactionViolationCause;
+
   constructor(param: {
     cause: TransactionViolationCause;
     message: string;
@@ -20,9 +20,9 @@ export class TransactionViolation extends ViolationError<'ArvoTransaction'> {
       type: 'ArvoTransaction',
       message: `[${param.cause}] ${param.message}`,
       metadata: {
-        initiatingEvent: param.initiatingEvent
-      }
+        initiatingEvent: param.initiatingEvent,
+      },
     });
-    this.cause = param.cause
+    this.cause = param.cause;
   }
 }
