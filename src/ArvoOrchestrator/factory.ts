@@ -1,7 +1,7 @@
 import { ArvoOrchestrator } from '.';
 import { MachineExecutionEngine } from '../MachineExecutionEngine';
 import { MachineRegistry } from '../MachineRegistry';
-import { ICreateArvoOrchestrator } from './types';
+import type { ICreateArvoOrchestrator } from './types';
 
 /**
  * Creates a new Arvo orchestrator instance with default components.
@@ -38,9 +38,7 @@ export const createArvoOrchestrator = ({
   }
 
   const registry = new MachineRegistry(...machines);
-  const requiresResourceLocking = machines.some(
-    (machine) => machine.requiresResourceLocking,
-  );
+  const requiresResourceLocking = machines.some((machine) => machine.requiresResourceLocking);
 
   return new ArvoOrchestrator({
     executionunits,

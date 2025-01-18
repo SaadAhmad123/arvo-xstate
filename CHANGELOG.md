@@ -18,3 +18,7 @@
 
 - Added smart locking strategy so that the locking only happens when the machine implementation requires it otherwise the orchestrator skips locking of the resources. This is because it is observed that the machine's state and logic by itself maintains
   a very high degree of idempotency for sequential machines
+## [2.2.5] - 2025-01-18
+
+- Standardised the error boundaries as violations
+

@@ -1,15 +1,15 @@
-import { MachineExecutionEngine, setupArvoMachine } from '../src';
 import {
-  ArvoErrorSchema,
-  ArvoErrorType,
+  type ArvoErrorSchema,
+  type ArvoErrorType,
   createArvoContract,
   createArvoEventFactory,
   createArvoOrchestratorContract,
   createArvoOrchestratorEventFactory,
 } from 'arvo-core';
-import { z } from 'zod';
-import { telemetrySdkStart, telemetrySdkStop } from './utils';
 import { assign, emit } from 'xstate';
+import { z } from 'zod';
+import { MachineExecutionEngine, setupArvoMachine } from '../src';
+import { telemetrySdkStart, telemetrySdkStop } from './utils';
 
 describe('MachineRegistry', () => {
   beforeAll(() => {
@@ -115,10 +115,7 @@ describe('MachineRegistry', () => {
     actions: {
       log: ({ context, event }) => console.log({ context, event }),
       assignEventError: assign({
-        errors: ({ context, event }) => [
-          ...context.errors,
-          event.data as z.infer<typeof ArvoErrorSchema>,
-        ],
+        errors: ({ context, event }) => [...context.errors, event.data as z.infer<typeof ArvoErrorSchema>],
       }),
     },
     guards: {
@@ -229,9 +226,7 @@ describe('MachineRegistry', () => {
   });
 
   it('should execute the machine in case of events', () => {
-    const initEvent = createArvoOrchestratorEventFactory(
-      testMachineContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(testMachineContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,
@@ -254,9 +249,7 @@ describe('MachineRegistry', () => {
     result = executionEngine.execute({
       state: result.state,
       machine,
-      event: createArvoEventFactory(
-        incrementServiceContract.version('0.0.1'),
-      ).emits({
+      event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
         subject: initEvent.subject,
         source: 'com.test.test',
         type: 'evt.number.increment.success',
@@ -275,17 +268,13 @@ describe('MachineRegistry', () => {
     expect(result.state.status).toBe('done');
     expect((result.state as any).value).toBe('done');
     expect(result.finalOutput.final).toBe(1);
-    expect(
-      (result.state as any)?.context?.arvo$$?.volatile$$?.eventQueue$$,
-    ).toBe(undefined);
+    expect((result.state as any)?.context?.arvo$$?.volatile$$?.eventQueue$$).toBe(undefined);
 
     expect(() => {
       executionEngine.execute({
         state: null,
         machine,
-        event: createArvoEventFactory(
-          incrementServiceContract.version('0.0.1'),
-        ).emits({
+        event: createArvoEventFactory(incrementServiceContract.version('0.0.1')).emits({
           subject: initEvent.subject,
           source: 'com.test.test',
           type: 'evt.number.increment.success',
@@ -311,9 +300,7 @@ describe('MachineRegistry', () => {
       },
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      testMachineContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(testMachineContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,
@@ -349,9 +336,7 @@ describe('MachineRegistry', () => {
       },
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      testMachineContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(testMachineContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,

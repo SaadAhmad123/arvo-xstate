@@ -30,9 +30,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">88.52% </span>
+                <span class="strong">83.6% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>54/61</span>
+                <span class='fraction'>51/61</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>41/41</span>
+                <span class='fraction'>39/39</span>
             </div>
         
             
@@ -192,19 +192,12 @@
 <a name='L127'></a><a href='#L127'>127</a>
 <a name='L128'></a><a href='#L128'>128</a>
 <a name='L129'></a><a href='#L129'>129</a>
-<a name='L130'></a><a href='#L130'>130</a>
-<a name='L131'></a><a href='#L131'>131</a>
-<a name='L132'></a><a href='#L132'>132</a>
-<a name='L133'></a><a href='#L133'>133</a>
-<a name='L134'></a><a href='#L134'>134</a>
-<a name='L135'></a><a href='#L135'>135</a>
-<a name='L136'></a><a href='#L136'>136</a>
-<a name='L137'></a><a href='#L137'>137</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
+<a name='L130'></a><a href='#L130'>130</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -278,8 +271,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">15x</span>
-<span class="cline-any cline-yes">13x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-yes">15x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -291,8 +282,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">21x</span>
-<span class="cline-any cline-yes">12x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">21x</span>
 <span class="cline-any cline-yes">21x</span>
 <span class="cline-any cline-yes">21x</span>
@@ -307,8 +296,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">36x</span>
 <span class="cline-any cline-yes">36x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
@@ -320,9 +309,6 @@
 <span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-yes">34x</span>
 <span class="cline-any cline-yes">34x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">24x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -335,13 +321,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { ArvoOpenTelemetry, logToSpan } from 'arvo-core';
-import { ExecuteMachineInput, ExecuteMachineOutput } from './types';
-import { Actor, createActor, Snapshot } from 'xstate';
-import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
-import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
-import { context, SpanKind } from '@opentelemetry/api';
-import { IMachineExectionEngine } from './interface';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { SpanKind, context } from '@opentelemetry/api';
+import { ArvoOpenTelemetry, logToSpan } from 'arvo-core';
+import type { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import { type Actor, type Snapshot, createActor } from 'xstate';
+import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
+import type { IMachineExectionEngine } from './interface';
+import type { ExecuteMachineInput, ExecuteMachineOutput } from './types';
 &nbsp;
 /**
  * Handles state machine execution, event processing, and lifecycle management.
@@ -413,9 +399,7 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
           actor = createActor(machine.logic, {
             input: event.toJSON(),
           });
-          actor.on('*', (event) =&gt;
-            eventQueue.push(event as EnqueueArvoEventActionParam),
-          );
+          actor.on('*', (event) =&gt; eventQueue.push(event as EnqueueArvoEventActionParam));
           actor.subscribe({ error: (err) =&gt; errors.push(err as Error) });
           actor.start();
         } else {
@@ -426,9 +410,7 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
           actor = createActor(machine.logic, {
             snapshot: state,
           });
-          actor.on('*', (event) =&gt;
-            eventQueue.push(event as EnqueueArvoEventActionParam),
-          );
+          actor.on('*', (event) =&gt; eventQueue.push(event as EnqueueArvoEventActionParam));
           actor.subscribe({ error: <span class="fstat-no" title="function not covered" >(e</span>rr) =&gt; <span class="cstat-no" title="statement not covered" >errors.push(err as Error) })</span>;
           actor.start();
           actor.send(event.toJSON());
@@ -443,22 +425,19 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
         });
         const extractedSnapshot = actor.getPersistedSnapshot() as Snapshot&lt;any&gt;;
         if ((extractedSnapshot<span class="branch-0 cbranch-no" title="branch not covered" > as any)?</span>.context?.arvo$$?.volatile$$) {
+          // biome-ignore lint/complexity/noForEach: TODO - fix it later
           (
-            (extractedSnapshot<span class="branch-0 cbranch-no" title="branch not covered" > as any)?</span>.context<span class="branch-0 cbranch-no" title="branch not covered" >?.a</span>rvo$$<span class="branch-0 cbranch-no" title="branch not covered" >?.v</span>olatile$$<span class="branch-0 cbranch-no" title="branch not covered" ></span>
-              ?.eventQueue$$ as EnqueueArvoEventActionParam[]
+            (extractedSnapshot<span class="branch-0 cbranch-no" title="branch not covered" > as any)?</span>.context<span class="branch-0 cbranch-no" title="branch not covered" >?.a</span>rvo$$<span class="branch-0 cbranch-no" title="branch not covered" >?.v</span>olatile$$<span class="branch-0 cbranch-no" title="branch not covered" >?.e</span>ventQueue$$ as EnqueueArvoEventActionParam[]
           ).forEach((item) =&gt; eventQueue.push(item));
-          delete (extractedSnapshot as any).context.arvo$$.volatile$$;
+          (extractedSnapshot as any).context.arvo$$.volatile$$ = undefined;
         }
         if (errors.length) {
           throw errors[0];
         }
 &nbsp;
         let finalOutput: any = extractedSnapshot<span class="branch-0 cbranch-no" title="branch not covered" >?.o</span>utput ?? null;
-        let existingOutput: any = state?.output ?? null;
-        if (
-          JSON.stringify(finalOutput ?? {}) ===
-          JSON.stringify(existingOutput ?? {})
-        ) {
+        const existingOutput: any = state?.output<span class="branch-0 cbranch-no" title="branch not covered" > ?? n</span>ull;
+        if (JSON.stringify(finalOutput ?? {}) === JSON.stringify(<span class="branch-1 cbranch-no" title="branch not covered" ><span class="branch-0 cbranch-no" title="branch not covered" >existingOutput </span>?? {</span>})) {
           finalOutput = null;
         }
 &nbsp;
@@ -478,7 +457,7 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-07T15:02:57.874Z
+                at 2025-01-17T14:30:51.237Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

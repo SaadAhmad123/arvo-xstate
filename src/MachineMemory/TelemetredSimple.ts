@@ -1,7 +1,7 @@
-import { ArvoOpenTelemetry } from 'arvo-core';
-import { MachineMemoryRecord } from '../ArvoOrchestrator/types';
-import { IMachineMemory } from './interface';
 import { SpanKind } from '@opentelemetry/api';
+import { ArvoOpenTelemetry } from 'arvo-core';
+import type { MachineMemoryRecord } from '../ArvoOrchestrator/types';
+import type { IMachineMemory } from './interface';
 import { getJsonSize } from './utils';
 
 /**
@@ -18,9 +18,7 @@ import { getJsonSize } from './utils';
  *   machines: [workflow]
  * });
  */
-export class TelemetredSimpleMachineMemory
-  implements IMachineMemory<MachineMemoryRecord>
-{
+export class TelemetredSimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> {
   private readonly memoryMap: Map<string, MachineMemoryRecord> = new Map();
   private readonly lockMap: Map<string, boolean> = new Map();
 

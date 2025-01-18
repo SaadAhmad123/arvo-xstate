@@ -157,28 +157,10 @@
 <a name='L92'></a><a href='#L92'>92</a>
 <a name='L93'></a><a href='#L93'>93</a>
 <a name='L94'></a><a href='#L94'>94</a>
-<a name='L95'></a><a href='#L95'>95</a>
-<a name='L96'></a><a href='#L96'>96</a>
-<a name='L97'></a><a href='#L97'>97</a>
-<a name='L98'></a><a href='#L98'>98</a>
-<a name='L99'></a><a href='#L99'>99</a>
-<a name='L100'></a><a href='#L100'>100</a>
-<a name='L101'></a><a href='#L101'>101</a>
-<a name='L102'></a><a href='#L102'>102</a>
-<a name='L103'></a><a href='#L103'>103</a>
-<a name='L104'></a><a href='#L104'>104</a>
-<a name='L105'></a><a href='#L105'>105</a>
-<a name='L106'></a><a href='#L106'>106</a>
-<a name='L107'></a><a href='#L107'>107</a>
-<a name='L108'></a><a href='#L108'>108</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L95'></a><a href='#L95'>95</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -250,18 +232,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">38x</span>
 <span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">38x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">77x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">38x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -277,16 +251,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import {
-  ArvoEvent,
-  ArvoOpenTelemetry,
-  ArvoOrchestrationSubject,
-  logToSpan,
-} from 'arvo-core';
-import ArvoMachine from '../ArvoMachine';
-import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
-import { context, SpanKind } from '@opentelemetry/api';
-import { IMachineRegistry } from './interface';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { SpanKind, context } from '@opentelemetry/api';
+import { type ArvoEvent, ArvoOpenTelemetry, ArvoOrchestrationSubject, logToSpan } from 'arvo-core';
+import type { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import type ArvoMachine from '../ArvoMachine';
+import type { IMachineRegistry } from './interface';
 &nbsp;
 /**
  * Registry for managing and resolving ArvoMachine instances.
@@ -336,7 +305,7 @@ export class MachineRegistry implements IMachineRegistry {
     },
   ): ArvoMachine&lt;any, any, any, any, any&gt; {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({
-      name: `Resolve Machine`,
+      name: 'Resolve Machine',
       spanOptions: {
         kind: SpanKind.INTERNAL,
         attributes: event.otelAttributes,
@@ -356,19 +325,11 @@ export class MachineRegistry implements IMachineRegistry {
             },
       fn: (span) =&gt; {
         const subject = ArvoOrchestrationSubject.parse(event.subject);
-        span.setAttribute(
-          'arvo.parsed.subject.orchestrator.name',
-          subject.orchestrator.name,
-        );
-        span.setAttribute(
-          'arvo.parsed.subject.orchestrator.version',
-          subject.orchestrator.version,
-        );
-        let machine: ArvoMachine&lt;any, any, any, any, any&gt; | null =
+        span.setAttribute('arvo.parsed.subject.orchestrator.name', subject.orchestrator.name);
+        span.setAttribute('arvo.parsed.subject.orchestrator.version', subject.orchestrator.version);
+        const machine: ArvoMachine&lt;any, any, any, any, any&gt; | null =
           this.machines.filter(
-            (item) =&gt;
-              item.version === subject.orchestrator.version &amp;&amp;
-              item.source === subject.orchestrator.name,
+            (item) =&gt; item.version === subject.orchestrator.version &amp;&amp; item.source === subject.orchestrator.name,
           )[0] ?? null;
         if (!machine) {
           throw new Error(
@@ -377,7 +338,7 @@ export class MachineRegistry implements IMachineRegistry {
         }
         logToSpan({
           level: 'INFO',
-          message: `Recolved machine for type`,
+          message: 'Recolved machine for type',
         });
         return machine;
       },
@@ -391,7 +352,7 @@ export class MachineRegistry implements IMachineRegistry {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-07T15:02:57.874Z
+                at 2025-01-17T14:30:51.237Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

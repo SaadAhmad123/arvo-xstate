@@ -1,35 +1,35 @@
 import {
-  ArvoOrchestrator,
-  MachineMemoryRecord,
+  type ArvoEvent,
+  ArvoOrchestrationSubject,
+  EventDataschemaUtil,
+  createArvoEvent,
+  createArvoEventFactory,
+  createArvoOrchestratorEventFactory,
+} from 'arvo-core';
+import {
+  type ArvoOrchestrator,
+  type MachineMemoryRecord,
   SimpleMachineMemory,
   createArvoOrchestrator,
   createSimpleEventBroker,
 } from '../../src';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
-import { incrementNumberHandler } from './handler/increment.number';
+import {
+  decrementOrchestratorContract,
+  incrementContract,
+  incrementOrchestratorContract,
+  numberModifierOrchestrator as numberModifierOrchestratorContract,
+  valueReadContract,
+} from './contracts';
 import { decrementNumberHandler } from './handler/decrement.number';
+import { incrementNumberHandler } from './handler/increment.number';
 import { valueReadHandler } from './handler/value.read';
 import { valueWriteHandler } from './handler/value.write';
 import { decrementOrchestrator } from './orchestrators/decrement';
 import { incrementOrchestrator } from './orchestrators/increment';
 import { numberModifierOrchestrator } from './orchestrators/number.modifier';
-import {
-  ArvoEvent,
-  ArvoOrchestrationSubject,
-  createArvoEvent,
-  createArvoEventFactory,
-  createArvoOrchestratorEventFactory,
-  EventDataschemaUtil,
-} from 'arvo-core';
-import {
-  incrementContract,
-  incrementOrchestratorContract,
-  valueReadContract,
-  numberModifierOrchestrator as numberModifierOrchestratorContract,
-  decrementOrchestratorContract,
-} from './contracts';
 
-const promiseTimeout = (timeout: number = 10) =>
+const promiseTimeout = (timeout = 10) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, timeout);
   });
@@ -57,9 +57,7 @@ describe('ArvoOrchestrator', () => {
   };
 
   it('should orchestrate valid init event', async () => {
-    const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         key: 'test.key',
@@ -111,9 +109,7 @@ describe('ArvoOrchestrator', () => {
     expect(context?.subject).toBe(initEvent.subject);
     expect(context?.parentSubject).toBe(null);
     expect(context?.status).toBe('active');
-    expect(JSON.stringify(context?.value ?? {})).toBe(
-      JSON.stringify({ increment: {} }),
-    );
+    expect(JSON.stringify(context?.value ?? {})).toBe(JSON.stringify({ increment: {} }));
     expect((context?.state as any)?.context.value).toBe(2);
     expect((context?.state as any)?.context.modifier).toBe(2);
     expect((context?.state as any)?.context.trend).toBe('linear');
@@ -154,9 +150,7 @@ describe('ArvoOrchestrator', () => {
     expect((context?.state as any)?.context.error.length).toBe(0);
 
     expect(events.length).toBe(1);
-    expect(events[0].type).toBe(
-      incrementOrchestratorContract.metadata.completeEventType,
-    );
+    expect(events[0].type).toBe(incrementOrchestratorContract.metadata.completeEventType);
     expect(events[0].to).toBe('com.test.test');
     expect(events[0].source).toBe(incrementOrchestratorContract.type);
     expect(events[0].data.success).toBe(true);
@@ -165,9 +159,7 @@ describe('ArvoOrchestrator', () => {
   });
 
   it('should throw error if lock not acquired', async () => {
-    const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         key: 'test.key',
@@ -183,18 +175,14 @@ describe('ArvoOrchestrator', () => {
       await handlers.incrementAgent.execute(initEvent, {
         inheritFrom: 'EVENT',
       });
-    }).rejects.toThrow(
-      'Lock acquisition denied - Unable to obtain exclusive access to event processing',
-    );
+    }).rejects.toThrow('Lock acquisition denied - Unable to obtain exclusive access to event processing');
 
     const result = await machineMemory.lock(initEvent.subject);
     expect(result).toBe(false);
   });
 
   it('should throw error if contract unresolved', async () => {
-    const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         key: 'test.key',
@@ -226,9 +214,7 @@ describe('ArvoOrchestrator', () => {
       data: {
         value: 'saad' as any,
       },
-      dataschema: EventDataschemaUtil.create(
-        valueReadContract.version('0.0.1'),
-      ),
+      dataschema: EventDataschemaUtil.create(valueReadContract.version('0.0.1')),
     });
 
     events = await handlers.incrementAgent.execute(fetchEvent, {
@@ -254,9 +240,7 @@ describe('ArvoOrchestrator', () => {
       finalEvent = event;
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      numberModifierOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(numberModifierOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         init: 1,
@@ -269,9 +253,13 @@ describe('ArvoOrchestrator', () => {
 
     await broker.publish(initEvent);
     expect(finalEvent).not.toBe(null);
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEvent!.to).toBe('com.test.test');
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEvent!.data.success).toBe(true);
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEvent!.data.error.length).toBe(0);
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEvent!.data.final).toBe(-3);
     expect(broker.events.length).toBe(
       1 + // Number modifier orchestrator init event
@@ -298,18 +286,11 @@ describe('ArvoOrchestrator', () => {
 
     expect(broker.events[3].type).toBe('arvo.orc.dec');
     expect(broker.events[3].data.parentSubject$$).toBe(initEvent.subject);
-    expect(
-      ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator
-        .name,
-    ).toBe('arvo.orc.dec');
-    expect(
-      ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator
-        .version,
-    ).toBe('0.0.1');
-    expect(
-      ArvoOrchestrationSubject.parse(broker.events[3].subject).execution
-        .initiator,
-    ).toBe('arvo.orc.number.modifier');
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.name).toBe('arvo.orc.dec');
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).orchestrator.version).toBe('0.0.1');
+    expect(ArvoOrchestrationSubject.parse(broker.events[3].subject).execution.initiator).toBe(
+      'arvo.orc.number.modifier',
+    );
 
     const badEvent = createArvoEvent({
       source: 'com.test.test',
@@ -322,9 +303,7 @@ describe('ArvoOrchestrator', () => {
         inheritFrom: 'EVENT',
       });
     }).rejects.toThrow(
-      `Invalid event (id=${badEvent.id}) subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\n` +
-        `Error -> incorrect header check\n` +
-        `subject -> test`,
+      `Invalid event (id=${badEvent.id}) subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\nError -> incorrect header check\nsubject -> test`,
     );
   });
 
@@ -338,9 +317,7 @@ describe('ArvoOrchestrator', () => {
           ...(handlers.decrementAgent as ArvoOrchestrator).registry.machines,
         ],
       });
-    }).toThrow(
-      "All the machines in the orchestrator must have type 'arvo.orc.inc'",
-    );
+    }).toThrow("All the machines in the orchestrator must have type 'arvo.orc.inc'");
   });
 
   it('should throw error on duplicate mahines', () => {
@@ -369,14 +346,10 @@ describe('ArvoOrchestrator', () => {
         },
         unlock: async (id: string) => true,
       },
-      machines: [
-        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
-      ],
+      machines: [...(handlers.incrementAgent as ArvoOrchestrator).registry.machines],
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,
@@ -402,14 +375,10 @@ describe('ArvoOrchestrator', () => {
         lock: async (id: string) => true,
         unlock: async (id: string) => true,
       },
-      machines: [
-        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
-      ],
+      machines: [...(handlers.incrementAgent as ArvoOrchestrator).registry.machines],
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,
@@ -435,14 +404,10 @@ describe('ArvoOrchestrator', () => {
         lock: async (id: string) => true,
         unlock: async (id: string) => true,
       },
-      machines: [
-        ...(handlers.incrementAgent as ArvoOrchestrator).registry.machines,
-      ],
+      machines: [...(handlers.incrementAgent as ArvoOrchestrator).registry.machines],
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      incrementOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         parentSubject$$: null,
@@ -468,9 +433,7 @@ describe('ArvoOrchestrator', () => {
       finalEventFromTest1 = event;
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      numberModifierOrchestratorContract.version('0.0.1'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(numberModifierOrchestratorContract.version('0.0.1')).init({
       source: 'com.test.test',
       data: {
         init: 1,
@@ -499,6 +462,7 @@ describe('ArvoOrchestrator', () => {
     );
     expect(finalEventFromTest).toBe(null);
     expect(finalEventFromTest1).not.toBe(null);
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEventFromTest1!.to).toBe('com.test.test.1');
   });
 
@@ -513,9 +477,7 @@ describe('ArvoOrchestrator', () => {
       finalEventFromTest1 = event;
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      numberModifierOrchestratorContract.version('0.0.2'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(numberModifierOrchestratorContract.version('0.0.2')).init({
       source: 'com.test.test',
       data: {
         init: 1,
@@ -537,6 +499,7 @@ describe('ArvoOrchestrator', () => {
     );
     expect(finalEventFromTest1).toBe(null);
     expect(finalEventFromTest).not.toBe(null);
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEventFromTest!.to).toBe('com.test.test');
   });
 
@@ -547,9 +510,7 @@ describe('ArvoOrchestrator', () => {
       finalEventFromTest = event;
     });
 
-    const initEvent = createArvoOrchestratorEventFactory(
-      numberModifierOrchestratorContract.version('0.0.2'),
-    ).init({
+    const initEvent = createArvoOrchestratorEventFactory(numberModifierOrchestratorContract.version('0.0.2')).init({
       source: 'com.test.test',
       data: {
         init: 1,
@@ -582,33 +543,32 @@ describe('ArvoOrchestrator', () => {
         1, // Increment orchestrator completion event
     );
     expect(finalEventFromTest).not.toBe(null);
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
     expect(finalEventFromTest!.to).toBe('com.test.test');
   });
 
-  it ('shoud not emit any event on a non init event with no state', async () => {
+  it('shoud not emit any event on a non init event with no state', async () => {
     const subject = ArvoOrchestrationSubject.new({
       initiator: 'com.test.test',
       orchestator: incrementOrchestratorContract.version('0.0.1').accepts.type,
-      version: incrementOrchestratorContract.version('0.0.1').version
-    })
+      version: incrementOrchestratorContract.version('0.0.1').version,
+    });
 
-    const event = createArvoEventFactory(
-      incrementContract.version('0.0.1')
-    ).emits({
+    const event = createArvoEventFactory(incrementContract.version('0.0.1')).emits({
       subject: subject,
       source: 'com.test.test',
       type: 'evt.increment.number.success',
       data: {
-        result: 12
-      }
-    })
+        result: 12,
+      },
+    });
 
-    const events = await handlers.incrementAgent.execute(event, {inheritFrom: 'EVENT'})
+    const events = await handlers.incrementAgent.execute(event, { inheritFrom: 'EVENT' });
 
-    expect(events.length).toBe(0)
-  })
-  
-  it ('should have system error schema which is standard', () => {
-    expect(handlers.decrementAgent.systemErrorSchema.type).toBe(decrementOrchestratorContract.systemError.type)
-  })
+    expect(events.length).toBe(0);
+  });
+
+  it('should have system error schema which is standard', () => {
+    expect(handlers.decrementAgent.systemErrorSchema.type).toBe(decrementOrchestratorContract.systemError.type);
+  });
 });

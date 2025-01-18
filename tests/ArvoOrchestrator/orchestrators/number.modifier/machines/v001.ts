@@ -6,7 +6,7 @@ import {
   valueReadContract,
   valueWriteContract,
 } from '../../../contracts';
-import { NumberModiferMachineContext } from '../types';
+import type { NumberModiferMachineContext } from '../types';
 
 const machineId = 'machineV001';
 export const machineV001 = setupArvoMachine({
@@ -127,10 +127,7 @@ export const machineV001 = setupArvoMachine({
             guard: ({ event }) => !event.data.success,
             target: 'error',
             actions: xstate.assign({
-              errors: ({ context, event }) => [
-                ...context.errors,
-                ...event.data.error,
-              ],
+              errors: ({ context, event }) => [...context.errors, ...event.data.error],
             }),
           },
           {
@@ -173,10 +170,7 @@ export const machineV001 = setupArvoMachine({
             guard: ({ event }) => !event.data.success,
             target: 'error',
             actions: xstate.assign({
-              errors: ({ context, event }) => [
-                ...context.errors,
-                ...event.data.error,
-              ],
+              errors: ({ context, event }) => [...context.errors, ...event.data.error],
             }),
           },
           {

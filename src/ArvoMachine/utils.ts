@@ -1,4 +1,4 @@
-import { MachineConfig } from 'xstate';
+import type { MachineConfig } from 'xstate';
 
 /**
  * Detects if an XState machine configuration contains any parallel states.
@@ -21,9 +21,7 @@ import { MachineConfig } from 'xstate';
  * }
  * const hasParallel = detectParallelStates(machine) // Returns true
  */
-export const detectParallelStates = (
-  config?: MachineConfig<any, any, any, any, any, any, any, any, any, any, any>,
-) => {
+export const detectParallelStates = (config?: MachineConfig<any, any, any, any, any, any, any, any, any, any, any>) => {
   if (!config?.states) {
     return false;
   }

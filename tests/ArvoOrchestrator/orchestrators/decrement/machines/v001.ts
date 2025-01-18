@@ -1,11 +1,7 @@
 import { assign, emit } from 'xstate';
 import { setupArvoMachine } from '../../../../../src';
-import {
-  decrementContract,
-  decrementOrchestratorContract,
-  valueReadContract,
-} from '../../../contracts';
-import { DecrementMachineContext } from '../types';
+import { decrementContract, decrementOrchestratorContract, valueReadContract } from '../../../contracts';
+import type { DecrementMachineContext } from '../types';
 
 const machineId = 'machineV001';
 export const machineV001 = setupArvoMachine({

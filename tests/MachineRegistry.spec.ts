@@ -1,9 +1,6 @@
-import { MachineRegistry, setupArvoMachine } from '../src';
-import {
-  createArvoOrchestratorContract,
-  createArvoOrchestratorEventFactory,
-} from 'arvo-core';
+import { createArvoOrchestratorContract, createArvoOrchestratorEventFactory } from 'arvo-core';
 import { z } from 'zod';
+import { MachineRegistry, setupArvoMachine } from '../src';
 import { telemetrySdkStart, telemetrySdkStop } from './utils';
 
 describe('MachineRegistry', () => {
@@ -102,9 +99,7 @@ describe('MachineRegistry', () => {
     const registry = new MachineRegistry(machine1, machine2, machine3);
 
     let resolvedMachine = registry.resolve(
-      createArvoOrchestratorEventFactory(
-        testMachineContract.version('0.0.1'),
-      ).init({
+      createArvoOrchestratorEventFactory(testMachineContract.version('0.0.1')).init({
         source: 'com.test.test',
         data: {
           parentSubject$$: null,
@@ -118,9 +113,7 @@ describe('MachineRegistry', () => {
     expect(resolvedMachine.contracts.self.version).toBe('0.0.1');
 
     resolvedMachine = registry.resolve(
-      createArvoOrchestratorEventFactory(
-        testMachineContract.version('0.0.2'),
-      ).init({
+      createArvoOrchestratorEventFactory(testMachineContract.version('0.0.2')).init({
         source: 'com.test.test',
         data: {
           parentSubject$$: null,
@@ -134,9 +127,7 @@ describe('MachineRegistry', () => {
     expect(resolvedMachine.contracts.self.version).toBe('0.0.2');
 
     resolvedMachine = registry.resolve(
-      createArvoOrchestratorEventFactory(
-        testMachineContract2.version('0.0.1'),
-      ).init({
+      createArvoOrchestratorEventFactory(testMachineContract2.version('0.0.1')).init({
         source: 'com.test.test',
         data: {
           parentSubject$$: null,
@@ -153,9 +144,7 @@ describe('MachineRegistry', () => {
 
     expect(() => {
       registry.resolve(
-        createArvoOrchestratorEventFactory(
-          testMachineContract2.version('0.0.1'),
-        ).init({
+        createArvoOrchestratorEventFactory(testMachineContract2.version('0.0.1')).init({
           source: 'com.test.test',
           data: {
             parentSubject$$: null,

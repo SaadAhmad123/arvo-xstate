@@ -1,11 +1,7 @@
 import { assign, emit } from 'xstate';
 import { setupArvoMachine } from '../../../../../src';
-import {
-  incrementContract,
-  incrementOrchestratorContract,
-  valueReadContract,
-} from '../../../contracts';
-import { IncrementMachineContract } from '../types';
+import { incrementContract, incrementOrchestratorContract, valueReadContract } from '../../../contracts';
+import type { IncrementMachineContract } from '../types';
 
 const machineId = 'machineV001';
 export const machineV001 = setupArvoMachine({

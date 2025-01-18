@@ -1,7 +1,4 @@
-import {
-  createArvoEventHandler,
-  EventHandlerFactory,
-} from 'arvo-event-handler';
+import { type EventHandlerFactory, createArvoEventHandler } from 'arvo-event-handler';
 import { decrementContract } from '../contracts';
 
 export const decrementNumberHandler: EventHandlerFactory = () =>

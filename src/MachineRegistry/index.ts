@@ -1,13 +1,8 @@
-import {
-  ArvoEvent,
-  ArvoOpenTelemetry,
-  ArvoOrchestrationSubject,
-  logToSpan,
-} from 'arvo-core';
-import ArvoMachine from '../ArvoMachine';
-import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
-import { context, SpanKind } from '@opentelemetry/api';
-import { IMachineRegistry } from './interface';
+import { SpanKind, context } from '@opentelemetry/api';
+import { type ArvoEvent, ArvoOpenTelemetry, ArvoOrchestrationSubject, logToSpan } from 'arvo-core';
+import type { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import type ArvoMachine from '../ArvoMachine';
+import type { IMachineRegistry } from './interface';
 
 /**
  * Registry for managing and resolving ArvoMachine instances.
@@ -57,7 +52,7 @@ export class MachineRegistry implements IMachineRegistry {
     },
   ): ArvoMachine<any, any, any, any, any> {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({
-      name: `Resolve Machine`,
+      name: 'Resolve Machine',
       spanOptions: {
         kind: SpanKind.INTERNAL,
         attributes: event.otelAttributes,
@@ -77,19 +72,11 @@ export class MachineRegistry implements IMachineRegistry {
             },
       fn: (span) => {
         const subject = ArvoOrchestrationSubject.parse(event.subject);
-        span.setAttribute(
-          'arvo.parsed.subject.orchestrator.name',
-          subject.orchestrator.name,
-        );
-        span.setAttribute(
-          'arvo.parsed.subject.orchestrator.version',
-          subject.orchestrator.version,
-        );
-        let machine: ArvoMachine<any, any, any, any, any> | null =
+        span.setAttribute('arvo.parsed.subject.orchestrator.name', subject.orchestrator.name);
+        span.setAttribute('arvo.parsed.subject.orchestrator.version', subject.orchestrator.version);
+        const machine: ArvoMachine<any, any, any, any, any> | null =
           this.machines.filter(
-            (item) =>
-              item.version === subject.orchestrator.version &&
-              item.source === subject.orchestrator.name,
+            (item) => item.version === subject.orchestrator.version && item.source === subject.orchestrator.name,
           )[0] ?? null;
         if (!machine) {
           throw new Error(
@@ -98,7 +85,7 @@ export class MachineRegistry implements IMachineRegistry {
         }
         logToSpan({
           level: 'INFO',
-          message: `Recolved machine for type`,
+          message: 'Recolved machine for type',
         });
         return machine;
       },

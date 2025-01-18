@@ -1,30 +1,30 @@
 import {
-  setup as xstateSetup,
-  MachineContext,
-  ParameterizedObject,
-  MetaObject,
-  ActionFunction,
-  SetupTypes,
-  assign,
-  MachineConfig,
-} from 'xstate';
+  type ArvoOrchestratorEventTypeGen,
+  type InferVersionedArvoContract,
+  type VersionedArvoContract,
+  cleanString,
+} from 'arvo-core';
 import {
+  type ActionFunction,
+  type MachineConfig,
+  type MachineContext,
+  type MetaObject,
+  type ParameterizedObject,
+  type SetupTypes,
+  assign,
+  setup as xstateSetup,
+} from 'xstate';
+import type { z } from 'zod';
+import ArvoMachine from '.';
+import { getAllPaths } from '../utils/object';
+import type {
   ArvoMachineContext,
   EnqueueArvoEventActionParam,
+  ExtractOrchestratorType,
+  InferServiceContract,
   ToParameterizedObject,
   ToProvidedActor,
-  InferServiceContract,
-  ExtractOrchestratorType,
 } from './types';
-import {
-  cleanString,
-  VersionedArvoContract,
-  InferVersionedArvoContract,
-  ArvoOrchestratorEventTypeGen,
-} from 'arvo-core';
-import { getAllPaths } from '../utils/object';
-import { z } from 'zod';
-import ArvoMachine from '.';
 import { detectParallelStates } from './utils';
 
 /**
@@ -194,14 +194,10 @@ export function setupArvoMachine<
   TContext extends MachineContext,
   TSelfContract extends VersionedArvoContract<any, any>,
   TServiceContracts extends Record<string, VersionedArvoContract<any, any>>,
-  TActions extends Record<
-    string,
-    ParameterizedObject['params'] | undefined
-  > = {},
-  TGuards extends Record<
-    string,
-    ParameterizedObject['params'] | undefined
-  > = {},
+  // biome-ignore lint/complexity/noBannedTypes: Taking {} from xstate. Cannot be helped.
+  TActions extends Record<string, ParameterizedObject['params'] | undefined> = {},
+  // biome-ignore lint/complexity/noBannedTypes: Taking {} from xstate. Cannot be helped
+  TGuards extends Record<string, ParameterizedObject['params'] | undefined> = {},
   TTag extends string = string,
   TMeta extends MetaObject = MetaObject,
 >(param: {
@@ -218,13 +214,12 @@ export function setupArvoMachine<
     SetupTypes<
       TContext,
       InferServiceContract<TServiceContracts>['events'],
+      // biome-ignore lint/complexity/noBannedTypes: Taking {} from xstate. Cannot be helped
       {},
       TTag,
       InferVersionedArvoContract<TSelfContract>['accepts']['data'],
       InferVersionedArvoContract<TSelfContract>['emits'][ReturnType<
-        typeof ArvoOrchestratorEventTypeGen.complete<
-          ExtractOrchestratorType<TSelfContract['accepts']['type']>
-        >
+        typeof ArvoOrchestratorEventTypeGen.complete<ExtractOrchestratorType<TSelfContract['accepts']['type']>>
       >]['data'],
       InferServiceContract<TServiceContracts>['emitted'],
       TMeta
@@ -303,10 +298,7 @@ export function setupArvoMachine<
         ...(context?.arvo$$ ?? {}),
         volatile$$: {
           ...(context?.arvo$$?.volatile$$ ?? {}),
-          eventQueue$$: [
-            ...(context?.arvo$$?.volatile$$?.eventQueue$$ || []),
-            param,
-          ],
+          eventQueue$$: [...(context?.arvo$$?.volatile$$?.eventQueue$$ || []), param],
         },
       },
     })),
@@ -316,7 +308,9 @@ export function setupArvoMachine<
   const systemSetup = xstateSetup<
     TContext,
     InferServiceContract<TServiceContracts>['events'],
+    // biome-ignore lint/complexity/noBannedTypes: Taking {} from xstate. Cannot be helped
     {}, // No actors
+    // biome-ignore lint/complexity/noBannedTypes: Taking {} from xstate. Cannot be helped
     {}, // No children map
     TActions & {
       enqueueArvoEvent: EnqueueArvoEventActionParam;
@@ -326,9 +320,7 @@ export function setupArvoMachine<
     TTag,
     InferVersionedArvoContract<TSelfContract>['accepts']['data'],
     InferVersionedArvoContract<TSelfContract>['emits'][ReturnType<
-      typeof ArvoOrchestratorEventTypeGen.complete<
-        ExtractOrchestratorType<TSelfContract['accepts']['type']>
-      >
+      typeof ArvoOrchestratorEventTypeGen.complete<ExtractOrchestratorType<TSelfContract['accepts']['type']>>
     >]['data'],
     InferServiceContract<TServiceContracts>['emitted'],
     TMeta
@@ -358,6 +350,7 @@ export function setupArvoMachine<
     const TConfig extends MachineConfig<
       TContext,
       InferServiceContract<TServiceContracts>['events'],
+      // biome-ignore lint/complexity/noBannedTypes: Taking {} from xstate. Cannot be helped
       ToProvidedActor<{}, {}>,
       ToParameterizedObject<
         TActions & {
@@ -370,9 +363,7 @@ export function setupArvoMachine<
       InferVersionedArvoContract<TSelfContract>['accepts'],
       z.input<
         TSelfContract['emits'][ReturnType<
-          typeof ArvoOrchestratorEventTypeGen.complete<
-            ExtractOrchestratorType<TSelfContract['accepts']['type']>
-          >
+          typeof ArvoOrchestratorEventTypeGen.complete<ExtractOrchestratorType<TSelfContract['accepts']['type']>>
         >]
       >,
       InferServiceContract<TServiceContracts>['emitted'],
@@ -384,8 +375,7 @@ export function setupArvoMachine<
       version?: TSelfContract['version'];
     },
   ) => {
-    const machineVersion: TSelfContract['version'] =
-      config.version ?? param.contracts.self.version;
+    const machineVersion: TSelfContract['version'] = config.version ?? param.contracts.self.version;
 
     if (machineVersion !== param.contracts.self.version) {
       throw new Error(
@@ -393,10 +383,7 @@ export function setupArvoMachine<
       );
     }
 
-    const createConfigErrorMessage = (
-      type: 'invoke' | 'after' | 'enqueueArvoEvent',
-      path: string[],
-    ) => {
+    const createConfigErrorMessage = (type: 'invoke' | 'after' | 'enqueueArvoEvent', path: string[]) => {
       const location = path.join(' > ');
 
       if (type === 'invoke') {
@@ -444,22 +431,14 @@ export function setupArvoMachine<
         throw new Error(createConfigErrorMessage('after', item.path));
       }
       if (item.path.includes('enqueueArvoEvent')) {
-        throw new Error(
-          createConfigErrorMessage('enqueueArvoEvent', item.path),
-        );
+        throw new Error(createConfigErrorMessage('enqueueArvoEvent', item.path));
       }
     }
 
     const machine = systemSetup.createMachine({
       ...(config as any),
     });
-    return new ArvoMachine<
-      string,
-      typeof machineVersion,
-      TSelfContract,
-      TServiceContracts,
-      typeof machine
-    >(
+    return new ArvoMachine<string, typeof machineVersion, TSelfContract, TServiceContracts, typeof machine>(
       config.id,
       machineVersion,
       param.contracts,

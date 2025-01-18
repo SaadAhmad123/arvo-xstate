@@ -1,10 +1,10 @@
+import { SpanKind, context } from '@opentelemetry/api';
 import { ArvoOpenTelemetry, logToSpan } from 'arvo-core';
-import { ExecuteMachineInput, ExecuteMachineOutput } from './types';
-import { Actor, createActor, Snapshot } from 'xstate';
-import { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
-import { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
-import { context, SpanKind } from '@opentelemetry/api';
-import { IMachineExectionEngine } from './interface';
+import type { ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import { type Actor, type Snapshot, createActor } from 'xstate';
+import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
+import type { IMachineExectionEngine } from './interface';
+import type { ExecuteMachineInput, ExecuteMachineOutput } from './types';
 
 /**
  * Handles state machine execution, event processing, and lifecycle management.
@@ -76,9 +76,7 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
           actor = createActor(machine.logic, {
             input: event.toJSON(),
           });
-          actor.on('*', (event) =>
-            eventQueue.push(event as EnqueueArvoEventActionParam),
-          );
+          actor.on('*', (event) => eventQueue.push(event as EnqueueArvoEventActionParam));
           actor.subscribe({ error: (err) => errors.push(err as Error) });
           actor.start();
         } else {
@@ -89,9 +87,7 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
           actor = createActor(machine.logic, {
             snapshot: state,
           });
-          actor.on('*', (event) =>
-            eventQueue.push(event as EnqueueArvoEventActionParam),
-          );
+          actor.on('*', (event) => eventQueue.push(event as EnqueueArvoEventActionParam));
           actor.subscribe({ error: (err) => errors.push(err as Error) });
           actor.start();
           actor.send(event.toJSON());
@@ -106,22 +102,19 @@ export class MachineExecutionEngine implements IMachineExectionEngine {
         });
         const extractedSnapshot = actor.getPersistedSnapshot() as Snapshot<any>;
         if ((extractedSnapshot as any)?.context?.arvo$$?.volatile$$) {
+          // biome-ignore lint/complexity/noForEach: TODO - fix it later
           (
-            (extractedSnapshot as any)?.context?.arvo$$?.volatile$$
-              ?.eventQueue$$ as EnqueueArvoEventActionParam[]
+            (extractedSnapshot as any)?.context?.arvo$$?.volatile$$?.eventQueue$$ as EnqueueArvoEventActionParam[]
           ).forEach((item) => eventQueue.push(item));
-          delete (extractedSnapshot as any).context.arvo$$.volatile$$;
+          (extractedSnapshot as any).context.arvo$$.volatile$$ = undefined;
         }
         if (errors.length) {
           throw errors[0];
         }
 
         let finalOutput: any = extractedSnapshot?.output ?? null;
-        let existingOutput: any = state?.output ?? null;
-        if (
-          JSON.stringify(finalOutput ?? {}) ===
-          JSON.stringify(existingOutput ?? {})
-        ) {
+        const existingOutput: any = state?.output ?? null;
+        if (JSON.stringify(finalOutput ?? {}) === JSON.stringify(existingOutput ?? {})) {
           finalOutput = null;
         }
 
