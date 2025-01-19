@@ -82,7 +82,12 @@ export class SimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> 
   /**
    * Clears all stored data and locks
    */
-  clear(): void {
+  clear(key?: string): void {
+    if (key) {
+      this.memoryMap.delete(key);
+      this.lockMap.delete(key);
+      return;
+    }
     this.memoryMap.clear();
     this.lockMap.clear();
   }

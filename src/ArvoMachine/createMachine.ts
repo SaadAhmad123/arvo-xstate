@@ -443,7 +443,8 @@ export function setupArvoMachine<
       machineVersion,
       param.contracts,
       machine,
-      detectParallelStates(machine.config),
+      detectParallelStates(machine.config) ||
+        Object.values(param.contracts.services).some((item) => Object.keys(item.emits).length > 1),
     );
   };
   return { createMachine };
