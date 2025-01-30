@@ -611,10 +611,10 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             : new ExecutionViolation(
                 `Non-Error object thrown during machine execution: ${typeof error}. This indicates a serious implementation flaw.`,
               );
-          exceptionToSpan(e as Error);
+          exceptionToSpan(e);
           span.setStatus({
             code: SpanStatusCode.ERROR,
-            message: (e as Error).message,
+            message: e.message,
           });
 
           // For any violation errors bubble them up to the
@@ -623,14 +623,14 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           if ((e as ViolationError).name.includes('ViolationError')) {
             logToSpan({
               level: 'CRITICAL',
-              message: `Orchestrator violation error: ${(e as Error).message}`,
+              message: `Orchestrator violation error: ${e.message}`,
             });
             throw e;
           }
 
           logToSpan({
             level: 'ERROR',
-            message: `Orchestrator execution failed: ${(e as Error).message}`,
+            message: `Orchestrator execution failed: ${e.message}`,
           });
 
           // In case of none transaction errors like errors from
@@ -658,7 +658,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             // The system error must always go back to
             // the source which initiated it
             to: parsedEventSubject?.execution.initiator ?? event.source,
-            error: e as Error,
+            error: e,
             traceparent: otelHeaders.traceparent ?? undefined,
             tracestate: otelHeaders.tracestate ?? undefined,
             accesscontrol: event.accesscontrol ?? undefined,

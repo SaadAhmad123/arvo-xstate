@@ -22,3 +22,7 @@
 
 - Standardised the error boundaries as violations
 
+## [2.2.10] - 2025-01-30
+
+- Added explict error boundaries and heirarchies to the orchestrator
+
