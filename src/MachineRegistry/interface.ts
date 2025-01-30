@@ -17,10 +17,10 @@ export interface IMachineRegistry {
    *
    * @param event - Event containing orchestration subject information
    * @param opentelemetry - Configuration for telemetry and tracing
-   * @returns Matching ArvoMachine instance for the event
+   * @returns Matching ArvoMachine instance for the event or null if not found
    */
   resolve: (
     event: ArvoEvent,
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions,
-  ) => ArvoMachine<any, any, any, any, any>;
+  ) => ArvoMachine<any, any, any, any, any> | null;
 }

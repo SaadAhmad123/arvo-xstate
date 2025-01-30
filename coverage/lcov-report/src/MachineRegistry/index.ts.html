@@ -32,7 +32,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>14/14</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>20/20</span>
+                <span class='fraction'>17/17</span>
             </div>
         
             
@@ -151,13 +151,7 @@
 <a name='L86'></a><a href='#L86'>86</a>
 <a name='L87'></a><a href='#L87'>87</a>
 <a name='L88'></a><a href='#L88'>88</a>
-<a name='L89'></a><a href='#L89'>89</a>
-<a name='L90'></a><a href='#L90'>90</a>
-<a name='L91'></a><a href='#L91'>91</a>
-<a name='L92'></a><a href='#L92'>92</a>
-<a name='L93'></a><a href='#L93'>93</a>
-<a name='L94'></a><a href='#L94'>94</a>
-<a name='L95'></a><a href='#L95'>95</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
+<a name='L89'></a><a href='#L89'>89</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -180,9 +174,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">50x</span>
-<span class="cline-any cline-yes">12x</span>
-<span class="cline-any cline-yes">12x</span>
+<span class="cline-any cline-yes">53x</span>
+<span class="cline-any cline-yes">13x</span>
+<span class="cline-any cline-yes">13x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -203,14 +197,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">38x</span>
+<span class="cline-any cline-yes">44x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">38x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -227,26 +223,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-yes">77x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">38x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">59x</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">37x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">37x</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -289,8 +277,7 @@ export class MachineRegistry implements IMachineRegistry {
    *
    * @param event - The event containing orchestration subject information
    * @param opentelemetry Telemetry configuration for tracing
-   * @returns The matching ArvoMachine instance
-   * @throws {Error} When no matching machine is found in the registry
+   * @returns The matching ArvoMachine instance or null if not found
    *
    * @example
    * ```typescript
@@ -303,7 +290,7 @@ export class MachineRegistry implements IMachineRegistry {
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
       inheritFrom: 'CONTEXT',
     },
-  ): ArvoMachine&lt;any, any, any, any, any&gt; {
+  ): ArvoMachine&lt;any, any, any, any, any&gt; | null {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({
       name: 'Resolve Machine',
       spanOptions: {
@@ -325,20 +312,15 @@ export class MachineRegistry implements IMachineRegistry {
             },
       fn: (span) =&gt; {
         const subject = ArvoOrchestrationSubject.parse(event.subject);
-        span.setAttribute('arvo.parsed.subject.orchestrator.name', subject.orchestrator.name);
-        span.setAttribute('arvo.parsed.subject.orchestrator.version', subject.orchestrator.version);
-        const machine: ArvoMachine&lt;any, any, any, any, any&gt; | null =
-          this.machines.filter(
-            (item) =&gt; item.version === subject.orchestrator.version &amp;&amp; item.source === subject.orchestrator.name,
-          )[0] ?? null;
-        if (!machine) {
-          throw new Error(
-            `Machine resolution failed: No machine found matching orchestrator name='${subject.orchestrator.name}' and version='${subject.orchestrator.version}'`,
-          );
-        }
+        const { name, version } = subject.orchestrator;
+        span.setAttributes({
+          'arvo.parsed.subject.orchestrator.name': name,
+          'arvo.parsed.subject.orchestrator.version': version,
+        });
+        const machine = this.machines.find((item) =&gt; item.version === version &amp;&amp; item.source === name) ?? null;
         logToSpan({
-          level: 'INFO',
-          message: 'Recolved machine for type',
+          level: machine ? 'INFO' : 'WARNING',
+          message: machine ? `Resolved machine for type ${name}@${version}` : `No machine found for ${name}@${version}`,
         });
         return machine;
       },
@@ -352,7 +334,7 @@ export class MachineRegistry implements IMachineRegistry {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-19T06:18:29.657Z
+                at 2025-01-30T04:15:13.803Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

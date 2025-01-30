@@ -1,4 +1,4 @@
-import { SpanKind, SpanStatusCode, context } from '@opentelemetry/api';
+import { type Span, SpanKind, SpanStatusCode, context } from '@opentelemetry/api';
 import {
   type ArvoContract,
   type ArvoContractRecord,
@@ -16,13 +16,20 @@ import {
   OpenInferenceSpanKind,
   type OpenTelemetryHeaders,
   type VersionedArvoContract,
+  type ViolationError,
   createArvoEvent,
   createArvoOrchestratorEventFactory,
   currentOpenTelemetryHeaders,
   exceptionToSpan,
   logToSpan,
 } from 'arvo-core';
-import { AbstractArvoEventHandler, type ArvoEventHandlerOpenTelemetryOptions } from 'arvo-event-handler';
+import {
+  AbstractArvoEventHandler,
+  type ArvoEventHandlerOpenTelemetryOptions,
+  ConfigViolation,
+  ContractViolation,
+  ExecutionViolation,
+} from 'arvo-event-handler';
 import type { ActorLogic } from 'xstate';
 import type { z } from 'zod';
 import type ArvoMachine from '../ArvoMachine';
@@ -30,6 +37,7 @@ import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import type { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
 import type { IMachineMemory } from '../MachineMemory/interface';
 import type { IMachineRegistry } from '../MachineRegistry/interface';
+import { isError } from '../utils';
 import { TransactionViolation, TransactionViolationCause } from './error';
 import type { AcquiredLockStatusType, IArvoOrchestrator, MachineMemoryRecord } from './types';
 
@@ -78,6 +86,10 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     this.requiresResourceLocking = requiresResourceLocking;
   }
 
+  /**
+   * Acquires a lock on the event subject. Skip if sequential processing is enabled.
+   * @throws {TransactionViolation} If lock acquisition fails
+   */
   protected async acquireLock(event: ArvoEvent): Promise<AcquiredLockStatusType> {
     const id: string = event.subject;
     if (!this.requiresResourceLocking) {
@@ -139,21 +151,15 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   }
 
   protected validateConsumedEventSubject(event: ArvoEvent) {
-    try {
-      logToSpan({
-        level: 'INFO',
-        message: 'Validating event subject',
-      });
-      ArvoOrchestrationSubject.parse(event.subject);
-    } catch (e) {
-      throw new TransactionViolation({
-        cause: TransactionViolationCause.INVALID_SUBJECT,
-        message:
-          `Invalid event (id=${event.id}) subject format. Expected an ArvoOrchestrationSubject but ` +
-          `received '${event.subject}'. The subject must follow the format specified by ` +
-          `ArvoOrchestrationSubject schema. Parsing error: ${(e as Error).message}`,
-        initiatingEvent: event,
-      });
+    logToSpan({
+      level: 'INFO',
+      message: 'Validating event subject',
+    });
+    const isValid = ArvoOrchestrationSubject.isValid(event.subject);
+    if (!isValid) {
+      throw new ExecutionViolation(
+        `Invalid event (id=${event.id}) subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. The subject must follow the format specified by ArvoOrchestrationSubject schema`,
+      );
     }
   }
 
@@ -164,6 +170,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
    * @param otelHeaders - OpenTelemetry headers
    * @param orchestrationParentSubject - Parent orchestration subject
    * @param sourceEvent - Original triggering event
+   *
+   * @throws {ContractViolation} On schema/contract mismatch
+   * @throws {ExecutionViolation} On invalid parentSubject$$ format
    */
   protected createEmittableEvent(
     event: EnqueueArvoEventActionParam,
@@ -213,8 +222,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           try {
             ArvoOrchestrationSubject.parse(event.data.parentSubject$$);
           } catch (e) {
-            throw new Error(
-              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema ?? EventDataschemaUtil.create(contract)}').It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the current orchestration subject by storing the subject via the context block in the machinedefinition.`,
+            throw new ExecutionViolation(
+              `Invalid parentSubject$$ for the event(type='${event.type}', uri='${event.dataschema ?? EventDataschemaUtil.create(contract)}').It must be follow the ArvoOrchestrationSubject schema. The easiest way is to use the current orchestration subject by storing the subject via the context block in the machine definition.`,
             );
           }
         }
@@ -240,11 +249,12 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             });
           }
         } catch (error) {
-          logToSpan({
-            level: 'ERROR',
-            message: `Orchestration subject creation failed due to invalid parameters - Event: ${event.type}`,
-          });
-          throw error;
+          // This is a execution violation because it indicates faulty parent subject
+          // or some fundamental error with subject creation which must be not be propagated
+          // any further and investigated manually.
+          throw new ExecutionViolation(
+            `Orchestration subject creation failed due to invalid parameters - Event: ${event.type} - Check event emit parameters in the machine definition. ${(error as Error)?.message}`,
+          );
         }
       }
     }
@@ -260,11 +270,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         finalData = schema.parse(event.data);
         finalDataschema = EventDataschemaUtil.create(contract);
       } catch (error) {
-        logToSpan({
-          level: 'ERROR',
-          message: `Event data validation failed - Schema requirements not met: ${(error as Error).message}`,
-        });
-        throw error;
+        throw new ContractViolation(
+          `Invalid event data: Schema validation failed - Check emit parameters in machine definition.\nEvent type: ${event.type}\nDetails: ${(error as Error).message}`,
+        );
       }
     }
 
@@ -296,13 +304,66 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   }
 
   /**
-   * Executes a state machine in response to an event.
-   * Handles the complete lifecycle including state management, event processing and error handling.
+   * If the machine execution session acquired the lock
+   * release the lock before closing. Since the expectation from the
+   * machine memory is that there is optimistic locking and the lock
+   * has expiry time then swallowing is not an issue rather it
+   * avoid unnecessary errors
+   */
+  protected async releaseLock(
+    event: ArvoEvent,
+    acquiredLock: AcquiredLockStatusType | null,
+    span: Span,
+  ): Promise<'NOOP' | 'RELEASED' | 'ERROR'> {
+    if (acquiredLock !== 'ACQUIRED') {
+      logToSpan(
+        {
+          level: 'INFO',
+          message: 'Lock was not acquired by the process so perfroming no operation',
+        },
+        span,
+      );
+      return 'NOOP';
+    }
+    try {
+      await this.memory.unlock(event.subject);
+      logToSpan(
+        {
+          level: 'INFO',
+          message: 'Lock successfully released',
+        },
+        span,
+      );
+      return 'RELEASED';
+    } catch (err) {
+      logToSpan(
+        {
+          level: 'ERROR',
+          message: `Memory unlock operation failed - Possible resource leak: ${(err as Error).message}`,
+        },
+        span,
+      );
+      return 'ERROR';
+    }
+  }
+
+  /**
+   * Core orchestration method that executes state machines in response to events.
+   * Manages the complete event lifecycle:
+   * 1. Acquires lock and state
+   * 2. Validates events and contracts
+   * 3. Executes state machine
+   * 4. Persists new state
+   * 5. Generates response events
    *
    * @param event - Event triggering the execution
    * @param opentelemetry - OpenTelemetry configuration
    * @returns Array of events generated during execution
-   * @throws ArvoOrchestratorError on execution failures
+   *
+   * @throws {TransactionViolation} Lock/state operations failed
+   * @throws {ExecutionViolation} Invalid event structure/flow
+   * @throws {ContractViolation} Schema/contract mismatch
+   * @throws {ConfigViolation} Missing/invalid machine version
    */
   async execute(
     event: ArvoEvent,
@@ -424,6 +485,14 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             inheritFrom: 'CONTEXT',
           });
 
+          if (!machine) {
+            const subject = ArvoOrchestrationSubject.parse(event.subject);
+            const { name, version } = subject.orchestrator;
+            throw new ConfigViolation(
+              `Machine resolution failed: No machine found matching orchestrator name='${name}' and version='${version}'.`,
+            );
+          }
+
           logToSpan({
             level: 'INFO',
             message: `Input validation started for event ${event.type} on machine ${machine.source}`,
@@ -437,12 +506,21 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           const inputValidation = machine.validateInput(event);
 
           if (inputValidation.type === 'CONTRACT_UNRESOLVED') {
-            throw new Error(
+            // This is a configuration error because the contract was never
+            // configured in the machine. That is why it was unresolved. It
+            // signifies a problem in configration not the data or event flow
+            throw new ConfigViolation(
               'Contract validation failed - Event does not match any registered contract schemas in the machine',
             );
           }
+
           if (inputValidation.type === 'INVALID_DATA' || inputValidation.type === 'INVALID') {
-            throw new Error(
+            // This is a contract error becuase there is a configuration but
+            // the event data received was invalid due to conflicting data
+            // or event dataschema did not match the contract data schema. This
+            // signifies an issue with event flow because unexpected events
+            // are being received
+            throw new ContractViolation(
               `Input validation failed - Event data does not meet contract requirements: ${inputValidation.error.message}`,
             );
           }
@@ -522,20 +600,30 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           });
 
           return emittables;
-        } catch (e: unknown) {
+        } catch (error: unknown) {
+          // If this is not an error this is not exected and must be addressed
+          // This is a fundmental unexpected scenario and must be handled as such
+          // What this show is the there is a non-error object being throw in the
+          // implementation or execution of the machine which is a major NodeJS
+          // violation
+          const e: Error = isError(error)
+            ? error
+            : new ExecutionViolation(
+                `Non-Error object thrown during machine execution: ${typeof error}. This indicates a serious implementation flaw.`,
+              );
           exceptionToSpan(e as Error);
           span.setStatus({
             code: SpanStatusCode.ERROR,
             message: (e as Error).message,
           });
 
-          // For transation errors bubble them up to the
+          // For any violation errors bubble them up to the
           // called of the function so that they can
           // be handled gracefully
-          if ((e as TransactionViolation).name === 'ViolationError<ArvoTransaction>') {
+          if ((e as ViolationError).name.includes('ViolationError')) {
             logToSpan({
               level: 'CRITICAL',
-              message: `Orchestrator transaction failed: ${(e as Error).message}`,
+              message: `Orchestrator violation error: ${(e as Error).message}`,
             });
             throw e;
           }
@@ -562,6 +650,10 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
 
           const errorEvent = createArvoOrchestratorEventFactory(this.registry.machines[0].contracts.self).systemError({
             source: this.source,
+            // If the initiator of the workflow exist then match the
+            // subject so that it can incorporate it in its state. If
+            // parent does not exist then this is the root workflow so
+            // use its own subject
             subject: orchestrationParentSubject ?? event.subject,
             // The system error must always go back to
             // the source which initiated it
@@ -578,19 +670,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           });
           return [errorEvent];
         } finally {
-          // Finally, if this machine execution session acquired the lock
-          // release the lock before closing
-          if (acquiredLock === 'ACQUIRED') {
-            await this.memory.unlock(event.subject).catch((err: Error) => {
-              logToSpan(
-                {
-                  level: 'WARNING',
-                  message: `Memory unlock operation failed - Possible resource leak: ${err.message}`,
-                },
-                span,
-              );
-            });
-          }
+          await this.releaseLock(event, acquiredLock, span);
           span.end();
         }
       },

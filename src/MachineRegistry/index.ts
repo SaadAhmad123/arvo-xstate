@@ -36,8 +36,7 @@ export class MachineRegistry implements IMachineRegistry {
    *
    * @param event - The event containing orchestration subject information
    * @param opentelemetry Telemetry configuration for tracing
-   * @returns The matching ArvoMachine instance
-   * @throws {Error} When no matching machine is found in the registry
+   * @returns The matching ArvoMachine instance or null if not found
    *
    * @example
    * ```typescript
@@ -50,7 +49,7 @@ export class MachineRegistry implements IMachineRegistry {
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
       inheritFrom: 'CONTEXT',
     },
-  ): ArvoMachine<any, any, any, any, any> {
+  ): ArvoMachine<any, any, any, any, any> | null {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({
       name: 'Resolve Machine',
       spanOptions: {
@@ -72,20 +71,15 @@ export class MachineRegistry implements IMachineRegistry {
             },
       fn: (span) => {
         const subject = ArvoOrchestrationSubject.parse(event.subject);
-        span.setAttribute('arvo.parsed.subject.orchestrator.name', subject.orchestrator.name);
-        span.setAttribute('arvo.parsed.subject.orchestrator.version', subject.orchestrator.version);
-        const machine: ArvoMachine<any, any, any, any, any> | null =
-          this.machines.filter(
-            (item) => item.version === subject.orchestrator.version && item.source === subject.orchestrator.name,
-          )[0] ?? null;
-        if (!machine) {
-          throw new Error(
-            `Machine resolution failed: No machine found matching orchestrator name='${subject.orchestrator.name}' and version='${subject.orchestrator.version}'`,
-          );
-        }
+        const { name, version } = subject.orchestrator;
+        span.setAttributes({
+          'arvo.parsed.subject.orchestrator.name': name,
+          'arvo.parsed.subject.orchestrator.version': version,
+        });
+        const machine = this.machines.find((item) => item.version === version && item.source === name) ?? null;
         logToSpan({
-          level: 'INFO',
-          message: 'Recolved machine for type',
+          level: machine ? 'INFO' : 'WARNING',
+          message: machine ? `Resolved machine for type ${name}@${version}` : `No machine found for ${name}@${version}`,
         });
         return machine;
       },
