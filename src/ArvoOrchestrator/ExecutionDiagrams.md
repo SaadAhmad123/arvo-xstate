@@ -1,17 +1,6 @@
 # ArvoOrchestrator Technical Documentation
 
-The ArvoOrchestrator is a critical component that orchestrates state machine execution and lifecycle management. It handles machine resolution, state management, event processing, and error handling while maintaining comprehensive telemetry through OpenTelemetry integration.
-
-## Core Responsibilities
-
-The orchestrator manages several key aspects:
-
-1. State machine lifecycle management
-2. Lock acquisition and state management
-3. Event validation and processing
-4. Machine resolution and execution
-5. Error handling and cleanup
-6. Event emission and routing
+This technical documentation provides a comprehensive overview of the ArvoOrchestrator's event processing system, illustrating both the state transitions and component interactions that occur during event execution. Through detailed state and sequence diagrams, engineers can trace how events flow through the handler, understand where and why different types of errors might occur, and identify the specific interactions between the Orchestrator, Memory, Registry, and ExecutionEngine components. The documentation maps out the complete lifecycle of event processing, from initial validation through lock management, state handling, and eventual event emission, with particular attention to error scenarios and their propagation paths. Engineers working with this handler can use these diagrams to understand the extensive validation checks, state management procedures, and error handling mechanisms that ensure reliable event processing. The documentation serves as both a reference for understanding normal operation flows and a troubleshooting guide for identifying where and why different types of errors might emerge during event processing, making it particularly valuable for engineers maintaining and debugging the handler in production environments.
 
 ## Execution Flow
 
@@ -20,145 +9,108 @@ The state diagram below illustrates the core execution flow:
 ```mermaid
 stateDiagram-v2
     [*] --> StartExecution
-    StartExecution --> InitSpan: Create Producer Span
-    InitSpan --> ValidateSubject: Configure OTEL
-
+    StartExecution --> ValidateSubject: Create Producer Span
     ValidateSubject --> CheckLocking: Valid Subject
-    ValidateSubject --> HandleTransactionError: Invalid Subject
+    ValidateSubject --> HandleError: Invalid Subject (ExecutionViolation)
     note right of ValidateSubject
-      Log Validating event subject
+        ExecutionViolation if invalid
     end note
 
     CheckLocking --> AttemptLock: Requires Lock
     CheckLocking --> SkipLock: Sequential Machine
-    note right of CheckLocking
-      Log Skipping lock for sequential machine
-    end note
 
     AttemptLock --> LockAcquired: Success
-    AttemptLock --> HandleTransactionError: Failure
+    AttemptLock --> HandleError: Not Acquired/Failure (TransactionViolation)
     note right of AttemptLock
-      Log Acquiring lock for event
+        TransactionViolation on failure
     end note
 
     LockAcquired --> ReadState
     SkipLock --> ReadState
-    note right of LockAcquired
-      Log Lock acquired at resource
-    end note
 
     ReadState --> StateValidation: Success
-    ReadState --> HandleTransactionError: Failure
+    ReadState --> HandleError: Failure (TransactionViolation)
     note right of ReadState
-      Log Reading machine state
+        TransactionViolation on failure
     end note
 
     StateValidation --> InitialStateCheck
 
     InitialStateCheck --> ValidateInitEvent: No State
     InitialStateCheck --> ValidateOrchestrator: Has State
-    note right of InitialStateCheck
-      Log Initializing/Resuming state
-    end note
 
     ValidateInitEvent --> ResolveMachine: Source Match
-    ValidateInitEvent --> EmitEmpty: Init event type not match orchestrator source
-    note right of ValidateInitEvent
-      A list of logs:
-      - Log Invalid initialization event in case of mismatch
-      - Log Orchestration finished with issue and 0 events
-    end note
+    ValidateInitEvent --> EmitEmpty: Type Mismatch
 
     ValidateOrchestrator --> ResolveMachine: Match
-    ValidateOrchestrator --> EmitEmpty: The non emit event subject is not valid
-    note right of ValidateOrchestrator
-      A list of logs:
-      - Log Event subject mismatch
-      - Log Orchestration finished with issue and 0 events
-    end note
+    ValidateOrchestrator --> EmitEmpty: Subject Mismatch
 
-    ResolveMachine --> ValidateInput: Machine resolved from registry to handle the event
-    ResolveMachine --> HandleSystemError: Failure to resolve machine will generate system error
+    ResolveMachine --> ValidateInput: Success
+    ResolveMachine --> HandleError: Failure (ConfigViolation)
     note right of ResolveMachine
-      Log Resolving machine for event
+        ConfigViolation if no matching machine
     end note
 
-    ValidateInput --> ExecuteMachine: Valid Data as per one of machine contracts
-    ValidateInput --> HandleSystemError: Cannot resolve contract required by the event.type for its validation
-    ValidateInput --> HandleSystemError: Invalid data as per all machine contracts
-    ValidateInput --> HandleSystemError: Invalid event contract as per the event.dataschema
+    ValidateInput --> ExecuteMachine: Valid Contract & Data
+    ValidateInput --> HandleError: Event data conflict with contract (ContractViolation)
+    ValidateInput --> HandleError: Event requires a contract not configured in the machine (ConfigViolation)
     note right of ValidateInput
-      Does the following: 
-      - From the resolved machine this validates if the event is expected by the machine 
-      - Log Input validation started
+        ConfigViolation or ContractViolation
     end note
 
-    ExecuteMachine --> CheckOutput: Machine Executed
-    ExecuteMachine --> HandleSystemError: Error in machine execution
+    ExecuteMachine --> ProcessOutput: Success
+    ExecuteMachine --> HandleError: Error in Execution (Error)
+    ExecuteMachine --> HandleError: Violation error in exection (ExectionViolation )
     note right of ExecuteMachine
-      Log Machine execution completed
+        Error object become system error events
+        and Violations bubble up
     end note
 
-    CheckOutput --> ProcessRawEvents: Has Events
-    CheckOutput --> ProcessFinalOutput: Has Final Output
-    note right of CheckOutput
-      Log Processing execution result
-    end note
-
-    ProcessRawEvents --> CreateEmittableEvents
-    ProcessFinalOutput --> CreateEmittableEvents
-    note right of ProcessRawEvents
-      Log Creating emittable events
-    end note
+    ProcessOutput --> CreateEmittableEvents: Has Events/Output
 
     CreateEmittableEvents --> ValidateEmittables
     note right of CreateEmittableEvents
-      Log Event created successfully
+        Creates ArvoEvents with validation
     end note
 
-    ValidateEmittables --> PersistState: Valid Events
-    ValidateEmittables --> HandleSystemError: Invalid Events
+    ValidateEmittables --> PersistState: Valid
+    ValidateEmittables --> HandleError: Emitable data conflicts with contracts (ContractViolation)
+    ValidateEmittables --> HandleError: Emitable data causes malformed parentSubject$$ (ExecutionViolation)
     note right of ValidateEmittables
-      Log Event data validation
+        ContractViolation or ExecutionViolation on invalid events
     end note
 
     PersistState --> Cleanup: Success
-    PersistState --> HandleTransactionError: Failure
+    PersistState --> HandleError: Failure (TransactionViolation)
     note right of PersistState
-      Log Persisting machine state
+        TransactionViolation on failure
     end note
 
-    HandleTransactionError --> Cleanup
-    note right of HandleTransactionError
-      Log CRITICAL Transaction failed
+    HandleError --> CreateErrorEvent: Non-Violation Error
+    HandleError --> [*]: ViolationError
+    note right of HandleError
+        System errors create error events
     end note
-
-    HandleSystemError --> CreateErrorEvent
-    note right of HandleSystemError
-      Log ERROR Execution failed
+    note right of HandleError
+        ViolationError bubble up. These
+        are all the error which inherit from ViolationError
+        base class. These include TransactionViolation,
+        ContractViolation, etc
     end note
 
     CreateErrorEvent --> Cleanup
     EmitEmpty --> Cleanup
 
-    Cleanup --> ReleaseLock: Has Lock
     Cleanup --> EndSpan: No Lock
-    note right of Cleanup Log State update persisted
+    Cleanup --> ReleaseLock: Has Lock
 
     ReleaseLock --> EndSpan
     note right of ReleaseLock
-      Log WARNING if unlock fails
+        Logs warning if unlock fails
     end note
 
-    EndSpan --> EmitEvent: Emit events generated by the machine execution
-    note right of EndSpan
-      Log Orchestration complete
-    end note
-
-    note left of HandleTransactionError
-        Transaction errors are bubbled up
-        System errors create error events
-    end note
+    EndSpan --> EmitEvents
+    EmitEvents --> [*]
 ```
 
 ## Component Interactions
@@ -167,114 +119,85 @@ The sequence diagram below shows the detailed interactions between components:
 
 ```mermaid
 sequenceDiagram
-    participant C as Client
-    participant O as ArvoOrchestrator
-    participant OT as OpenTelemetry
-    participant M as MachineMemory
-    participant R as MachineRegistry
+    participant C as Caller
+    participant O as Orchestrator
+    participant M as Memory
+    participant R as Registry
     participant E as ExecutionEngine
-    participant SM as State Machine
 
-    C->>+O: execute(event, opentelemetry)
-    O->>+OT: startActiveSpan()
-    OT-->>O: span context
-
+    C->>+O: execute(event)    
+    Note over O: Start OpenTelemetry span
+    
     O->>O: validateConsumedEventSubject()
-    O->>OT: logToSpan(INFO)
-
-    alt requiresResourceLocking is true
+    alt invalid event subject
+        O-->>C: throw ExectionViolation
+    end
+    alt requires locking
         O->>+M: lock(event.subject)
-        M-->>O: throw ArvoTransactionError on lock failure
-        M-->>O: throw ArvoTransactionError on lock not acquired
-        M->>-O: Lock successfully acquired
-    else ELSE
-        O->>OT: logToSpan(INFO, "Skipping lock")
-    end
-
-    O->>+M: read(event.subject)
-    M-->>O: throw ArvoTransactionError on read failure
-    M->>-O: state data
-
-    alt No State Found
-        O->>OT: logToSpan(INFO, "Initializing new state")
-        alt event.type !== source
-            O->>OT: logToSpan(WARNING)
-            O->>OT: logToSpan(INFO, "Orchestration ended with issues")
-            O-->>C: return []
+        M-->>-O: lock status
+        alt lock not acquired
+            O-->>C: throw TransactionViolation
         end
-    else Has State
-        O->>OT: logToSpan(INFO, "Resuming execution")
-        alt Orchestrator Mismatch
-            O->>OT: logToSpan(WARNING)
-            O->>OT: logToSpan(INFO, "Orchestration ended with issues")
-            O-->>C: return []
-        end
-    end
-
-    O->>+R: Resolve machine from registry based on event
-    R-->>O: throw system error on machine registry issues
-    R-->>-O: ArvoMachine
-    O->>OT: logToSpan(INFO, "Machine resolved")
-
-    O->>SM: machine.validateInput(event)
-    SM->>O: Valiation result
-    alt Invalid
-       O-->>O: raise system error
     end
     
-
-    O->>+SM: machine.execute(state, event, machine)
-    SM-->O: throw system error on execution issues
-    SM->>-O: executionResult
-
-    O->>OT: setAttribute('arvo.orchestrator.status', machine status)
-
-    rect rgb(240, 240, 240)
-        Note over O: Process Results
-        O->>O: Process rawMachineEmittedEvents
-        alt Has Final Output
-            O->>O: Add completion event
-        end
-        loop For Each Event
-            O->>O: createEmittableEvent()
-            O->>OT: logToSpan(INFO)
+    O->>+M: read(event.subject)
+    M-->>-O: state
+    
+    alt no state && event.type != source
+        O-->>C: return []
+    else has state && subject.orchestrator != source
+        O-->>C: return []
+    end
+    
+    O->>+R: resolve(event)
+    R-->>-O: machine
+    alt no machine found
+        O-->>C: throw ConfigViolation
+    end
+    
+    O->>O: machine.validateInput(event)
+    alt contract unresolved
+        O-->>C: throw ConfigViolation
+    else invalid data/schema
+        O-->>C: throw ContractViolation
+    end
+    
+    O->>+E: execute(state, event, machine)
+    E-->>-O: execution result
+    
+    loop for each raw event
+        O->>O: createEmittableEvent()
+        alt invalid parentSubject$$
+            O-->>C: throw ExecutionViolation
+        else invalid event data
+            O-->>C: throw ContractViolation
         end
     end
-
-    O->>+M: write(subject, newState, prevState)
-    M-->>O: throw ArvoTransactionError on write failure
-    M->>-O: write result
-
-    alt Any Error During Processing
-        O->>OT: exceptionToSpan()
-        O->>OT: setStatus(ERROR)
-        alt Is TransactionError
-            O->>OT: logToSpan(CRITICAL)
-            O-->>C: throw ArvoTransactionError
-        else Is SystemError
-            O->>OT: logToSpan(ERROR)
-            O->>O: createSystemErrorEvent()
-            O-->>C: return [errorEvent]
-        end
+    
+    O->>+M: write(id, newRecord, prevRecord)
+    M-->>-O: write status
+    alt write failed
+        O-->>C: throw TransactionViolation
     end
-
-    alt Lock Was Acquired
+    
+    Note over O: Start cleanup
+    
+    alt has lock
         O->>+M: unlock(event.subject)
-        M-->>-O: unlock result
-        alt Unlock Failed
-            O->>OT: logToSpan(WARNING)
+        M-->>-O: unlock status
+        alt unlock failed
+            Note over O: Log warning
         end
     end
-
-    O->>OT: span.end()
-    OT-->>-O: complete
-    O-->>-C: return emittableEvents
+    
+    Note over O: End OpenTelemetry span
+    O-->>-C: return emittable events
+    
+    alt any error during execution
+        Note over O: If ViolationError
+        O-->>C: throw error
+        Note over O: If other Error
+        O->>O: create system error event
+        O-->>C: return [error event]
+    end
 ```
-
-## Detailed Phase Descriptions
-
-The ArvoOrchestrator execution process begins with span management, where it creates OpenTelemetry producer spans and establishes proper telemetry context. This is followed by the critical lock and state management phase, where it acquires exclusive locks on subjects, retrieves current machine states, and validates subject formats. The machine processing phase then resolves appropriate versions, validates inputs against contracts, and prepares machines for execution.
-
-Once initial setup is complete, the orchestrator moves into event processing, where it executes machine logic, creates and validates emittable events, updates machine states, and handles event routing. Error handling runs parallel to all phases, creating system error events when needed, ensuring proper resource cleanup, maintaining telemetry context, and returning appropriate error responses. The orchestrator implements robust state management through exclusive locking mechanisms, persistent storage, and careful validation.
-
-Throughout the entire process, the orchestrator maintains comprehensive telemetry integration via OpenTelemetry, providing detailed execution attributes and resource usage metrics. It enforces strict schema validation and contract enforcement for all events, generates appropriate subjects, and ensures proper event routing and completion notification. This comprehensive approach ensures reliable state machine orchestration while maintaining observability and proper error handling throughout the execution lifecycle.
