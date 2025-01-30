@@ -8,7 +8,7 @@ export enum TransactionViolationCause {
   INVALID_SUBJECT = 'INVALID_SUBJECT',
 }
 
-export class TransactionViolation extends ViolationError<'ArvoTransaction'> {
+export class TransactionViolation extends ViolationError<'OrchestratorTransaction'> {
   readonly cause: TransactionViolationCause;
 
   constructor(param: {
@@ -17,7 +17,7 @@ export class TransactionViolation extends ViolationError<'ArvoTransaction'> {
     initiatingEvent: ArvoEvent;
   }) {
     super({
-      type: 'ArvoTransaction',
+      type: 'OrchestratorTransaction',
       message: `[${param.cause}] ${param.message}`,
       metadata: {
         initiatingEvent: param.initiatingEvent,

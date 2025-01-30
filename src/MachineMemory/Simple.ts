@@ -76,7 +76,7 @@ export class SimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> 
       throw new Error('Machine ID is required for unlock operation');
     }
     this.lockMap.delete(id);
-    return true;
+    return !this.lockMap.get(id);
   }
 
   /**

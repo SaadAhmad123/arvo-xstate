@@ -4,14 +4,18 @@ import {
   EventDataschemaUtil,
   createArvoEvent,
   createArvoEventFactory,
+  createArvoOrchestratorContract,
   createArvoOrchestratorEventFactory,
 } from 'arvo-core';
+import { ExecutionViolation } from 'arvo-event-handler';
+import { z } from 'zod';
 import {
   type ArvoOrchestrator,
   type MachineMemoryRecord,
   SimpleMachineMemory,
   createArvoOrchestrator,
   createSimpleEventBroker,
+  setupArvoMachine,
 } from '../../src';
 import { telemetrySdkStart, telemetrySdkStop } from '../utils';
 import {
@@ -196,16 +200,16 @@ describe('ArvoOrchestrator', () => {
       inheritFrom: 'EVENT',
     });
 
-    events = await handlers.incrementAgent.execute(events[0], {
-      inheritFrom: 'EVENT',
-    });
-
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe(incrementOrchestratorContract.systemError.type);
-    expect(events[0].data.errorMessage).toBe(
-      'Contract validation failed - Event does not match any registered contract schemas in the machine',
+    await expect(async () => {
+      events = await handlers.incrementAgent.execute(events[0], {
+        inheritFrom: 'EVENT',
+      });
+    }).rejects.toThrow(
+      'ViolationError<Config> Contract validation failed - Event does not match any registered contract schemas in the machine',
     );
-    expect(events[0].to).toBe('com.test.test');
+
+    expect(await machineMemory.lock(initEvent.subject)).toBe(true);
+    expect(await machineMemory.unlock(initEvent.subject)).toBe(true);
 
     const fetchEvent = createArvoEvent({
       subject: initEvent.subject,
@@ -217,20 +221,13 @@ describe('ArvoOrchestrator', () => {
       dataschema: EventDataschemaUtil.create(valueReadContract.version('0.0.1')),
     });
 
-    events = await handlers.incrementAgent.execute(fetchEvent, {
-      inheritFrom: 'EVENT',
-    });
-
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe(incrementOrchestratorContract.systemError.type);
-    expect(
-      (events[0].data.errorMessage as string).includes(
-        'Input validation failed - Event data does not meet contract requirements:',
-      ),
-    ).toBe(true);
-    expect(events[0].to).toBe('com.test.test');
-
-    expect(await machineMemory.lock(initEvent.subject)).toBe(true);
+    expect(async () => {
+      events = await handlers.incrementAgent.execute(fetchEvent, {
+        inheritFrom: 'EVENT',
+      });
+    }).rejects.toThrow(
+      'ViolationError<Contract> Input validation failed - Event data does not meet contract requirements',
+    );
   });
 
   it('should conducting nested orchestrators', async () => {
@@ -303,7 +300,7 @@ describe('ArvoOrchestrator', () => {
         inheritFrom: 'EVENT',
       });
     }).rejects.toThrow(
-      `Invalid event (id=${badEvent.id}) subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema. Parsing error: Error parsing orchestration subject string to the context.\nError -> incorrect header check\nsubject -> test`,
+      `ViolationError<Execution> Invalid event (id=${badEvent.id}) subject format. Expected an ArvoOrchestrationSubject but received 'test'. The subject must follow the format specified by ArvoOrchestrationSubject schema`,
     );
   });
 
@@ -467,14 +464,13 @@ describe('ArvoOrchestrator', () => {
   });
 
   it('should throw error event in case of faulty parent subject', async () => {
-    const broker = createSimpleEventBroker(Object.values(handlers));
+    let brokerError: Error | null = null;
+    const broker = createSimpleEventBroker(Object.values(handlers), (error) => {
+      brokerError = error;
+    });
     let finalEventFromTest: ArvoEvent | null = null;
-    let finalEventFromTest1: ArvoEvent | null = null;
     broker.subscribe('com.test.test', async (event) => {
       finalEventFromTest = event;
-    });
-    broker.subscribe('com.test.test.1', async (event) => {
-      finalEventFromTest1 = event;
     });
 
     const initEvent = createArvoOrchestratorEventFactory(numberModifierOrchestratorContract.version('0.0.2')).init({
@@ -495,12 +491,22 @@ describe('ArvoOrchestrator', () => {
       1 + // Number modifier orchestrator init event
         1 + // Write event
         1 + // Sucess event for write
-        1, // Error event for faulty parent subject
+        0, // Faulty parent subject will raise an ExecutionViolation
     );
-    expect(finalEventFromTest1).toBe(null);
-    expect(finalEventFromTest).not.toBe(null);
+
+    // Error thrown on final event
+    expect(finalEventFromTest).toBe(null);
+
+    expect(brokerError).toBeDefined();
     // biome-ignore  lint/style/noNonNullAssertion: non issue
-    expect(finalEventFromTest!.to).toBe('com.test.test');
+    expect((brokerError! as ExecutionViolation).name).toBe('ViolationError<Execution>');
+    // biome-ignore  lint/style/noNonNullAssertion: non issue
+    expect((brokerError! as ExecutionViolation).message).toBe(
+      'ViolationError<Execution> Invalid parentSubject$$ for the ' +
+        "event(type='arvo.orc.dec', uri='#/test/orchestrator/decrement/0.0.2').It must be follow " +
+        'the ArvoOrchestrationSubject schema. The easiest way is to use the current orchestration ' +
+        'subject by storing the subject via the context block in the machine definition.',
+    );
   });
 
   it('should redirect the completion event to a different location', async () => {
@@ -570,5 +576,135 @@ describe('ArvoOrchestrator', () => {
 
   it('should have system error schema which is standard', () => {
     expect(handlers.decrementAgent.systemErrorSchema.type).toBe(decrementOrchestratorContract.systemError.type);
+  });
+
+  it('should throw violation if the event is looking for a different machine version', () => {
+    const corruptSubject = ArvoOrchestrationSubject.new({
+      orchestator: incrementOrchestratorContract.type,
+      initiator: 'com.test.test',
+      version: '1.0.0',
+    });
+    const event = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
+      subject: corruptSubject,
+      source: 'com.test.test',
+      data: {
+        modifier: 2,
+        trend: 'linear',
+        parentSubject$$: null,
+        key: 'string',
+      },
+    });
+
+    expect(() => handlers.incrementAgent.execute(event, { inheritFrom: 'EVENT' })).rejects.toThrow(
+      "ViolationError<Config> Machine resolution failed: No machine found matching orchestrator name='arvo.orc.inc' and version='1.0.0'.",
+    );
+  });
+
+  it('should throw error event on non violations. Such as when machine internally throws error', async () => {
+    const dumbOrchestratorContract = createArvoOrchestratorContract({
+      uri: '#/test/dumb',
+      name: 'dumb',
+      versions: {
+        '1.0.0': {
+          init: z.object({
+            error_type: z.enum(['violation', 'normal']),
+          }),
+          complete: z.object({}),
+        },
+      },
+    });
+
+    const machineId = 'machineV100';
+    const dumbMachine = setupArvoMachine({
+      contracts: {
+        self: dumbOrchestratorContract.version('1.0.0'),
+        services: {},
+      },
+      types: {
+        context: {} as {
+          error_type: 'violation' | 'normal';
+        },
+      },
+      actions: {
+        throwNormalError: () => {
+          throw new Error('Normal error');
+        },
+        throwViolationError: () => {
+          throw new ExecutionViolation('Violation error');
+        },
+      },
+    }).createMachine({
+      /** @xstate-layout N4IgpgJg5mDOIC5QFsCGBjAFgSwHZgDUBGABhIDoAnAewFcAXMSgYgG0SBdRUAB2tmz1s1XNxAAPREQCsFAMxEATABYA7AE5NADnXSAbFoA0IAJ6JFqueRWble2Xb1FVAXxfG0WPIVIUaDJjYiLiQQPgEhETFJBBl5JTVNdR19I1MpEj1yVWVtOTkc1RVlRTcPDBx8YjIqOkYWVkUQ3n5BYVFQmLjyBRUNbV0DYzNYnXIk9T1cuUn1BTKQT0qfGtxqSjQAGwB9JhoGzjFwtqjOxH0icaSnTJn1RXVh8yLyXNtVTKnVIjsFpe9qhQAG7CTaoSK4XaUfZsQ6hY4Q6LnJxXTQ3PR3B5PWIkaSo5IzOT2OTKGRudwgNYQOBif5VXxHVqIs4IAC0emxrLxEx5PLkfwqAN8tQClEZEXaSIQJWxRB+5D0Ni0ckUin0ihmpQpdJWFDWG1QOz263FJw6oBiCnU1iIWiKMjkuJm0mU2L6+Kc9i0qS0WgFXnpNRB1DBEKh+1NzItiAUqnIMkVihIRDmJDtHPSCC0lze2mkii0GJk0n9y0B5AgIjAkclLNj8fVSZTjvTssLHvuMhK6mUpaFNWNYvhTNr0YQ9jjJDm32Uyi0ikVk1lcteRD0xNxqnsmRL5KAA */
+      id: machineId,
+      initial: 'router',
+      context: ({ input }) => ({
+        error_type: input.data.error_type,
+      }),
+      states: {
+        router: {
+          always: [
+            {
+              target: 'normal_error',
+              guard: ({ context }) => context.error_type === 'normal',
+            },
+            {
+              target: 'violation_error',
+              guard: ({ context }) => context.error_type === 'violation',
+            },
+            {
+              target: 'done',
+            },
+          ],
+        },
+        normal_error: {
+          entry: { type: 'throwNormalError' },
+          always: {
+            target: 'error',
+          },
+        },
+        violation_error: {
+          entry: { type: 'throwViolationError' },
+          always: {
+            target: 'error',
+          },
+        },
+        done: {
+          type: 'final',
+        },
+        error: {
+          type: 'final',
+        },
+      },
+    });
+    const dumbOrchestrator = createArvoOrchestrator({
+      executionunits: 1,
+      memory: machineMemory,
+      machines: [dumbMachine],
+    });
+
+    let event = createArvoEventFactory(dumbOrchestratorContract.version('1.0.0')).accepts({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        error_type: 'normal' as const,
+      },
+    });
+
+    const results = await dumbOrchestrator.execute(event);
+
+    expect(results.length).toBe(1);
+    expect(results[0].type).toBe(dumbOrchestratorContract.systemError.type);
+    expect(results[0].data.errorMessage).toBe('Normal error');
+    expect(results[0].to).toBe('com.test.test');
+
+    event = createArvoEventFactory(dumbOrchestratorContract.version('1.0.0')).accepts({
+      source: 'com.test.test',
+      data: {
+        parentSubject$$: null,
+        error_type: 'violation' as const,
+      },
+    });
+
+    expect(() => dumbOrchestrator.execute(event)).rejects.toThrow('ViolationError<Execution> Violation error');
   });
 });

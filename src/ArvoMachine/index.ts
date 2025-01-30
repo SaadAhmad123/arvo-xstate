@@ -76,7 +76,8 @@ export default class ArvoMachine<
    * @returns A validation result object:
    *   - "VALID" - Event is valid and can be processed
    *   - "CONTRACT_UNRESOLVED" - No matching contract found for the event
-   *   - "INVALID" - Validation failed with specific error details
+   *   - "INVALID" - Event dataschema conflict with contract
+   *   - "INVALID_DATA" - Event data conflicts with contract
    *
    * @example
    * ```typescript

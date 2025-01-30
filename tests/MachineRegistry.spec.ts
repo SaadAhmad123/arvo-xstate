@@ -109,8 +109,8 @@ describe('MachineRegistry', () => {
       }),
     );
 
-    expect(resolvedMachine.source).toBe(testMachineContract.type);
-    expect(resolvedMachine.contracts.self.version).toBe('0.0.1');
+    expect(resolvedMachine?.source).toBe(testMachineContract.type);
+    expect(resolvedMachine?.contracts.self.version).toBe('0.0.1');
 
     resolvedMachine = registry.resolve(
       createArvoOrchestratorEventFactory(testMachineContract.version('0.0.2')).init({
@@ -123,8 +123,8 @@ describe('MachineRegistry', () => {
       }),
     );
 
-    expect(resolvedMachine.source).toBe(testMachineContract.type);
-    expect(resolvedMachine.contracts.self.version).toBe('0.0.2');
+    expect(resolvedMachine?.source).toBe(testMachineContract.type);
+    expect(resolvedMachine?.contracts.self.version).toBe('0.0.2');
 
     resolvedMachine = registry.resolve(
       createArvoOrchestratorEventFactory(testMachineContract2.version('0.0.1')).init({
@@ -135,27 +135,23 @@ describe('MachineRegistry', () => {
       }),
     );
 
-    expect(resolvedMachine.source).toBe(testMachineContract2.type);
-    expect(resolvedMachine.contracts.self.version).toBe('0.0.1');
+    expect(resolvedMachine?.source).toBe(testMachineContract2.type);
+    expect(resolvedMachine?.contracts.self.version).toBe('0.0.1');
   });
 
   it('should throw error while resolving', () => {
     const registry = new MachineRegistry(machine1, machine2);
-
-    expect(() => {
-      registry.resolve(
-        createArvoOrchestratorEventFactory(testMachineContract2.version('0.0.1')).init({
-          source: 'com.test.test',
-          data: {
-            parentSubject$$: null,
-          },
-        }),
-        {
-          inheritFrom: 'EVENT',
+    const machine = registry.resolve(
+      createArvoOrchestratorEventFactory(testMachineContract2.version('0.0.1')).init({
+        source: 'com.test.test',
+        data: {
+          parentSubject$$: null,
         },
-      );
-    }).toThrow(
-      "Machine resolution failed: No machine found matching orchestrator name='arvo.orc.machine.2' and version='0.0.1'",
+      }),
+      {
+        inheritFrom: 'EVENT',
+      },
     );
+    expect(machine).toBe(null);
   });
 });

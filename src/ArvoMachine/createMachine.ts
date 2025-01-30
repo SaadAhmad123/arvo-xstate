@@ -438,13 +438,18 @@ export function setupArvoMachine<
     const machine = systemSetup.createMachine({
       ...(config as any),
     });
+
+    const hasParallelStates = detectParallelStates(machine.config);
+    const hasMultipleNonSystemErrorEvents = Object.values(param.contracts.services).some(
+      (item) => Object.keys(item.emits).length > 1,
+    );
+    const requiresLocking = hasParallelStates || hasMultipleNonSystemErrorEvents;
     return new ArvoMachine<string, typeof machineVersion, TSelfContract, TServiceContracts, typeof machine>(
       config.id,
       machineVersion,
       param.contracts,
       machine,
-      detectParallelStates(machine.config) ||
-        Object.values(param.contracts.services).some((item) => Object.keys(item.emits).length > 1),
+      requiresLocking,
     );
   };
   return { createMachine };

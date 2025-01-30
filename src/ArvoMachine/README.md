@@ -173,9 +173,9 @@ As a best practice, always prefer `emit` when possible for better type safety an
 
 ArvoMachine optimizes its distributed execution through automatic analysis of state machine structure. During creation, it analyzes the machine configuration to determine if distributed resource locking is necessary by detecting the presence of parallel states.
 
-When a machine contains no parallel states, its execution is inherently sequential - state transitions happen one after another without possibility of race conditions. In these cases, ArvoMachine automatically sets `requiresResourceLocking` to false, eliminating unnecessary distributed lock overhead.
+When a machine contains no parallel states or none of the services it uses emit parallel events, its execution is inherently sequential - state transitions happen one after another without possibility of race conditions. In these cases, ArvoMachine automatically sets `requiresResourceLocking` to false, eliminating unnecessary distributed lock overhead.
 
-For machines with parallel states where multiple states can be active simultaneously, the locking mechanism remains enabled to ensure safe concurrent operations.
+For machines with parallel states or event emissions where multiple states can be active simultaneously, the locking mechanism remains enabled to ensure safe concurrent operations.
 
 This locking flag is passed to implementations of the `IMachineMemory` interface, allowing memory managers to implement appropriate locking strategies based on their specific requirements. The entire process is automatic and requires no additional configuration from developers.
 
