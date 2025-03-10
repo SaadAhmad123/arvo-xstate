@@ -134,6 +134,58 @@ describe('ArvoXState', () => {
       expect(typeof setup.createMachine).toBe('function');
     });
 
+    it('should throw error on duplicate service contracts (even with different versions)', () => {
+      expect(() =>
+        setupArvoMachine({
+          contracts: {
+            self: testMachineContract.version('0.0.1'),
+            services: {
+              increment1: incrementServiceContract.version('0.0.1'),
+              increment2: incrementServiceContract.version('0.0.2'),
+              decrement: decrementServiceContract.version('0.0.1'),
+              notification: numberUpdateNotificationContract.version('0.0.1'),
+            },
+          },
+        }),
+      ).toThrow(
+        "The service contracts must have unique URIs. Multiple versions of the same contract are not allow. The contracts 'increment2' and 'increment1' have the same URI '#/test/service/increment'",
+      );
+
+      expect(() =>
+        setupArvoMachine({
+          contracts: {
+            self: testMachineContract.version('0.0.1'),
+            services: {
+              increment1: incrementServiceContract.version('0.0.1'),
+              increment2: incrementServiceContract.version('0.0.1'),
+              decrement: decrementServiceContract.version('0.0.1'),
+              notification: numberUpdateNotificationContract.version('0.0.1'),
+            },
+          },
+        }),
+      ).toThrow(
+        "The service contracts must have unique URIs. Multiple versions of the same contract are not allow. The contracts 'increment2' and 'increment1' have the same URI '#/test/service/increment'",
+      );
+    });
+
+    it('should throw error on self referencing', () => {
+      expect(() =>
+        setupArvoMachine({
+          contracts: {
+            self: testMachineContract.version('0.0.1'),
+            services: {
+              testMachine: testMachineContract.version('0.0.1'),
+              increment2: incrementServiceContract.version('0.0.1'),
+              decrement: decrementServiceContract.version('0.0.1'),
+              notification: numberUpdateNotificationContract.version('0.0.1'),
+            },
+          },
+        }),
+      ).toThrow(
+        "Circular dependency detected: Machine with URI '#/test/machine' is registered as service 'testMachine'. Self-referential services create execution loops and are prohibited.",
+      );
+    });
+
     it('should throw an error when using "actors" parameter', () => {
       expect(() => {
         setupArvoMachine({

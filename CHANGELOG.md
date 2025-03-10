@@ -26,3 +26,7 @@
 
 - Added explict error boundaries and heirarchies to the orchestrator
 
+## [2.2.11] - 2025-03-10
+
+- Added duplicate service and circular reference detection in the machine as guards in the setup
+
