@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1750581127910" clover="3.2.0">
-  <project timestamp="1750581127910" name="All files">
-    <metrics statements="564" coveredstatements="539" conditionals="473" coveredconditionals="382" methods="102" coveredmethods="93" elements="1139" coveredelements="1014" complexity="0" loc="564" ncloc="564" packages="9" files="17" classes="17"/>
+<coverage generated="1750588338702" clover="3.2.0">
+  <project timestamp="1750588338702" name="All files">
+    <metrics statements="565" coveredstatements="540" conditionals="473" coveredconditionals="382" methods="102" coveredmethods="93" elements="1140" coveredelements="1015" complexity="0" loc="565" ncloc="565" packages="9" files="17" classes="17"/>
     <package name="src">
       <metrics statements="26" coveredstatements="26" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="7"/>
       <file name="index.ts" path="/Users/saadahmad/Projects/Arvo/arvo-xstate/src/index.ts">
@@ -151,7 +151,7 @@
       </file>
     </package>
     <package name="src.ArvoOrchestrator">
-      <metrics statements="206" coveredstatements="200" conditionals="196" coveredconditionals="156" methods="24" coveredmethods="24"/>
+      <metrics statements="207" coveredstatements="201" conditionals="196" coveredconditionals="156" methods="24" coveredmethods="24"/>
       <file name="error.ts" path="/Users/saadahmad/Projects/Arvo/arvo-xstate/src/ArvoOrchestrator/error.ts">
         <metrics statements="11" coveredstatements="11" conditionals="4" coveredconditionals="3" methods="3" coveredmethods="3"/>
         <line num="1" count="6" type="stmt"/>
@@ -182,7 +182,7 @@
         <line num="43" count="10" type="stmt"/>
       </file>
       <file name="index.ts" path="/Users/saadahmad/Projects/Arvo/arvo-xstate/src/ArvoOrchestrator/index.ts">
-        <metrics statements="183" coveredstatements="178" conditionals="187" coveredconditionals="150" methods="19" coveredmethods="19"/>
+        <metrics statements="184" coveredstatements="179" conditionals="187" coveredconditionals="150" methods="19" coveredmethods="19"/>
         <line num="1" count="6" type="stmt"/>
         <line num="2" count="6" type="stmt"/>
         <line num="26" count="6" type="stmt"/>
@@ -342,30 +342,31 @@
         <line num="600" count="34" type="stmt"/>
         <line num="601" count="35" type="stmt"/>
         <line num="605" count="31" type="stmt"/>
-        <line num="611" count="62" type="stmt"/>
-        <line num="626" count="30" type="stmt"/>
-        <line num="631" count="30" type="stmt"/>
-        <line num="636" count="30" type="stmt"/>
-        <line num="650" count="11" type="cond" truecount="1" falsecount="1"/>
-        <line num="655" count="11" type="stmt"/>
-        <line num="656" count="11" type="stmt"/>
-        <line num="664" count="11" type="cond" truecount="1" falsecount="0"/>
-        <line num="665" count="10" type="stmt"/>
-        <line num="669" count="10" type="stmt"/>
-        <line num="672" count="1" type="stmt"/>
-        <line num="682" count="1" type="stmt"/>
-        <line num="683" count="1" type="stmt"/>
+        <line num="610" count="31" type="stmt"/>
+        <line num="620" count="62" type="stmt"/>
+        <line num="635" count="30" type="stmt"/>
+        <line num="640" count="30" type="stmt"/>
+        <line num="645" count="30" type="stmt"/>
+        <line num="652" count="11" type="cond" truecount="1" falsecount="1"/>
+        <line num="657" count="11" type="stmt"/>
+        <line num="658" count="11" type="stmt"/>
+        <line num="666" count="11" type="cond" truecount="1" falsecount="0"/>
+        <line num="667" count="10" type="stmt"/>
+        <line num="671" count="10" type="stmt"/>
+        <line num="674" count="1" type="stmt"/>
         <line num="684" count="1" type="stmt"/>
-        <line num="686" count="0" type="stmt"/>
-        <line num="692" count="1" type="stmt"/>
-        <line num="709" count="11" type="stmt"/>
-        <line num="710" count="11" type="stmt"/>
-        <line num="712" count="1" type="stmt"/>
-        <line num="721" count="86" type="cond" truecount="1" falsecount="0"/>
-        <line num="722" count="43" type="stmt"/>
-        <line num="731" count="6" type="stmt"/>
-        <line num="732" count="1" type="stmt"/>
-        <line num="737" count="6" type="stmt"/>
+        <line num="685" count="1" type="stmt"/>
+        <line num="686" count="1" type="stmt"/>
+        <line num="688" count="0" type="stmt"/>
+        <line num="694" count="1" type="stmt"/>
+        <line num="711" count="11" type="stmt"/>
+        <line num="712" count="11" type="stmt"/>
+        <line num="714" count="1" type="stmt"/>
+        <line num="723" count="86" type="cond" truecount="1" falsecount="0"/>
+        <line num="724" count="43" type="stmt"/>
+        <line num="733" count="6" type="stmt"/>
+        <line num="734" count="1" type="stmt"/>
+        <line num="739" count="6" type="stmt"/>
       </file>
     </package>
     <package name="src.MachineExecutionEngine">

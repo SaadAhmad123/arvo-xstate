@@ -45,11 +45,17 @@ export type MachineMemoryRecord = {
   /** XState snapshot representing the machine's current state */
   state: Snapshot<any>;
 
-  /** The event consumed by the machine */
+  /** The event consumed by the machine in the last session */
   consumed: ArvoEvent[];
 
-  /** A list events produced by the machine */
-  produced: ArvoEvent[];
+  /** Rvents produced by the machine in the last session*/
+  produced: {
+    events: ArvoEvent[];
+    allEventDomains: string[];
+    domainedEvents: {
+      all: ArvoEvent[];
+    } & Partial<Record<string, ArvoEvent[]>>;
+  };
 
   /** Machine definition string */
   machineDefinition: string | null;

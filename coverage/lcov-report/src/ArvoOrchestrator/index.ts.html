@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">97.56% </span>
+                <span class="strong">97.57% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>200/205</span>
+                <span class='fraction'>201/206</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">97.26% </span>
+                <span class="strong">97.28% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>178/183</span>
+                <span class='fraction'>179/184</span>
             </div>
         
             
@@ -800,7 +800,9 @@
 <a name='L735'></a><a href='#L735'>735</a>
 <a name='L736'></a><a href='#L736'>736</a>
 <a name='L737'></a><a href='#L737'>737</a>
-<a name='L738'></a><a href='#L738'>738</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
+<a name='L738'></a><a href='#L738'>738</a>
+<a name='L739'></a><a href='#L739'>739</a>
+<a name='L740'></a><a href='#L740'>740</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1409,6 +1411,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">31x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">62x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1436,13 +1447,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">30x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2146,6 +2150,15 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Machine execution completed - Status: ${executionResult.state.status}, Generated events: ${executionResult.events.length}`,
           });
 &nbsp;
+          const producedEvents = {
+            events: domainedEvents.default ?? [],
+            allEventDomains: Object.keys(domainedEvents),
+            domainedEvents: {
+              all: emittables,
+              ...domainedEvents,
+            },
+          };
+&nbsp;
           // Write to the memory
           await this.persistState(
             event,
@@ -2156,7 +2169,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               value: (executionResult.state as any).value ?? <span class="branch-1 cbranch-no" title="branch not covered" >null,</span>
               state: executionResult.state,
               consumed: [event],
-              produced: emittables,
+              produced: producedEvents,
               machineDefinition: JSON.stringify((machine.logic as ActorLogic&lt;any, any, any, any, any&gt;).config),
             },
             state,
@@ -2172,14 +2185,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Orchestration successfully executed and emitted ${emittables.length} events`,
           });
 &nbsp;
-          return {
-            events: domainedEvents.default ?? [],
-            allEventDomains: Object.keys(domainedEvents),
-            domainedEvents: {
-              all: emittables,
-              ...domainedEvents,
-            },
-          };
+          return producedEvents;
         } catch (error: unknown) {
           // If this is not an error this is not exected and must be addressed
           // This is a fundmental unexpected scenario and must be handled as such
@@ -2281,7 +2287,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-06-22T08:32:07.889Z
+                at 2025-06-22T10:32:18.681Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

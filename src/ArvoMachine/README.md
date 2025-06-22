@@ -111,11 +111,13 @@ console.log(arvoMachine.version); // Access the machine's version
 // Use arvoMachine in your Arvo Orchestrator
 ```
 
-## Event Emission: 'emit' vs 'enqueueArvoEvent'
+## Event Emission: 'emit' vs 'enqueueArvoEvent' with Domain Routing
 
-When it comes to emitting events in Arvo, there are two primary methods: `emit` and `enqueueArvoEvent`. Understanding when to use each is crucial for maintaining type safety and adhering to defined contracts.
+When emitting events in Arvo, there are two primary methods: `emit` and `enqueueArvoEvent`. Both support domain-based routing for sophisticated workflow patterns including human-in-the-loop operations, external system integrations, and custom processing pipelines.
 
-The `emit` function should be used when emitting events that are explicitly defined in your service contracts. It provides strict schema validation on the event data and ensures type safety. Here's an example:
+### Using 'emit' with Domains
+
+The `emit` function should be used when emitting events that are explicitly defined in your service contracts. It provides strict schema validation and type safety, with optional domain assignment for specialized routing:
 
 ```typescript
 import { xstate } from 'arvo-xstate';
@@ -127,10 +129,30 @@ const llmMachine = setupArvoMachine({
   states: {
     someState: {
       entry: [
+        // Standard internal processing
         xstate.emit(({ context }) => ({
           type: 'com.openai.completions',
           data: {
             request: context.request,
+          },
+        })),
+        
+        // External system integration
+        xstate.emit(({ context }) => ({
+          domains: ['external'],
+          type: 'com.approval.request',
+          data: {
+            request: context.request,
+            amount: context.amount,
+          },
+        })),
+        
+        // Multi-domain event for parallel processing
+        xstate.emit(({ context }) => ({
+          domains: ['default', 'analytics', 'audit'],
+          type: 'com.transaction.completed',
+          data: {
+            transactionId: context.transactionId,
           },
         })),
       ],
@@ -140,7 +162,9 @@ const llmMachine = setupArvoMachine({
 });
 ```
 
-On the other hand, `enqueueArvoEvent` should be used when you need to emit events that are not explicitly defined in your service contracts. This might be necessary for more dynamic scenarios or when dealing with external systems that don't have predefined contracts. Here's an example:
+### Using 'enqueueArvoEvent' with Domains
+
+`enqueueArvoEvent` should be used for events not explicitly defined in your service contracts, and also supports domain routing:
 
 ```typescript
 const llmMachine = setupArvoMachine({
@@ -149,6 +173,7 @@ const llmMachine = setupArvoMachine({
     emitDynamicEvent: ({ context }) => ({
       type: 'enqueueArvoEvent',
       params: {
+        domains: ['external'], // Route to external processing
         type: 'com.dynamic.event',
         data: {
           dynamicField: context.someValue,
@@ -167,7 +192,35 @@ const llmMachine = setupArvoMachine({
 });
 ```
 
-As a best practice, always prefer `emit` when possible for better type safety and validation. Use `enqueueArvoEvent` sparingly and only when dealing with truly dynamic or external events. When using `enqueueArvoEvent`, consider adding runtime checks to ensure the emitted events still meet your system's requirements.
+### Multiple Events for Multiple Domains
+
+To create separate events for different domains (rather than one event in multiple domains), use multiple emit calls:
+
+```typescript
+// Creates two separate events with different IDs
+entry: [
+  xstate.emit(({ context }) => ({
+    domains: ['default'],
+    type: 'com.process.standard',
+    data: { request: context.request },
+  })),
+  xstate.emit(({ context }) => ({
+    domains: ['external'],
+    type: 'com.process.approval',
+    data: { request: context.request },
+  })),
+],
+```
+
+### Best Practices
+
+Always prefer `emit` when possible for better type safety and validation. Use `enqueueArvoEvent` sparingly and only when dealing with truly dynamic or external events. When using either method:
+
+- Specify domains explicitly when events need specialized routing
+- Use multiple emit calls when you need separate events rather than one event in multiple domains
+- Consider the downstream processing requirements when choosing domain assignments
+- Add runtime checks when using `enqueueArvoEvent` to ensure emitted events meet system requirements
+
 
 ## Resource Locking and Parallel States
 
@@ -178,6 +231,35 @@ When a machine contains no parallel states or none of the services it uses emit 
 For machines with parallel states or event emissions where multiple states can be active simultaneously, the locking mechanism remains enabled to ensure safe concurrent operations.
 
 This locking flag is passed to implementations of the `IMachineMemory` interface, allowing memory managers to implement appropriate locking strategies based on their specific requirements. The entire process is automatic and requires no additional configuration from developers.
+
+
+## Domain-Based Event Processing in ArvoMachine
+
+ArvoMachine events can be categorized into processing domains, enabling sophisticated orchestration patterns. Events without explicit domains are automatically assigned to the 'default' domain for standard internal processing.
+
+### Domain Assignment
+
+Events emitted from ArvoMachine states can specify their processing domains:
+
+```typescript
+// Event assigned to default domain (automatic)
+xstate.emit(({ context }) => ({
+  type: 'com.service.call',
+  data: { request: context.request }
+}))
+
+// Event assigned to external domain
+xstate.emit(({ context }) => ({
+  domains: ['external'],
+  type: 'com.approval.request', 
+  data: { amount: context.amount }
+}))
+```
+
+### Orchestrator Integration
+
+The ArvoOrchestrator processes domain-assigned events and returns them in structured buckets, enabling downstream systems to handle different domains with specialized logic. This separation allows for clean integration between automated processing, human-in-the-loop workflows, and external system integrations while maintaining the machine's simplicity and focus on business logic.
+
 
 ## Conclusion
 

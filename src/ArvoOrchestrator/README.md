@@ -25,8 +25,13 @@ const orchestrator = createArvoOrchestrator({
   machines: [machine1, machine2]
 });
 
-// Process an event
-const events = await orchestrator.execute(incomingEvent);
+// Process an event - now returns structured result
+const { events, allEventDomains, domainedEvents } = await orchestrator.execute(incomingEvent);
+
+// Access different event types
+const defaultEvents = events; // Standard processing
+const externalEvents = domainedEvents.external; // External system integration
+const allEvents = domainedEvents.all; // A Set of every event regardless of domain
 ```
 
 ## Operation overview
@@ -64,6 +69,44 @@ Events can influence their routing through several mechanisms:
 - `parsed(event.subject).meta.redirectto`: Provides routing hints for orchestration chains
 
 This comprehensive routing system ensures events are processed by the correct workflow instances while maintaining proper execution boundaries and workflow relationships.
+
+### Domain-Based Event Processing
+
+The Arvo Orchestrator implements a sophisticated domain-based event routing system that enables advanced workflow patterns including human-in-the-loop operations, external system integrations, and custom processing pipelines.
+
+#### Event Domains
+
+Events emitted from state machines can be categorized into processing domains using the `domains` parameter. Events without explicit domains are automatically assigned to the 'default' domain for standard internal processing. Multi-domain events participate in multiple processing flows simultaneously, enabling sophisticated orchestration patterns.
+
+```typescript
+// In your state machine
+emit(({ context }) => ({
+  domains: ['default', 'external'], // Event goes to both domains
+  type: 'approval.request',
+  data: { amount: context.amount }
+}))
+```
+
+#### Domain Processing Patterns
+
+Common domain patterns include:
+
+- **Default Domain**: Standard internal service routing and processing
+- **External Domain**: Human-in-the-loop workflows, third-party integrations, approval processes
+- **Analytics Domain**: Real-time monitoring, metrics collection, audit trails
+- **Priority Domain**: High-priority processing with specialized handling
+
+#### Orchestrator Response Structure
+
+The orchestrator returns a structured response containing domain-segregated event buckets:
+
+- `events`: Events assigned to the 'default' domain for backward compatibility
+- `allEventDomains`: Array of all unique domain names used in the execution
+- `domainedEvents.all`: Every event regardless of domain assignment
+- `domainedEvents[domainName]`: Events specific to each domain
+
+This structure enables flexible event processing where different domains can be routed to specialized handlers while maintaining a unified orchestration interface.
+
 
 ## Detailed Component Integration and Operation
 

@@ -607,6 +607,15 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Machine execution completed - Status: ${executionResult.state.status}, Generated events: ${executionResult.events.length}`,
           });
 
+          const producedEvents = {
+            events: domainedEvents.default ?? [],
+            allEventDomains: Object.keys(domainedEvents),
+            domainedEvents: {
+              all: emittables,
+              ...domainedEvents,
+            },
+          };
+
           // Write to the memory
           await this.persistState(
             event,
@@ -617,7 +626,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
               value: (executionResult.state as any).value ?? null,
               state: executionResult.state,
               consumed: [event],
-              produced: emittables,
+              produced: producedEvents,
               machineDefinition: JSON.stringify((machine.logic as ActorLogic<any, any, any, any, any>).config),
             },
             state,
@@ -633,14 +642,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Orchestration successfully executed and emitted ${emittables.length} events`,
           });
 
-          return {
-            events: domainedEvents.default ?? [],
-            allEventDomains: Object.keys(domainedEvents),
-            domainedEvents: {
-              all: emittables,
-              ...domainedEvents,
-            },
-          };
+          return producedEvents;
         } catch (error: unknown) {
           // If this is not an error this is not exected and must be addressed
           // This is a fundmental unexpected scenario and must be handled as such

@@ -14,7 +14,13 @@ describe('SimpleMachineMemory', () => {
       value: '',
       machineDefinition: null,
       consumed: [],
-      produced: [],
+      produced: {
+        events: [],
+        allEventDomains: [],
+        domainedEvents: {
+          all: [],
+        },
+      },
     };
   });
 
