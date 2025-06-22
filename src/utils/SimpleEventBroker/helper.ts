@@ -45,7 +45,7 @@ export const createSimpleEventBroker = (
     broker.subscribe(
       handler.source,
       async (event) => {
-        const resultEvents = await handler.execute(event, {
+        const { events: resultEvents } = await handler.execute(event, {
           inheritFrom: 'EVENT',
         });
         // Propagate any resulting events

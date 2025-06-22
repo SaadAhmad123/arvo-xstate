@@ -86,26 +86,26 @@ describe('ArvoOrchestrator', () => {
     expect((context?.state as any)?.context.trend).toBe('linear');
     expect((context?.state as any)?.context.error.length).toBe(0);
 
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe(valueReadContract.type);
-    expect(events[0].to).toBe(valueReadContract.type);
-    expect(events[0].source).toBe(incrementOrchestratorContract.type);
-    expect(events[0].data.key).toBe(initEvent.data.key);
+    expect(events.events.length).toBe(1);
+    expect(events.events[0].type).toBe(valueReadContract.type);
+    expect(events.events[0].to).toBe(valueReadContract.type);
+    expect(events.events[0].source).toBe(incrementOrchestratorContract.type);
+    expect(events.events[0].data.key).toBe(initEvent.data.key);
 
     await promiseTimeout();
-    events = await handlers.valueRead.execute(events[0], {
+    events = await handlers.valueRead.execute(events.events[0], {
       inheritFrom: 'EVENT',
     });
     context = await machineMemory.read(initEvent.subject);
 
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe('evt.value.read.success');
-    expect(events[0].to).toBe(incrementOrchestratorContract.type);
-    expect(events[0].source).toBe(valueReadContract.type);
-    expect(events[0].data.value).toBe(valueStore[initEvent.data.key]);
+    expect(events.events.length).toBe(1);
+    expect(events.events[0].type).toBe('evt.value.read.success');
+    expect(events.events[0].to).toBe(incrementOrchestratorContract.type);
+    expect(events.events[0].source).toBe(valueReadContract.type);
+    expect(events.events[0].data.value).toBe(valueStore[initEvent.data.key]);
 
     await promiseTimeout();
-    events = await handlers.incrementAgent.execute(events[0], {
+    events = await handlers.incrementAgent.execute(events.events[0], {
       inheritFrom: 'EVENT',
     });
     context = await machineMemory.read(initEvent.subject);
@@ -119,27 +119,27 @@ describe('ArvoOrchestrator', () => {
     expect((context?.state as any)?.context.trend).toBe('linear');
     expect((context?.state as any)?.context.error.length).toBe(0);
 
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe(incrementContract.type);
-    expect(events[0].to).toBe(incrementContract.type);
-    expect(events[0].source).toBe(incrementOrchestratorContract.type);
-    expect(events[0].data.init).toBe(2);
-    expect(events[0].data.increment).toBe(2);
+    expect(events.events.length).toBe(1);
+    expect(events.events[0].type).toBe(incrementContract.type);
+    expect(events.events[0].to).toBe(incrementContract.type);
+    expect(events.events[0].source).toBe(incrementOrchestratorContract.type);
+    expect(events.events[0].data.init).toBe(2);
+    expect(events.events[0].data.increment).toBe(2);
 
     await promiseTimeout();
-    events = await handlers.increment.execute(events[0], {
+    events = await handlers.increment.execute(events.events[0], {
       inheritFrom: 'EVENT',
     });
     context = await machineMemory.read(initEvent.subject);
 
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe('evt.increment.number.success');
-    expect(events[0].to).toBe(incrementOrchestratorContract.type);
-    expect(events[0].source).toBe(incrementContract.type);
-    expect(events[0].data.result).toBe(4);
+    expect(events.events.length).toBe(1);
+    expect(events.events[0].type).toBe('evt.increment.number.success');
+    expect(events.events[0].to).toBe(incrementOrchestratorContract.type);
+    expect(events.events[0].source).toBe(incrementContract.type);
+    expect(events.events[0].data.result).toBe(4);
 
     await promiseTimeout();
-    events = await handlers.incrementAgent.execute(events[0], {
+    events = await handlers.incrementAgent.execute(events.events[0], {
       inheritFrom: 'EVENT',
     });
     context = await machineMemory.read(initEvent.subject);
@@ -153,13 +153,13 @@ describe('ArvoOrchestrator', () => {
     expect((context?.state as any)?.context.trend).toBe('linear');
     expect((context?.state as any)?.context.error.length).toBe(0);
 
-    expect(events.length).toBe(1);
-    expect(events[0].type).toBe(incrementOrchestratorContract.metadata.completeEventType);
-    expect(events[0].to).toBe('com.test.test');
-    expect(events[0].source).toBe(incrementOrchestratorContract.type);
-    expect(events[0].data.success).toBe(true);
-    expect(events[0].data.error.length).toBe(0);
-    expect(events[0].data.final).toBe(4);
+    expect(events.events.length).toBe(1);
+    expect(events.events[0].type).toBe(incrementOrchestratorContract.metadata.completeEventType);
+    expect(events.events[0].to).toBe('com.test.test');
+    expect(events.events[0].source).toBe(incrementOrchestratorContract.type);
+    expect(events.events[0].data.success).toBe(true);
+    expect(events.events[0].data.error.length).toBe(0);
+    expect(events.events[0].data.final).toBe(4);
   });
 
   it('should throw error if lock not acquired', async () => {
@@ -201,7 +201,7 @@ describe('ArvoOrchestrator', () => {
     });
 
     await expect(async () => {
-      events = await handlers.incrementAgent.execute(events[0], {
+      events = await handlers.incrementAgent.execute(events.events[0], {
         inheritFrom: 'EVENT',
       });
     }).rejects.toThrow(
@@ -571,7 +571,7 @@ describe('ArvoOrchestrator', () => {
 
     const events = await handlers.incrementAgent.execute(event, { inheritFrom: 'EVENT' });
 
-    expect(events.length).toBe(0);
+    expect(events.events.length).toBe(0);
   });
 
   it('should have system error schema which is standard', () => {
@@ -692,10 +692,10 @@ describe('ArvoOrchestrator', () => {
 
     const results = await dumbOrchestrator.execute(event);
 
-    expect(results.length).toBe(1);
-    expect(results[0].type).toBe(dumbOrchestratorContract.systemError.type);
-    expect(results[0].data.errorMessage).toBe('Normal error');
-    expect(results[0].to).toBe('com.test.test');
+    expect(results.events.length).toBe(1);
+    expect(results.events[0].type).toBe(dumbOrchestratorContract.systemError.type);
+    expect(results.events[0].data.errorMessage).toBe('Normal error');
+    expect(results.events[0].to).toBe('com.test.test');
 
     event = createArvoEventFactory(dumbOrchestratorContract.version('1.0.0')).accepts({
       source: 'com.test.test',
