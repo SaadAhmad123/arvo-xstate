@@ -50,6 +50,37 @@ export type EnqueueArvoEventActionParam<
   TExtension extends CloudEventExtension = CloudEventExtension,
 > = {
   /**
+   * Processing domains for event routing and orchestration control.
+   *
+   * Domains enable the orchestrator to categorize events into distinct processing
+   * buckets, allowing for specialized routing, prioritization, and handling workflows.
+   * Events without explicit domains are automatically assigned to the 'default'
+   * domain for standard internal processing.
+   *
+   * Multiple domain assignment allows events to participate in parallel processing
+   * flows, enabling sophisticated orchestration patterns.
+   *
+   * @defaultValue `['default']` for events without explicit domain assignment
+   *
+   * @remarks
+   * - Domains are internal routing metadata and are not included in final ArvoEvents
+   * - Multi-domain events create a single event instance that participates in all specified domains
+   * - Separate emit calls with different domains generate distinct events with unique identifiers
+   *
+   * @example
+   * ```typescript
+   * // Standard internal service routing
+   * domains: ['default']
+   *
+   * // External system or human-in-the-loop processing
+   * domains: ['external']
+   *
+   * // Parallel processing across multiple domains
+   * domains: ['default', 'analytics', 'audit']
+   * ```
+   */
+  domains?: Array<'default' | string>;
+  /**
    * Custom extensions for the CloudEvent.
    * Allows for additional metadata to be attached to the event.
    *

@@ -308,6 +308,7 @@ describe('ArvoXState', () => {
           increment: {
             entry: [
               emit(({ context }) => ({
+                domains: ['default', 'external'],
                 type: 'com.number.increment',
                 data: {
                   delta: context.delta,
@@ -352,6 +353,14 @@ describe('ArvoXState', () => {
                   },
                 }),
               },
+              emit(({ context }) => ({
+                domains: ['external'],
+                type: 'notif.number.update',
+                data: {
+                  delta: context.delta,
+                  type: context.type,
+                },
+              })),
             ],
             always: { target: 'done' },
           },
@@ -395,11 +404,14 @@ describe('ArvoXState', () => {
       let output = await orchestrator.execute(initEvent, {
         inheritFrom: 'EVENT',
       });
-      expect(output.length).toBe(1);
-      expect(output[0].source).toBe('arvo.orc.test');
-      expect(output[0].type).toBe('com.number.increment');
-      expect(output[0].data.delta).toBe(1);
-      expect(output[0].dataschema).toBe(`${incrementServiceContract.uri}/0.0.1`);
+      expect(output.events.length).toBe(1);
+      expect(output.events[0].source).toBe('arvo.orc.test');
+      expect(output.events[0].type).toBe('com.number.increment');
+      expect(output.events[0].data.delta).toBe(1);
+      expect(output.events[0].dataschema).toBe(`${incrementServiceContract.uri}/0.0.1`);
+      expect(output.allEventDomains).toEqual(['default', 'external']);
+      expect(output.domainedEvents.external?.[0]?.type).toEqual('com.number.increment');
+      expect(output.domainedEvents.all.length).toBe(1);
 
       const incrementHandler = createArvoEventHandler({
         contract: incrementServiceContract,
@@ -424,25 +436,27 @@ describe('ArvoXState', () => {
         },
       });
 
-      const nextEvent = await incrementHandler.execute(output[0]);
+      const nextEvent = await incrementHandler.execute(output.events[0]);
 
-      output = await orchestrator.execute(nextEvent[0], {
+      output = await orchestrator.execute(nextEvent.events[0], {
         inheritFrom: 'EVENT',
       });
 
-      console.log(JSON.stringify({ ssss: output }, null, 2));
+      expect(output.events.length).toBe(2);
+      expect(output.events[0].source).toBe('arvo.orc.test');
+      expect(output.events[0].type).toBe('notif.number.update');
+      expect(output.events[0].data.delta).toBe(1);
+      expect(output.events[0].data.type).toBe('increment');
 
-      expect(output.length).toBe(2);
-      expect(output[0].source).toBe('arvo.orc.test');
-      expect(output[0].type).toBe('notif.number.update');
-      expect(output[0].data.delta).toBe(1);
-      expect(output[0].data.type).toBe('increment');
+      expect(output.events[1].source).toBe('arvo.orc.test');
+      expect(output.events[1].type).toBe('arvo.orc.test.done');
+      expect(output.events[1].data.final).toBe(1);
+      expect(output.events[1].to).toBe('com.test.service');
+      expect(output.events[1].dataschema).toBe(`${testMachineContract.uri}/0.0.1`);
 
-      expect(output[1].source).toBe('arvo.orc.test');
-      expect(output[1].type).toBe('arvo.orc.test.done');
-      expect(output[1].data.final).toBe(1);
-      expect(output[1].to).toBe('com.test.service');
-      expect(output[1].dataschema).toBe(`${testMachineContract.uri}/0.0.1`);
+      expect(output.domainedEvents.all.length).toBe(3);
+      expect(output.domainedEvents.default?.length).toBe(2);
+      expect(output.domainedEvents.external?.length).toBe(1);
     });
 
     it('should validate events input to the machine', () => {

@@ -354,11 +354,11 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
    * 2. Validates events and contracts
    * 3. Executes state machine
    * 4. Persists new state
-   * 5. Generates response events
+   * 5. Generates response events with domain-based segregation
    *
    * @param event - Event triggering the execution
    * @param opentelemetry - OpenTelemetry configuration
-   * @returns Array of events generated during execution
+   * @returns Object containing default domained events, all event domains, and domain-segregated event buckets
    *
    * @throws {TransactionViolation} Lock/state operations failed
    * @throws {ExecutionViolation} Invalid event structure/flow
@@ -370,7 +370,13 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions = {
       inheritFrom: 'EVENT',
     },
-  ): Promise<ArvoEvent[]> {
+  ): Promise<{
+    events: ArvoEvent[];
+    allEventDomains: string[];
+    domainedEvents: {
+      all: ArvoEvent[];
+    } & Partial<Record<string, ArvoEvent[]>>;
+  }> {
     return await ArvoOpenTelemetry.getInstance().startActiveSpan({
       name: `Orchestrator<${this.registry.machines[0].contracts.self.uri}>@<${event.type}>`,
       spanOptions: {
@@ -447,7 +453,13 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
                 message: 'Orchestration executed with issues and emitted 0 events',
               });
 
-              return [];
+              return {
+                events: [],
+                allEventDomains: [],
+                domainedEvents: {
+                  all: [],
+                },
+              };
             }
           } else {
             logToSpan({
@@ -465,7 +477,13 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
                 level: 'INFO',
                 message: 'Orchestration executed with issues and emitted 0 events',
               });
-              return [];
+              return {
+                events: [],
+                allEventDomains: [],
+                domainedEvents: {
+                  all: [],
+                },
+              };
             }
           }
 
@@ -557,14 +575,30 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
 
           // Create the final emittable events after performing
           // validations and subject creations etc.
-          const emittables = rawMachineEmittedEvents.map((item) =>
-            this.createEmittableEvent(item, machine, otelHeaders, orchestrationParentSubject, event),
-          );
+          const domainedEvents: Record<string, ArvoEvent[]> = {};
+          const emittables: ArvoEvent[] = [];
+          const eventIdToDomainMap: Record<string, string[]> = {};
+
+          for (const item of rawMachineEmittedEvents) {
+            const domains = item.domains ?? ['default'];
+            const evt = this.createEmittableEvent(item, machine, otelHeaders, orchestrationParentSubject, event);
+            eventIdToDomainMap[evt.id] = domains;
+            emittables.push(evt);
+            for (const tag of domains) {
+              if (!domainedEvents[tag]) {
+                domainedEvents[tag] = [];
+              }
+              domainedEvents[tag].push(evt);
+            }
+          }
 
           emittables.forEach((item, index) => {
             // biome-ignore lint/complexity/noForEach: non issue
             Object.entries(item.otelAttributes).forEach(([key, value]) => {
               span.setAttribute(`to_emit.${index}.${key}`, value);
+            });
+            eventIdToDomainMap[item.id].forEach((dom, index) => {
+              span.setAttribute(`to_emit.${index}.domains.${index}`, dom);
             });
           });
 
@@ -599,7 +633,14 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             message: `Orchestration successfully executed and emitted ${emittables.length} events`,
           });
 
-          return emittables;
+          return {
+            events: domainedEvents.default ?? [],
+            allEventDomains: Object.keys(domainedEvents),
+            domainedEvents: {
+              all: emittables,
+              ...domainedEvents,
+            },
+          };
         } catch (error: unknown) {
           // If this is not an error this is not exected and must be addressed
           // This is a fundmental unexpected scenario and must be handled as such
@@ -668,7 +709,14 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           Object.entries(errorEvent.otelAttributes).forEach(([key, value]) => {
             span.setAttribute(`to_emit.0.${key}`, value);
           });
-          return [errorEvent];
+          return {
+            events: [errorEvent],
+            allEventDomains: ['default'],
+            domainedEvents: {
+              all: [errorEvent],
+              default: [errorEvent],
+            },
+          };
         } finally {
           await this.releaseLock(event, acquiredLock, span);
           span.end();
