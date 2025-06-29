@@ -3,33 +3,44 @@ import type { AbstractArvoEventHandler } from 'arvo-event-handler';
 import { SimpleEventBroker } from '.';
 
 /**
- * Factory for creating local event brokers with domain event handlers.
+ * Creates a local event broker configured with domain event handlers.
  *
- * @param eventHandlers - Handlers to register with the broker
- * @param onError - Optional custom error handler
- * @returns Configured event broker
+ * The broker automatically wires each handler to its source topic and propagates
+ * resulting events. Includes default error handling with console logging.
+ *
+ * @param eventHandlers - Array of event handlers to register with the broker
+ * @param options - Configuration options
+ * @param options.onError - Custom error handler for broker errors
+ * @param options.onDomainedEvents - Callback for handling domain-specific events
+ * @returns Configured SimpleEventBroker instance with handlers subscribed
  *
  * @example
  * ```typescript
  * const broker = createSimpleEventBroker([
- *   new OrderValidationHandler(),
- *   new OrderProcessingHandler()
+ *   createArvoOrchestrator(...),
+ *   createArvoEventHandler(...)
  * ]);
  *
- * await broker.publish({
- *   to: 'order.validate',
- *   payload: orderData
- * });
+ * await broker.publish(createArvoEvent({
+ *    type: 'com.openai.completion',
+ *    data: {...}
+ * }));
  * ```
  */
 export const createSimpleEventBroker = (
   eventHandlers: AbstractArvoEventHandler[],
-  onError?: (error: Error, event: ArvoEvent) => void,
+  options?: {
+    onError?: (error: Error, event: ArvoEvent) => void;
+    onDomainedEvents?: (param: {
+      events: Record<string, ArvoEvent[]>;
+      broker: SimpleEventBroker;
+    }) => void;
+  },
 ) => {
   const broker = new SimpleEventBroker({
     maxQueueSize: 1000,
     errorHandler:
-      onError ??
+      options?.onError ??
       ((error, event) => {
         console.error('Broker error:', {
           message: error.message,
@@ -45,12 +56,20 @@ export const createSimpleEventBroker = (
     broker.subscribe(
       handler.source,
       async (event) => {
-        const { events: resultEvents } = await handler.execute(event, {
+        const response = await handler.execute(event, {
           inheritFrom: 'EVENT',
         });
+        // Emit the domained events
+        if (response.domainedEvents && typeof response.domainedEvents === 'object') {
+          const { all, ...rest } = response.domainedEvents as Record<string, ArvoEvent[]>;
+          options?.onDomainedEvents?.({
+            events: rest,
+            broker: broker,
+          });
+        }
         // Propagate any resulting events
         // biome-ignore lint/complexity/noForEach: TODO - fix later
-        resultEvents.forEach((resultEvent) => broker.publish(resultEvent));
+        response.events.forEach((e) => broker.publish(e));
       },
       true,
     );

@@ -465,8 +465,10 @@ describe('ArvoOrchestrator', () => {
 
   it('should throw error event in case of faulty parent subject', async () => {
     let brokerError: Error | null = null;
-    const broker = createSimpleEventBroker(Object.values(handlers), (error) => {
-      brokerError = error;
+    const broker = createSimpleEventBroker(Object.values(handlers), {
+      onError: (error) => {
+        brokerError = error;
+      },
     });
     let finalEventFromTest: ArvoEvent | null = null;
     broker.subscribe('com.test.test', async (event) => {
