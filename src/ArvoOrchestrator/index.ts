@@ -291,6 +291,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         executionunits: event.executionunits ?? this.executionunits,
         traceparent: otelHeaders.traceparent ?? undefined,
         tracestate: otelHeaders.tracestate ?? undefined,
+        parentid: sourceEvent.id,
       },
       event.__extensions ?? {},
     );
@@ -706,6 +707,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             tracestate: otelHeaders.tracestate ?? undefined,
             accesscontrol: event.accesscontrol ?? undefined,
             executionunits: this.executionunits,
+            parentid: event.id,
           });
           // biome-ignore lint/complexity/noForEach: non issue
           Object.entries(errorEvent.otelAttributes).forEach(([key, value]) => {

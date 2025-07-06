@@ -709,4 +709,48 @@ describe('ArvoOrchestrator', () => {
 
     expect(() => dumbOrchestrator.execute(event)).rejects.toThrow('ViolationError<Execution> Violation error');
   });
+
+  describe('parentid support', () => {
+    it('should set parentid correctly for orchestrator-emitted events', async () => {
+      const initEvent = createArvoOrchestratorEventFactory(incrementOrchestratorContract.version('0.0.1')).init({
+        source: 'com.test.test',
+        data: {
+          key: 'test.key.parentid',
+          modifier: 2,
+          trend: 'linear',
+          parentSubject$$: null,
+        },
+      });
+
+      valueStore[initEvent.data.key] = 5;
+
+      let events = await handlers.incrementAgent.execute(initEvent, {
+        inheritFrom: 'EVENT',
+      });
+
+      expect(events.events.length).toBe(1);
+      expect(events.events[0].type).toBe(valueReadContract.type);
+      expect(events.events[0].parentid).toBe(initEvent.id);
+
+      await promiseTimeout();
+      const nextEvent = events.events[0];
+      events = await handlers.valueRead.execute(nextEvent, {
+        inheritFrom: 'EVENT',
+      });
+
+      expect(events.events.length).toBe(1);
+      expect(events.events[0].type).toBe('evt.value.read.success');
+      expect(events.events[0].parentid).toBe(nextEvent.id);
+
+      const valueReadResponseEvent = events.events[0];
+      await promiseTimeout();
+      events = await handlers.incrementAgent.execute(valueReadResponseEvent, {
+        inheritFrom: 'EVENT',
+      });
+
+      expect(events.events.length).toBe(1);
+      expect(events.events[0].type).toBe(incrementContract.type);
+      expect(events.events[0].parentid).toBe(valueReadResponseEvent.id);
+    });
+  });
 });
