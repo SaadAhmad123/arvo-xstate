@@ -457,6 +457,11 @@ describe('ArvoOrchestrator', () => {
         1 + // Decrement orchestrator completion event
         1, // Number modifier orchestrator completion event
     );
+    const state = await machineMemory.read(initEvent.subject);
+
+    expect(state?.initEventId).toBe(initEvent.id);
+    expect(initEvent.id).toBe(broker.events[broker.events.length - 1].parentid);
+    expect(initEvent.id).not.toBe(broker.events[broker.events.length - 2].parentid);
     expect(finalEventFromTest).toBe(null);
     expect(finalEventFromTest1).not.toBe(null);
     // biome-ignore  lint/style/noNonNullAssertion: non issue
