@@ -1,4 +1,3 @@
-import type { MachineMemoryRecord } from '../ArvoOrchestrator/types';
 import type { IMachineMemory } from './interface';
 
 /**
@@ -15,8 +14,8 @@ import type { IMachineMemory } from './interface';
  *   machines: [workflow]
  * });
  */
-export class SimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> {
-  private readonly memoryMap: Map<string, MachineMemoryRecord> = new Map();
+export class SimpleMachineMemory<T extends Record<string, any> = Record<string, any>> implements IMachineMemory<T> {
+  private readonly memoryMap: Map<string, T> = new Map();
   private readonly lockMap: Map<string, boolean> = new Map();
 
   /**
@@ -25,7 +24,7 @@ export class SimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> 
    * @returns State data or null if not found
    * @throws {Error} When id is empty or undefined
    */
-  async read(id: string): Promise<MachineMemoryRecord | null> {
+  async read(id: string): Promise<T | null> {
     if (!id) {
       throw new Error('Machine ID is required for read operation');
     }
@@ -38,7 +37,7 @@ export class SimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> 
    * @param data State to store
    * @throws {Error} When id is empty/undefined or data is null/undefined
    */
-  async write(id: string, data: MachineMemoryRecord): Promise<void> {
+  async write(id: string, data: T): Promise<void> {
     if (!id) {
       throw new Error('Machine ID is required for write operation');
     }

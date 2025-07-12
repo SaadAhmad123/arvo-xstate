@@ -97,5 +97,3 @@ export interface ICreateArvoOrchestrator {
    */
   machines: ArvoMachine<any, any, any, any, any>[];
 }
-
-export type AcquiredLockStatusType = 'NOOP' | 'ACQUIRED' | 'NOT_ACQUIRED';

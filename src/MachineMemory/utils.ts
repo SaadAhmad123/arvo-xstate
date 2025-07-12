@@ -1,7 +1,6 @@
 import { logToSpan } from 'arvo-core';
-import type { MachineMemoryRecord } from '../ArvoOrchestrator/types';
 
-export function getJsonSize(obj: MachineMemoryRecord): number {
+export function getJsonSize(obj: Record<string, any>): number {
   try {
     const jsonString = JSON.stringify(obj);
     // Use TextEncoder to get actual UTF-8 byte length

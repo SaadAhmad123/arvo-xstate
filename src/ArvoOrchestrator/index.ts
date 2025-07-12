@@ -1,4 +1,4 @@
-import { type Span, SpanKind, SpanStatusCode, context } from '@opentelemetry/api';
+import { SpanKind, SpanStatusCode, context } from '@opentelemetry/api';
 import {
   type ArvoContract,
   type ArvoContractRecord,
@@ -39,7 +39,9 @@ import type { IMachineMemory } from '../MachineMemory/interface';
 import type { IMachineRegistry } from '../MachineRegistry/interface';
 import { isError } from '../utils';
 import { TransactionViolation, TransactionViolationCause } from './error';
-import type { AcquiredLockStatusType, IArvoOrchestrator, MachineMemoryRecord } from './types';
+import type { IArvoOrchestrator, MachineMemoryRecord } from './types';
+import { SyncEventResource } from '../SyncEventResource';
+import type { AcquiredLockStatusType } from '../SyncEventResource/types';
 
 /**
  * Orchestrates state machine execution and lifecycle management.
@@ -47,16 +49,20 @@ import type { AcquiredLockStatusType, IArvoOrchestrator, MachineMemoryRecord } f
  */
 export class ArvoOrchestrator extends AbstractArvoEventHandler {
   readonly executionunits: number;
-  readonly memory: IMachineMemory<MachineMemoryRecord>;
   readonly registry: IMachineRegistry;
   readonly executionEngine: IMachineExectionEngine;
-  readonly requiresResourceLocking: boolean;
+  readonly syncEventResource: SyncEventResource<MachineMemoryRecord>;
 
-  /**
-   * Gets the source identifier for this orchestrator
-   */
   get source() {
     return this.registry.machines[0].source;
+  }
+
+  get requiresResourceLocking(): boolean {
+    return this.syncEventResource.requiresResourceLocking;
+  }
+
+  get memory(): IMachineMemory<MachineMemoryRecord> {
+    return this.syncEventResource.memory;
   }
 
   /**
@@ -67,7 +73,6 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   constructor({ executionunits, memory, registry, executionEngine, requiresResourceLocking }: IArvoOrchestrator) {
     super();
     this.executionunits = executionunits;
-    this.memory = memory;
     const representativeMachine = registry.machines[0];
     const lastSeenVersions: ArvoSemanticVersion[] = [];
     for (const machine of registry.machines) {
@@ -83,84 +88,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
     }
     this.registry = registry;
     this.executionEngine = executionEngine;
-    this.requiresResourceLocking = requiresResourceLocking;
-  }
-
-  /**
-   * Acquires a lock on the event subject. Skip if sequential processing is enabled.
-   * @throws {TransactionViolation} If lock acquisition fails
-   */
-  protected async acquireLock(event: ArvoEvent): Promise<AcquiredLockStatusType> {
-    const id: string = event.subject;
-    if (!this.requiresResourceLocking) {
-      logToSpan({
-        level: 'INFO',
-        message: `Skipping acquiring lock for event (id=${id})as the orchestrator implements only sequential machines.`,
-      });
-      return 'NOOP';
-    }
-
-    try {
-      logToSpan({
-        level: 'INFO',
-        message: 'Acquiring lock for the event',
-      });
-      const acquired = await this.memory.lock(id);
-      return acquired ? 'ACQUIRED' : 'NOT_ACQUIRED';
-    } catch (e) {
-      throw new TransactionViolation({
-        cause: TransactionViolationCause.LOCK_FAILURE,
-        message: `Error acquiring lock (id=${id}): ${(e as Error)?.message}`,
-        initiatingEvent: event,
-      });
-    }
-  }
-
-  protected async acquireState(event: ArvoEvent): Promise<MachineMemoryRecord | null> {
-    const id: string = event.subject;
-    try {
-      logToSpan({
-        level: 'INFO',
-        message: 'Reading machine state for the event',
-      });
-      return await this.memory.read(id);
-    } catch (e) {
-      throw new TransactionViolation({
-        cause: TransactionViolationCause.READ_FAILURE,
-        message: `Error reading state (id=${id}): ${(e as Error)?.message}`,
-        initiatingEvent: event,
-      });
-    }
-  }
-
-  protected async persistState(event: ArvoEvent, record: MachineMemoryRecord, prevRecord: MachineMemoryRecord | null) {
-    const id = event.subject;
-    try {
-      logToSpan({
-        level: 'INFO',
-        message: 'Persisting machine state to the storage',
-      });
-      await this.memory.write(id, record, prevRecord);
-    } catch (e) {
-      throw new TransactionViolation({
-        cause: TransactionViolationCause.WRITE_FAILURE,
-        message: `Error writing state for event (id=${id}): ${(e as Error)?.message}`,
-        initiatingEvent: event,
-      });
-    }
-  }
-
-  protected validateConsumedEventSubject(event: ArvoEvent) {
-    logToSpan({
-      level: 'INFO',
-      message: 'Validating event subject',
-    });
-    const isValid = ArvoOrchestrationSubject.isValid(event.subject);
-    if (!isValid) {
-      throw new ExecutionViolation(
-        `Invalid event (id=${event.id}) subject format. Expected an ArvoOrchestrationSubject but received '${event.subject}'. The subject must follow the format specified by ArvoOrchestrationSubject schema`,
-      );
-    }
+    this.syncEventResource = new SyncEventResource(memory, requiresResourceLocking);
   }
 
   /**
@@ -305,50 +233,6 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
   }
 
   /**
-   * If the machine execution session acquired the lock
-   * release the lock before closing. Since the expectation from the
-   * machine memory is that there is optimistic locking and the lock
-   * has expiry time then swallowing is not an issue rather it
-   * avoid unnecessary errors
-   */
-  protected async releaseLock(
-    event: ArvoEvent,
-    acquiredLock: AcquiredLockStatusType | null,
-    span: Span,
-  ): Promise<'NOOP' | 'RELEASED' | 'ERROR'> {
-    if (acquiredLock !== 'ACQUIRED') {
-      logToSpan(
-        {
-          level: 'INFO',
-          message: 'Lock was not acquired by the process so perfroming no operation',
-        },
-        span,
-      );
-      return 'NOOP';
-    }
-    try {
-      await this.memory.unlock(event.subject);
-      logToSpan(
-        {
-          level: 'INFO',
-          message: 'Lock successfully released',
-        },
-        span,
-      );
-      return 'RELEASED';
-    } catch (err) {
-      logToSpan(
-        {
-          level: 'ERROR',
-          message: `Memory unlock operation failed - Possible resource leak: ${(err as Error).message}`,
-        },
-        span,
-      );
-      return 'ERROR';
-    }
-  }
-
-  /**
    * Core orchestration method that executes state machines in response to events.
    * Manages the complete event lifecycle:
    * 1. Acquires lock and state
@@ -413,11 +297,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         let orchestrationParentSubject: string | null = null;
         let acquiredLock: AcquiredLockStatusType | null = null;
         try {
-          // Validating subject
-          this.validateConsumedEventSubject(event);
-
-          // Acquiring lock
-          acquiredLock = await this.acquireLock(event);
+          this.syncEventResource.validateEventSubject(event);
+          acquiredLock = await this.syncEventResource.acquireLock(event);
 
           if (acquiredLock === 'NOT_ACQUIRED') {
             throw new TransactionViolation({
@@ -435,7 +316,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           }
 
           // Acquiring state
-          const state = await this.acquireState(event);
+          const state = await this.syncEventResource.acquireState(event);
           orchestrationParentSubject = state?.parentSubject ?? null;
 
           if (!state) {
@@ -618,7 +499,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           };
 
           // Write to the memory
-          await this.persistState(
+          await this.syncEventResource.persistState(
             event,
             {
               subject: event.subject,
@@ -722,7 +603,7 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             },
           };
         } finally {
-          await this.releaseLock(event, acquiredLock, span);
+          await this.syncEventResource.releaseLock(event, acquiredLock, span);
           span.end();
         }
       },

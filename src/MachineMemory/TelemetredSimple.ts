@@ -1,6 +1,5 @@
 import { SpanKind } from '@opentelemetry/api';
 import { ArvoOpenTelemetry } from 'arvo-core';
-import type { MachineMemoryRecord } from '../ArvoOrchestrator/types';
 import type { IMachineMemory } from './interface';
 import { getJsonSize } from './utils';
 
@@ -11,15 +10,17 @@ import { getJsonSize } from './utils';
  * Not for: Multi-instance deployments, persistent workflows, distributed systems
  *
  * @example
- * const memory = new SimpleMachineMemory();
+ * const memory = new TelemetredSimpleMachineMemory();
  * const orchestrator = createArvoOrchestrator({
  *   memory,
  *   executionunits: 0.1,
  *   machines: [workflow]
  * });
  */
-export class TelemetredSimpleMachineMemory implements IMachineMemory<MachineMemoryRecord> {
-  private readonly memoryMap: Map<string, MachineMemoryRecord> = new Map();
+export class TelemetredSimpleMachineMemory<T extends Record<string, any> = Record<string, any>>
+  implements IMachineMemory<T>
+{
+  private readonly memoryMap: Map<string, T> = new Map();
   private readonly lockMap: Map<string, boolean> = new Map();
 
   /**
@@ -28,7 +29,7 @@ export class TelemetredSimpleMachineMemory implements IMachineMemory<MachineMemo
    * @returns State data or null if not found
    * @throws {Error} When id is empty or undefined
    */
-  async read(id: string): Promise<MachineMemoryRecord | null> {
+  async read(id: string): Promise<T | null> {
     return await ArvoOpenTelemetry.getInstance().startActiveSpan({
       name: 'Read Simple Memory',
       spanOptions: {
@@ -52,7 +53,7 @@ export class TelemetredSimpleMachineMemory implements IMachineMemory<MachineMemo
    * @param data State to store
    * @throws {Error} When id is empty/undefined or data is null/undefined
    */
-  async write(id: string, data: MachineMemoryRecord): Promise<void> {
+  async write(id: string, data: T): Promise<void> {
     return await ArvoOpenTelemetry.getInstance().startActiveSpan({
       name: 'Write Simple Memory',
       spanOptions: {

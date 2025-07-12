@@ -48,7 +48,7 @@ describe('ArvoOrchestrator', () => {
   });
 
   const valueStore: Record<string, number> = {};
-  const machineMemory: SimpleMachineMemory = new SimpleMachineMemory();
+  const machineMemory = new SimpleMachineMemory<MachineMemoryRecord>();
 
   const handlers = {
     increment: incrementNumberHandler(),
@@ -357,7 +357,7 @@ describe('ArvoOrchestrator', () => {
     });
 
     await expect(orchestrator.execute(initEvent)).rejects.toThrow(
-      `Error acquiring lock (id=${initEvent.subject}): Locking system failure!`,
+      `Error acquiring lock for event (subject=${initEvent.subject}): Locking system failure!`,
     );
   });
 
@@ -386,7 +386,7 @@ describe('ArvoOrchestrator', () => {
     });
 
     await expect(orchestrator.execute(initEvent)).rejects.toThrow(
-      `Error reading state (id=${initEvent.subject}): Failed to acquire memory`,
+      `Error reading state for event (subject=${initEvent.subject}): Failed to acquire memory`,
     );
   });
 
@@ -415,7 +415,7 @@ describe('ArvoOrchestrator', () => {
     });
 
     await expect(orchestrator.execute(initEvent)).rejects.toThrow(
-      `Error writing state for event (id=${initEvent.subject}): Failed to write memory`,
+      `Error writing state for event (subject=${initEvent.subject}): Failed to write memory`,
     );
   });
 
