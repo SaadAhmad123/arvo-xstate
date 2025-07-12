@@ -7,19 +7,16 @@ describe('TelemetredSimpleMachineMemory', () => {
   beforeEach(() => {
     memory = new TelemetredSimpleMachineMemory();
     validData = {
+      initEventId: '',
       subject: 'test',
       state: {} as any,
       parentSubject: null,
       status: 'active',
       value: '',
       machineDefinition: null,
-      consumed: [],
-      produced: {
-        events: [],
-        allEventDomains: [],
-        domainedEvents: {
-          all: [],
-        },
+      events: {
+        consumed: null,
+        produced: {},
       },
     };
   });

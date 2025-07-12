@@ -1,4 +1,4 @@
-import type { ArvoEvent } from 'arvo-core';
+import type { ArvoEvent, InferArvoEvent } from 'arvo-core';
 import type { Snapshot } from 'xstate';
 import type ArvoMachine from '../ArvoMachine';
 import type { IMachineExectionEngine } from '../MachineExecutionEngine/interface';
@@ -22,8 +22,30 @@ export type MachineMemoryRecord = {
   /** Unique identifier for the machine instance */
   subject: string;
 
-  /** Optional reference to parent orchestration subject */
+  /**
+   * Reference to the parent orchestration's subject when orchestrations are nested or chained.
+   * This enables hierarchical orchestration patterns where one orchestration can spawn
+   * sub-orchestrations. When the current orchestration completes, its completion event
+   * is routed back to this parent subject rather than staying within the current context.
+   *
+   * - For root orchestrations: null
+   * - For nested orchestrations: contains the subject of the parent orchestration
+   * - Extracted from the `parentSubject$$` field in initialization events
+   */
   parentSubject: string | null;
+
+  /**
+   * The unique identifier of the event that originally initiated this entire orchestration workflow.
+   * This serves as the root identifier for tracking the complete execution chain from start to finish.
+   *
+   * - For new orchestrations: set to the current event's ID
+   * - For resumed orchestrations: retrieved from the stored state
+   * - Used as the `parentid` for completion events to create a direct lineage back to the workflow's origin
+   *
+   * This enables tracing the entire execution path and ensures completion events reference
+   * the original triggering event rather than just the immediate previous step.
+   */
+  initEventId: string;
 
   /**
    * Current execution status of the machine. The status field represents the current
@@ -45,16 +67,15 @@ export type MachineMemoryRecord = {
   /** XState snapshot representing the machine's current state */
   state: Snapshot<any>;
 
-  /** The event consumed by the machine in the last session */
-  consumed: ArvoEvent[];
+  events: {
+    /** The event consumed by the machine in the last session */
+    consumed: ArvoEvent | null;
 
-  /** Rvents produced by the machine in the last session*/
-  produced: {
-    events: ArvoEvent[];
-    allEventDomains: string[];
-    domainedEvents: {
-      all: ArvoEvent[];
-    } & Partial<Record<string, ArvoEvent[]>>;
+    /**
+     * The domained events produced by the machine in the last session
+     * {[id]: {...ArvoEvent.toJSON(), domain: string[]}}
+     */
+    produced: Record<string, { domains: string[] } & InferArvoEvent<ArvoEvent>>;
   };
 
   /** Machine definition string */
