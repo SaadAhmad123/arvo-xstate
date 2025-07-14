@@ -39,6 +39,22 @@ import type { AcquiredLockStatusType } from '../SyncEventResource/types';
 import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import { isError } from '../utils/index';
 
+/**
+ * ArvoResumable - A stateful orchestration handler for managing distributed workflows
+ *
+ * This class provides a framework for building resumable, event-driven orchestrations that can
+ * coordinate between multiple services while maintaining persistent state and transactional safety.
+ * It handles both initialization events and service response events, ensuring proper contract
+ * validation and state management throughout the workflow lifecycle.
+ *
+ * Key capabilities:
+ * - Stateful workflow orchestration with persistence
+ * - Resource locking for transaction safety
+ * - Contract-based event validation
+ * - OpenTelemetry integration for observability
+ * - Automatic error handling and system error generation
+ * - Support for service chaining and nested orchestrations
+ */
 export class ArvoResumable<
   TMemory extends Record<string, any>,
   TSelfContract extends ArvoOrchestratorContract = ArvoOrchestratorContract,
@@ -288,6 +304,24 @@ export class ArvoResumable<
     return emittableEvent;
   }
 
+  /**
+   * Executes the orchestration workflow for an incoming event
+   *
+   * This is the main entry point that:
+   * 1. Validates the event and resolves contracts
+   * 2. Acquires distributed locks if required
+   * 3. Loads or initializes workflow state
+   * 4. Executes the orchestration handler
+   * 5. Creates and validates output events
+   * 6. Persists updated state
+   * 7. Handles errors and creates system error events
+   *
+   * The execution is wrapped in OpenTelemetry spans for comprehensive observability.
+   *
+   * @returns Object containing emitted events organized by domains
+   * @throws {TransactionViolation} When resource locking fails
+   * @throws {ViolationError} For various validation and configuration errors
+   */
   async execute(
     event: ArvoEvent,
     opentelemetry: ArvoEventHandlerOpenTelemetryOptions,
