@@ -300,87 +300,37 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
         });
         const otelHeaders = currentOpenTelemetryHeaders();
         let orchestrationParentSubject: string | null = null;
-        let initEventId: string;
+        let initEventId: string | null = null;
         let acquiredLock: AcquiredLockStatusType | null = null;
         try {
+          ///////////////////////////////////////////////////////////////
+          // Subject resolution, machine resolution and input validation
+          ///////////////////////////////////////////////////////////////
           this.syncEventResource.validateEventSubject(event, span);
-          acquiredLock = await this.syncEventResource.acquireLock(event, span);
+          const parsedEventSubject = ArvoOrchestrationSubject.parse(event.subject);
+          span.setAttributes({
+            'arvo.parsed.subject.orchestrator.name': parsedEventSubject.orchestrator.name,
+            'arvo.parsed.subject.orchestrator.version': parsedEventSubject.orchestrator.version,
+          });
 
-          if (acquiredLock === 'NOT_ACQUIRED') {
-            throw new TransactionViolation({
-              cause: TransactionViolationCause.LOCK_UNACQUIRED,
-              message: 'Lock acquisition denied - Unable to obtain exclusive access to event processing',
-              initiatingEvent: event,
+          // The wrong source is not a big violation. May be some routing went wrong. So just ignore
+          if (parsedEventSubject.orchestrator.name !== this.source) {
+            logToSpan({
+              level: 'WARNING',
+              message: `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates '${parsedEventSubject.orchestrator.name}'. This indicates either a routing error or a non-applicable event that can be safely ignored.`,
             });
-          }
 
-          if (acquiredLock === 'ACQUIRED') {
             logToSpan({
               level: 'INFO',
-              message: `This execution acquired lock at resource '${event.subject}'`,
+              message: 'Orchestration executed with issues and emitted 0 events',
             });
-          }
-
-          // Acquiring state
-          const state = await this.syncEventResource.acquireState(event, span);
-          orchestrationParentSubject = state?.parentSubject ?? null;
-          initEventId = state?.initEventId ?? event.id;
-
-          if (!state) {
-            logToSpan({
-              level: 'INFO',
-              message: `Initializing new execution state for subject: ${event.subject}`,
-            });
-
-            if (event.type !== this.source) {
-              logToSpan({
-                level: 'WARNING',
-                message: `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`,
-              });
-              logToSpan({
-                level: 'INFO',
-                message: 'Orchestration executed with issues and emitted 0 events',
-              });
-
-              return {
-                events: [],
-                allEventDomains: [],
-                domainedEvents: {
-                  all: [],
-                },
-              };
-            }
-          } else {
-            logToSpan({
-              level: 'INFO',
-              message: `Resuming execution with existing state for subject: ${event.subject}`,
-            });
-
-            if (ArvoOrchestrationSubject.parse(event.subject).orchestrator.name !== this.source) {
-              logToSpan({
-                level: 'WARNING',
-                message: `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates '${ArvoOrchestrationSubject.parse(event.subject).orchestrator.name}'. This indicates either a routing error or a non-applicable event that can be safely ignored.`,
-              });
-
-              logToSpan({
-                level: 'INFO',
-                message: 'Orchestration executed with issues and emitted 0 events',
-              });
-              return {
-                events: [],
-                allEventDomains: [],
-                domainedEvents: {
-                  all: [],
-                },
-              };
-            }
-          }
-
-          // In case the event is the init event then
-          // extract the parent subject from it and assume
-          // it to be the orchestration parent subject
-          if (event.type === this.source) {
-            orchestrationParentSubject = event?.data?.parentSubject$$ ?? null;
+            return {
+              events: [],
+              allEventDomains: [],
+              domainedEvents: {
+                all: [],
+              },
+            };
           }
 
           logToSpan({
@@ -392,9 +342,9 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             inheritFrom: 'CONTEXT',
           });
 
+          // Unable to find a machine is a big configuration bug and violation
           if (!machine) {
-            const subject = ArvoOrchestrationSubject.parse(event.subject);
-            const { name, version } = subject.orchestrator;
+            const { name, version } = parsedEventSubject.orchestrator;
             throw new ConfigViolation(
               `Machine resolution failed: No machine found matching orchestrator name='${name}' and version='${version}'.`,
             );
@@ -432,6 +382,64 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             );
           }
 
+          ///////////////////////////////////////////////////////////////
+          // State locking, acquiry machine exection
+          ///////////////////////////////////////////////////////////////
+          acquiredLock = await this.syncEventResource.acquireLock(event, span);
+          if (acquiredLock === 'NOT_ACQUIRED') {
+            throw new TransactionViolation({
+              cause: TransactionViolationCause.LOCK_UNACQUIRED,
+              message: 'Lock acquisition denied - Unable to obtain exclusive access to event processing',
+              initiatingEvent: event,
+            });
+          }
+
+          if (acquiredLock === 'ACQUIRED') {
+            logToSpan({
+              level: 'INFO',
+              message: `This execution acquired lock at resource '${event.subject}'`,
+            });
+          }
+
+          // Acquiring state
+          const state = await this.syncEventResource.acquireState(event, span);
+          orchestrationParentSubject = state?.parentSubject ?? null;
+          initEventId = state?.initEventId ?? event.id;
+
+          if (!state) {
+            logToSpan({
+              level: 'INFO',
+              message: `Initializing new execution state for subject: ${event.subject}`,
+            });
+
+            if (event.type !== this.source) {
+              logToSpan({
+                level: 'WARNING',
+                message: `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`,
+              });
+
+              return {
+                events: [],
+                allEventDomains: [],
+                domainedEvents: {
+                  all: [],
+                },
+              };
+            }
+          } else {
+            logToSpan({
+              level: 'INFO',
+              message: `Resuming execution with existing state for subject: ${event.subject}`,
+            });
+          }
+
+          // In case the event is the init event then
+          // extract the parent subject from it and assume
+          // it to be the orchestration parent subject
+          if (event.type === this.source) {
+            orchestrationParentSubject = event?.data?.parentSubject$$ ?? null;
+          }
+
           // Execute the raw machine and collect the result
           // The result basically contain RAW events from the
           // machine which will then transformed to be real ArvoEvents
@@ -453,14 +461,17 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
           // that case, make the raw event as the final output
           // is not even raw enough to be called an event yet
           if (executionResult.finalOutput) {
-            const _parsedSubject = ArvoOrchestrationSubject.parse(event.subject);
             rawMachineEmittedEvents.push({
               type: (machine.contracts.self as VersionedArvoContract<ArvoOrchestratorContract, ArvoSemanticVersion>)
                 .metadata.completeEventType,
               data: executionResult.finalOutput,
-              to: _parsedSubject?.meta?.redirectto ?? _parsedSubject.execution.initiator,
+              to: parsedEventSubject.meta?.redirectto ?? parsedEventSubject.execution.initiator,
             });
           }
+
+          ///////////////////////////////////////////////////////////////
+          // Event segregation, creation, state persitance and return result
+          ///////////////////////////////////////////////////////////////
 
           // Create the final emittable events after performing
           // validations and subject creations etc.
@@ -493,8 +504,8 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             Object.entries(item.otelAttributes).forEach(([key, value]) => {
               span.setAttribute(`to_emit.${index}.${key}`, value);
             });
-            eventIdToDomainMap[item.id].forEach((dom, index) => {
-              span.setAttribute(`to_emit.${index}.domains.${index}`, dom);
+            eventIdToDomainMap[item.id].forEach((dom, domIndex) => {
+              span.setAttribute(`to_emit.${index}.domains.${domIndex}`, dom);
             });
           });
 
@@ -527,14 +538,16 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
                 produced: (() => {
                   const evtMap: Record<string, { domains: string[] } & InferArvoEvent<ArvoEvent>> = {};
                   for (const [domain, events] of Object.entries(domainedEvents)) {
-                    if (evtMap[event.id]) {
-                      evtMap[event.id].domains.push(domain);
-                    } else {
-                      // @ts-ignore
-                      evtMap[event.id] = {
-                        ...event.toJSON(),
-                        domains: [domain],
-                      };
+                    for (const evt of events) {
+                      if (evtMap[evt.id]) {
+                        evtMap[evt.id].domains.push(domain);
+                      } else {
+                        // @ts-ignore
+                        evtMap[evt.id] = {
+                          ...evt.toJSON(),
+                          domains: [domain],
+                        };
+                      }
                     }
                   }
                   return evtMap;
@@ -620,7 +633,11 @@ export class ArvoOrchestrator extends AbstractArvoEventHandler {
             tracestate: otelHeaders.tracestate ?? undefined,
             accesscontrol: event.accesscontrol ?? undefined,
             executionunits: this.executionunits,
-            parentid: event.id,
+            // If there is initEventID then use that.
+            // Otherwise, use event id. If the error is in init event
+            // then it will be the same as initEventId. Otherwise,
+            // we still would know what cause this error
+            parentid: initEventId ? initEventId : event.id,
           });
           // biome-ignore lint/complexity/noForEach: non issue
           Object.entries(errorEvent.otelAttributes).forEach(([key, value]) => {

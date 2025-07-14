@@ -87,7 +87,7 @@ export class ArvoResumable<
   protected validateInput(event: ArvoEvent): {
     contractType: 'self' | 'service';
   } {
-    let resovledContract: VersionedArvoContract<any, any> | null = null;
+    let resolvedContract: VersionedArvoContract<any, any> | null = null;
     let contractType: 'self' | 'service';
 
     const parsedEventDataSchema = EventDataschemaUtil.parse(event);
@@ -99,21 +99,21 @@ export class ArvoResumable<
 
     if (event.type === this.contracts.self.type) {
       contractType = 'self';
-      resovledContract = this.contracts.self.version(parsedEventDataSchema.version);
+      resolvedContract = this.contracts.self.version(parsedEventDataSchema.version);
     } else {
       contractType = 'service';
       for (const contract of Object.values(this.contracts.services)) {
-        if (resovledContract) break;
+        if (resolvedContract) break;
         for (const emitType of [...contract.emitList, contract.systemError]) {
-          if (resovledContract) break;
+          if (resolvedContract) break;
           if (event.type === emitType) {
-            resovledContract = contract;
+            resolvedContract = contract;
           }
         }
       }
     }
 
-    if (!resovledContract) {
+    if (!resolvedContract) {
       throw new ConfigViolation(
         `Contract resolution failed: No matching contract found for event (id='${event.id}', type='${event.type}')`,
       );
@@ -121,26 +121,26 @@ export class ArvoResumable<
 
     logToSpan({
       level: 'INFO',
-      message: `Dataschema resolved: ${event.dataschema} matches contract(uri='${resovledContract.uri}', version='${resovledContract.version}')`,
+      message: `Dataschema resolved: ${event.dataschema} matches contract(uri='${resolvedContract.uri}', version='${resolvedContract.version}')`,
     });
-    if (parsedEventDataSchema.uri !== resovledContract.uri) {
+    if (parsedEventDataSchema.uri !== resolvedContract.uri) {
       throw new Error(
-        `Contract URI mismatch: ${contractType} Contract(uri='${resovledContract.uri}', type='${resovledContract.accepts.type}') does not match Event(dataschema='${event.dataschema}', type='${event.type}')`,
+        `Contract URI mismatch: ${contractType} Contract(uri='${resolvedContract.uri}', type='${resolvedContract.accepts.type}') does not match Event(dataschema='${event.dataschema}', type='${event.type}')`,
       );
     }
     if (
       !isWildCardArvoSematicVersion(parsedEventDataSchema.version) &&
-      parsedEventDataSchema.version !== resovledContract.version
+      parsedEventDataSchema.version !== resolvedContract.version
     ) {
       throw new Error(
-        `Contract version mismatch: ${contractType} Contract(version='${resovledContract.version}', type='${resovledContract.accepts.type}', uri=${resovledContract.uri}) does not match Event(dataschema='${event.dataschema}', type='${event.type}')`,
+        `Contract version mismatch: ${contractType} Contract(version='${resolvedContract.version}', type='${resolvedContract.accepts.type}', uri=${resolvedContract.uri}) does not match Event(dataschema='${event.dataschema}', type='${event.type}')`,
       );
     }
 
     const validationSchema: z.AnyZodObject =
       contractType === 'self'
-        ? resovledContract.accepts.schema
-        : (resovledContract.emits[event.type] ?? resovledContract.systemError.schema);
+        ? resolvedContract.accepts.schema
+        : (resolvedContract.emits[event.type] ?? resolvedContract.systemError.schema);
 
     validationSchema.parse(event.data);
     return { contractType };
@@ -333,9 +333,61 @@ export class ArvoResumable<
         const otelHeaders = currentOpenTelemetryHeaders();
         let orchestrationParentSubject: string | null = null;
         let acquiredLock: AcquiredLockStatusType | null = null;
-        let initEventId: string;
+        let initEventId: string | null = null;
         try {
+          ///////////////////////////////////////////////////////////////
+          // Subject resolution, handler resolution and input validation
+          ///////////////
+          // ////////////////////////////////////////////////
           this.syncEventResource.validateEventSubject(event);
+          const parsedEventSubject = ArvoOrchestrationSubject.parse(event.subject);
+          span.setAttributes({
+            'arvo.parsed.subject.orchestrator.name': parsedEventSubject.orchestrator.name,
+            'arvo.parsed.subject.orchestrator.version': parsedEventSubject.orchestrator.version,
+          });
+
+          // The wrong source is not a big violation. May be some routing went wrong. So just ignore the event
+          if (parsedEventSubject.orchestrator.name !== this.source) {
+            logToSpan({
+              level: 'WARNING',
+              message: `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates '${parsedEventSubject.orchestrator.name}'. This indicates either a routing error or a non-applicable event that can be safely ignored.`,
+            });
+
+            logToSpan({
+              level: 'INFO',
+              message: 'Orchestration executed with issues and emitted 0 events',
+            });
+            return {
+              events: [],
+              allEventDomains: [],
+              domainedEvents: {
+                all: [],
+              },
+            };
+          }
+
+          logToSpan({
+            level: 'INFO',
+            message: `Resolving machine for event ${event.type}`,
+          });
+
+          // Handler not found means that the handler is not defined which is not allowed and a critical bug
+          if (!this.handler[parsedEventSubject.orchestrator.version]) {
+            throw new ConfigViolation(
+              `Handler resolution failed: No handler found matching orchestrator name='${parsedEventSubject.orchestrator.name}' and version='${parsedEventSubject.orchestrator.version}'.`,
+            );
+          }
+
+          logToSpan({
+            level: 'INFO',
+            message: `Input validation started for event ${event.type}`,
+          });
+
+          const { contractType } = this.validateInput(event);
+
+          ///////////////////////////////////////////////////////////////
+          // State locking, acquiry and handler exection
+          ///////////////////////////////////////////////////////////////
           acquiredLock = await this.syncEventResource.acquireLock(event);
 
           if (acquiredLock === 'NOT_ACQUIRED') {
@@ -369,10 +421,6 @@ export class ArvoResumable<
                 level: 'WARNING',
                 message: `Invalid initialization event detected. Expected type '${this.source}' but received '${event.type}'. This may indicate an incorrectly routed event or a non-initialization event that can be safely ignored.`,
               });
-              logToSpan({
-                level: 'INFO',
-                message: 'Orchestration executed with issues and emitted 0 events',
-              });
 
               return {
                 events: [],
@@ -387,25 +435,6 @@ export class ArvoResumable<
               level: 'INFO',
               message: `Resuming execution with existing state for subject: ${event.subject}`,
             });
-
-            if (ArvoOrchestrationSubject.parse(event.subject).orchestrator.name !== this.source) {
-              logToSpan({
-                level: 'WARNING',
-                message: `Event subject mismatch detected. Expected orchestrator '${this.source}' but subject indicates '${ArvoOrchestrationSubject.parse(event.subject).orchestrator.name}'. This indicates either a routing error or a non-applicable event that can be safely ignored.`,
-              });
-
-              logToSpan({
-                level: 'INFO',
-                message: 'Orchestration executed with issues and emitted 0 events',
-              });
-              return {
-                events: [],
-                allEventDomains: [],
-                domainedEvents: {
-                  all: [],
-                },
-              };
-            }
           }
 
           // In case the event is the init event then
@@ -415,30 +444,24 @@ export class ArvoResumable<
             orchestrationParentSubject = event?.data?.parentSubject$$ ?? null;
           }
 
-          logToSpan({
-            level: 'INFO',
-            message: `Input validation started for event ${event.type}`,
-          });
-
-          const { contractType } = this.validateInput(event);
-
-          // biome-ignore lint/style/noNonNullAssertion: This is safe because it is validated in the `this.validateInput(event);` above
-          const parsedEventDataSchema = EventDataschemaUtil.parse(event)!;
-          const selfVersionedContract = this.contracts.self.version(parsedEventDataSchema.version);
-          const handler = this.handler[selfVersionedContract.version];
-
-          if (state?.events?.expected?.[event.id]) {
+          // This is not persisted untill handling. The reason is that if the event
+          // is causing a fault then what is the point of persisting it
+          if (state?.events?.expected?.[event.id] && Array.isArray(state?.events?.expected?.[event.id])) {
             state.events.expected[event.id].push(event.toJSON());
           }
 
+          const handler = this.handler[parsedEventSubject.orchestrator.version];
           const executionResult = await handler({
             span: span,
             state: state?.state$$ ?? null,
             metadata: state ?? null,
-            // @ts-ignore
-            init: contractType === 'self' ? event.toJSON() : null,
+            init: contractType === 'self' ? (event.toJSON() as any) : null,
             service: contractType === 'service' ? event.toJSON() : null,
           });
+
+          ///////////////////////////////////////////////////////////////
+          // Event segregation, creation, state persitance and return result
+          ///////////////////////////////////////////////////////////////
 
           // Create the final emittable events after performing
           // validations and subject creations etc.
@@ -447,7 +470,14 @@ export class ArvoResumable<
           const eventIdToDomainMap: Record<string, string[]> = {};
 
           for (const item of [
-            ...(executionResult?.complete ? [executionResult.complete] : []),
+            ...(executionResult?.complete
+              ? [
+                  {
+                    ...executionResult.complete,
+                    to: parsedEventSubject.meta?.redirectto ?? parsedEventSubject.execution.initiator,
+                  },
+                ]
+              : []),
             ...(executionResult?.services ? executionResult.services : []),
           ]) {
             const domains = item.domains ?? ['default'];
@@ -456,7 +486,7 @@ export class ArvoResumable<
               otelHeaders,
               orchestrationParentSubject,
               event,
-              selfVersionedContract,
+              this.contracts.self.version(parsedEventSubject.orchestrator.version),
               initEventId,
             );
             eventIdToDomainMap[evt.id] = domains;
@@ -474,8 +504,8 @@ export class ArvoResumable<
             Object.entries(item.otelAttributes).forEach(([key, value]) => {
               span.setAttribute(`to_emit.${index}.${key}`, value);
             });
-            eventIdToDomainMap[item.id].forEach((dom, index) => {
-              span.setAttribute(`to_emit.${index}.domains.${index}`, dom);
+            eventIdToDomainMap[item.id].forEach((dom, domIndex) => {
+              span.setAttribute(`to_emit.${index}.domains.${domIndex}`, dom);
             });
           });
 
@@ -504,14 +534,16 @@ export class ArvoResumable<
               ? (() => {
                   const evtMap: Record<string, { domains: string[] } & InferArvoEvent<ArvoEvent>> = {};
                   for (const [domain, events] of Object.entries(domainedEvents)) {
-                    if (evtMap[event.id]) {
-                      evtMap[event.id].domains.push(domain);
-                    } else {
-                      // @ts-ignore
-                      evtMap[event.id] = {
-                        ...event.toJSON(),
-                        domains: [domain],
-                      };
+                    for (const evt of events) {
+                      if (evtMap[evt.id]) {
+                        evtMap[evt.id].domains.push(domain);
+                      } else {
+                        // @ts-ignore
+                        evtMap[evt.id] = {
+                          ...evt.toJSON(),
+                          domains: [domain],
+                        };
+                      }
                     }
                   }
                   return evtMap;
@@ -540,7 +572,7 @@ export class ArvoResumable<
 
           logToSpan({
             level: 'INFO',
-            message: `Orchestration successfully executed and emitted ${emittables.length} events`,
+            message: `Resumable successfully executed and emitted ${emittables.length} events`,
           });
 
           return producedEvents;
@@ -607,7 +639,11 @@ export class ArvoResumable<
             tracestate: otelHeaders.tracestate ?? undefined,
             accesscontrol: event.accesscontrol ?? undefined,
             executionunits: this.executionunits,
-            parentid: event.id,
+            // If there is initEventID then use that.
+            // Otherwise, use event id. If the error is in init event
+            // then it will be the same as initEventId. Otherwise,
+            // we still would know what cause this error
+            parentid: initEventId ? initEventId : event.id,
           });
           // biome-ignore lint/complexity/noForEach: non issue
           Object.entries(errorEvent.otelAttributes).forEach(([key, value]) => {
