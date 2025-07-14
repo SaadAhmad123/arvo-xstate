@@ -16,6 +16,9 @@ import { MachineRegistry } from './MachineRegistry';
 import { IMachineRegistry } from './MachineRegistry/interface';
 import { SimpleEventBroker } from './utils/SimpleEventBroker';
 import { createSimpleEventBroker } from './utils/SimpleEventBroker/helper';
+import { ArvoResumable } from './ArvoResumable';
+import { createArvoResumable } from './ArvoResumable/factory';
+import { ArvoResumableHandler, ArvoResumableState } from './ArvoResumable/types';
 
 const xstate = {
   emit,
@@ -45,4 +48,8 @@ export {
   createSimpleEventBroker,
   TelemetredSimpleMachineMemory,
   xstate,
+  ArvoResumable,
+  createArvoResumable,
+  ArvoResumableHandler,
+  ArvoResumableState,
 };

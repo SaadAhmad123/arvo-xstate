@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1752470940433" clover="3.2.0">
-  <project timestamp="1752470940433" name="All files">
-    <metrics statements="760" coveredstatements="559" conditionals="755" coveredconditionals="404" methods="125" coveredmethods="96" elements="1640" coveredelements="1059" complexity="0" loc="760" ncloc="760" packages="11" files="19" classes="19"/>
+<coverage generated="1752471605936" clover="3.2.0">
+  <project timestamp="1752471605936" name="All files">
+    <metrics statements="765" coveredstatements="576" conditionals="763" coveredconditionals="404" methods="127" coveredmethods="97" elements="1655" coveredelements="1077" complexity="0" loc="765" ncloc="765" packages="11" files="20" classes="20"/>
     <package name="src">
-      <metrics statements="26" coveredstatements="26" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="7"/>
+      <metrics statements="28" coveredstatements="28" conditionals="0" coveredconditionals="0" methods="12" coveredmethods="7"/>
       <file name="index.ts" path="/Users/saadahmad/Projects/Arvo/arvo-xstate/src/index.ts">
-        <metrics statements="26" coveredstatements="26" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="7"/>
+        <metrics statements="28" coveredstatements="28" conditionals="0" coveredconditionals="0" methods="12" coveredmethods="7"/>
         <line num="1" count="6" type="stmt"/>
         <line num="2" count="6" type="stmt"/>
         <line num="3" count="6" type="stmt"/>
@@ -18,20 +18,22 @@
         <line num="15" count="6" type="stmt"/>
         <line num="17" count="6" type="stmt"/>
         <line num="18" count="6" type="stmt"/>
-        <line num="20" count="6" type="stmt"/>
-        <line num="26" count="6" type="stmt"/>
-        <line num="27" count="25" type="stmt"/>
-        <line num="31" count="9" type="stmt"/>
-        <line num="32" count="7" type="stmt"/>
-        <line num="37" count="27" type="stmt"/>
-        <line num="40" count="6" type="stmt"/>
-        <line num="41" count="6" type="stmt"/>
-        <line num="42" count="6" type="stmt"/>
-        <line num="43" count="16" type="stmt"/>
+        <line num="19" count="6" type="stmt"/>
+        <line num="23" count="6" type="stmt"/>
+        <line num="29" count="6" type="stmt"/>
+        <line num="30" count="25" type="stmt"/>
+        <line num="34" count="9" type="stmt"/>
+        <line num="35" count="7" type="stmt"/>
+        <line num="40" count="27" type="stmt"/>
+        <line num="43" count="6" type="stmt"/>
         <line num="44" count="6" type="stmt"/>
-        <line num="45" count="10" type="stmt"/>
-        <line num="46" count="23" type="stmt"/>
+        <line num="45" count="6" type="stmt"/>
+        <line num="46" count="16" type="stmt"/>
         <line num="47" count="6" type="stmt"/>
+        <line num="48" count="10" type="stmt"/>
+        <line num="49" count="23" type="stmt"/>
+        <line num="50" count="6" type="stmt"/>
+        <line num="51" count="6" type="stmt"/>
       </file>
     </package>
     <package name="src.ArvoMachine">
@@ -351,20 +353,26 @@
       </file>
     </package>
     <package name="src.ArvoResumable">
-      <metrics statements="174" coveredstatements="0" conditionals="259" coveredconditionals="0" methods="18" coveredmethods="0"/>
+      <metrics statements="177" coveredstatements="15" conditionals="267" coveredconditionals="0" methods="19" coveredmethods="1"/>
+      <file name="factory.ts" path="/Users/saadahmad/Projects/Arvo/arvo-xstate/src/ArvoResumable/factory.ts">
+        <metrics statements="3" coveredstatements="0" conditionals="8" coveredconditionals="0" methods="1" coveredmethods="0"/>
+        <line num="4" count="0" type="stmt"/>
+        <line num="6" count="0" type="stmt"/>
+        <line num="23" count="0" type="stmt"/>
+      </file>
       <file name="index.ts" path="/Users/saadahmad/Projects/Arvo/arvo-xstate/src/ArvoResumable/index.ts">
-        <metrics statements="174" coveredstatements="0" conditionals="259" coveredconditionals="0" methods="18" coveredmethods="0"/>
-        <line num="1" count="0" type="stmt"/>
-        <line num="2" count="0" type="stmt"/>
-        <line num="26" count="0" type="stmt"/>
-        <line num="36" count="0" type="stmt"/>
-        <line num="37" count="0" type="stmt"/>
-        <line num="39" count="0" type="stmt"/>
-        <line num="43" count="0" type="stmt"/>
-        <line num="50" count="0" type="stmt"/>
-        <line num="61" count="0" type="stmt"/>
+        <metrics statements="174" coveredstatements="15" conditionals="259" coveredconditionals="0" methods="18" coveredmethods="1"/>
+        <line num="1" count="6" type="stmt"/>
+        <line num="2" count="6" type="stmt"/>
+        <line num="26" count="6" type="stmt"/>
+        <line num="36" count="6" type="stmt"/>
+        <line num="38" count="6" type="stmt"/>
+        <line num="41" count="6" type="stmt"/>
+        <line num="43" count="6" type="stmt"/>
+        <line num="50" count="6" type="stmt"/>
+        <line num="61" count="6" type="stmt"/>
         <line num="62" count="0" type="stmt"/>
-        <line num="65" count="0" type="stmt"/>
+        <line num="65" count="6" type="stmt"/>
         <line num="66" count="0" type="stmt"/>
         <line num="79" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="80" count="0" type="stmt"/>
@@ -372,7 +380,7 @@
         <line num="82" count="0" type="cond" truecount="0" falsecount="4"/>
         <line num="83" count="0" type="stmt"/>
         <line num="84" count="0" type="stmt"/>
-        <line num="87" count="0" type="stmt"/>
+        <line num="87" count="6" type="stmt"/>
         <line num="90" count="0" type="stmt"/>
         <line num="93" count="0" type="stmt"/>
         <line num="94" count="0" type="cond" truecount="0" falsecount="1"/>
@@ -397,7 +405,7 @@
         <line num="141" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="145" count="0" type="stmt"/>
         <line num="146" count="0" type="stmt"/>
-        <line num="161" count="0" type="stmt"/>
+        <line num="161" count="6" type="stmt"/>
         <line num="169" count="0" type="stmt"/>
         <line num="176" count="0" type="stmt"/>
         <line num="178" count="0" type="stmt"/>
@@ -435,7 +443,7 @@
         <line num="265" count="0" type="stmt"/>
         <line num="284" count="0" type="stmt"/>
         <line num="289" count="0" type="stmt"/>
-        <line num="292" count="0" type="stmt"/>
+        <line num="292" count="6" type="stmt"/>
         <line num="302" count="0" type="stmt"/>
         <line num="310" count="0" type="stmt"/>
         <line num="328" count="0" type="stmt"/>
@@ -525,9 +533,9 @@
         <line num="652" count="0" type="stmt"/>
         <line num="661" count="0" type="cond" truecount="0" falsecount="1"/>
         <line num="662" count="0" type="stmt"/>
-        <line num="668" count="0" type="stmt"/>
+        <line num="668" count="6" type="stmt"/>
         <line num="669" count="0" type="stmt"/>
-        <line num="671" count="0" type="stmt"/>
+        <line num="671" count="6" type="stmt"/>
       </file>
     </package>
     <package name="src.MachineExecutionEngine">

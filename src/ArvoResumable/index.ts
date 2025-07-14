@@ -30,15 +30,14 @@ import {
   ExecutionViolation,
   type ArvoEventHandlerOpenTelemetryOptions,
 } from 'arvo-event-handler';
-//import { TransactionViolation, TransactionViolationCause, type IMachineMemory } from 'arvo-xstate';
 import type { z } from 'zod';
-import type { ArvoResumableHandler, ArvoResumableState } from './types.js';
-import { isError } from '../utils/index.js';
-import { TransactionViolation, TransactionViolationCause } from '../ArvoOrchestrator/error.js';
-import type { IMachineMemory } from '../MachineMemory/interface.js';
-import { SyncEventResource } from '../SyncEventResource/index.js';
-import type { AcquiredLockStatusType } from '../SyncEventResource/types.js';
-import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types.js';
+import type { ArvoResumableHandler, ArvoResumableState } from './types';
+import { TransactionViolation, TransactionViolationCause } from '../ArvoOrchestrator/error';
+import type { IMachineMemory } from '../MachineMemory/interface';
+import { SyncEventResource } from '../SyncEventResource/index';
+import type { AcquiredLockStatusType } from '../SyncEventResource/types';
+import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
+import { isError } from '../utils/index';
 
 export class ArvoResumable<
   TMemory extends Record<string, any>,
