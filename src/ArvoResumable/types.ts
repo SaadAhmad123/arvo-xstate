@@ -29,6 +29,10 @@ type Handler<
           | InferVersionedArvoContract<TServiceContract[K]>['systemError'];
       }[keyof TServiceContract]
     | null;
+  contracts: {
+    self: TSelfContract;
+    services: TServiceContract;
+  };
 }) => Promise<{
   state?: TState['state$$'];
   complete?: {
@@ -48,6 +52,41 @@ type Handler<
   // biome-ignore lint/suspicious/noConfusingVoidType: Make the function more ergonomic in coding
 } | void>;
 
+/**
+ * The versioned orchestration handlers in ArvoResumable workflows
+ *
+ * It maps each version of an orchestrator contract to its corresponding handler function.
+ * Each handler receives workflow context (state, events, contracts) and returns execution results
+ * that can update state, complete the workflow, or invoke external services.
+ *
+ * The handler is called for each event that matches the orchestrator's contract, whether it's
+ * an initialization event or a service response. The handler must be deterministic and
+ * idempotent to ensure reliable workflow execution across potential retries.
+ *
+ * @param param - Handler execution context
+ * @param param.span - OpenTelemetry span for distributed tracing
+ * @param param.metadata - Complete workflow metadata (null for new workflows)
+ * @param param.state - Current workflow state (null for new workflows)
+ * @param param.init - Initialization event data (only present for workflow start events)
+ * @param param.service - Service response event data (only present for service callbacks)
+ * @param param.contracts - Available contracts for type validation and event creation
+ * @param param.contracts.self - The orchestrator's own versioned contract
+ * @param param.contracts.services - External service contracts for invocation
+ *
+ * @returns Promise resolving to execution result or void
+ * @returns result.state - Updated workflow state to persist
+ * @returns result.complete - Workflow completion event to emit (ends the workflow)
+ * @returns result.services - Array of service invocation events to emit
+ *
+ * @remarks
+ * - Each version key must match a valid semantic version in the self contract
+ * - Handlers should be pure functions without side effects beyond the returned actions
+ * - State updates are atomic - either all changes persist or none do
+ * - Only one of `init` or `service` will be non-null for any given invocation
+ * - Returning void or an empty object indicates no state changes or events to emit
+ * - Service events are supposed to queued for execution and may trigger callback events
+ * - Completion events terminate the workflow and route to the parent orchestrator
+ */
 export type ArvoResumableHandler<
   TState extends ArvoResumableState<Record<string, any>>,
   TSelfContract extends ArvoContract,
@@ -61,6 +100,26 @@ export type ArvoResumableHandler<
 };
 
 export type ArvoResumableState<T extends Record<string, any>> = {
+  /**
+   * Current execution status of the orchestration workflow
+   *
+   * This field tracks the lifecycle state of the workflow instance to determine
+   * whether it can accept new events and continue processing or has reached
+   * its terminal state.
+   *
+   * @remarks
+   * - **active**: The workflow is running and can accept events for processing.
+   *   It may be waiting for service responses, processing initialization events,
+   *   or handling intermediate workflow steps. The orchestrator will continue
+   *   to route events to active workflows.
+   *
+   * - **done**: The workflow has completed its execution lifecycle. This status
+   *   is set when the handler returns a `complete` event, indicating the workflow
+   *   has finished successfully. Done workflows will not process additional events
+   *   and their state is preserved for audit/debugging purposes.
+   */
+  status: 'active' | 'done';
+
   /** Unique identifier for the machine instance */
   subject: string;
 

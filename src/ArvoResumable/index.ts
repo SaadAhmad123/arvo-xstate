@@ -443,6 +443,21 @@ export class ArvoResumable<
           orchestrationParentSubject = state?.parentSubject ?? null;
           initEventId = state?.initEventId ?? event.id;
 
+          if (state?.status === 'done') {
+            logToSpan({
+              level: 'INFO',
+              message: `The resumable has already reached the terminal state. Ignoring event(id=${event.id})`,
+            });
+
+            return {
+              events: [],
+              allEventDomains: [],
+              domainedEvents: {
+                all: [],
+              },
+            };
+          }
+
           if (!state) {
             logToSpan({
               level: 'INFO',
@@ -477,7 +492,7 @@ export class ArvoResumable<
             orchestrationParentSubject = event?.data?.parentSubject$$ ?? null;
           }
 
-          // This is not persisted untill handling. The reason is that if the event
+          // This is not persisted until handling. The reason is that if the event
           // is causing a fault then what is the point of persisting it
           if (state?.events?.expected?.[event.id] && Array.isArray(state?.events?.expected?.[event.id])) {
             state.events.expected[event.id].push(event.toJSON());
@@ -490,6 +505,10 @@ export class ArvoResumable<
             metadata: state ?? null,
             init: contractType === 'self' ? (event.toJSON() as any) : null,
             service: contractType === 'service' ? event.toJSON() : null,
+            contracts: {
+              self: this.contracts.self.version(parsedEventSubject.orchestrator.version),
+              services: this.contracts.services,
+            },
           });
 
           ///////////////////////////////////////////////////////////////
@@ -588,6 +607,7 @@ export class ArvoResumable<
           await this.syncEventResource.persistState(
             event,
             {
+              status: executionResult?.complete ? 'done' : 'active',
               initEventId,
               parentSubject: orchestrationParentSubject,
               subject: event.subject,
