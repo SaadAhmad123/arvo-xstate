@@ -97,7 +97,7 @@ export const incrementResumable: EventHandlerFactory<{ memory: IMachineMemory<an
                 error: [],
                 final: context.modifications.map((item, index) => ({
                   key: item.key,
-                  value: collectedEvents['evt.increment.number.success']?.[index]?.data?.result ?? item.value ?? null,
+                  value: collectedEvents['evt.increment.number.success']?.[index]?.data?.result ?? item.value ?? 0,
                 })),
               },
             },

@@ -37,12 +37,9 @@ type Handler<
 > = (param: {
   span: Span;
   metadata: Omit<TState, 'state$$'> | null;
-  collectedEvents: {
+  collectedEvents: Partial<{
     [K in AllServiceEventTypes<TServiceContract>]: ServiceEventTypeMap<TServiceContract>[K][];
-  } & {
-    // Fallback for any other event types
-    [key: string]: InferArvoEvent<ArvoEvent>[];
-  };
+  }>;
   context: TState['state$$'] | null;
   init: InferVersionedArvoContract<TSelfContract>['accepts'] | null;
   service:
