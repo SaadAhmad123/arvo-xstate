@@ -19,6 +19,7 @@ export const valueWriteHandler: EventHandlerFactory<ValueStoreConfig> = ({ value
         return {
           type: 'evt.value.write.success',
           data: {
+            key: event.data.key,
             success: success,
           },
         };

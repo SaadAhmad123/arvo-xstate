@@ -122,16 +122,6 @@ export type EnqueueArvoEventActionParam<
   dataschema?: string;
 
   /**
-   * Unique identifier of the event.
-   * Must be a non-empty string. If not provided, a UUID will be generated.
-   *
-   * @remarks
-   * While it's often best to let the system generate this ID, you may provide
-   * your own if you need to ensure idempotency or track specific events.
-   */
-  id?: string;
-
-  /**
    * Indicates alternative recipients or destinations for events.
    * Must be a valid URI if present.
    *
@@ -163,26 +153,6 @@ export type EnqueueArvoEventActionParam<
    * to enhance system-wide event comprehension.
    */
   type: TType;
-
-  /**
-   * Identifies the context in which an event happened. Must be a valid URI representing the event producer.
-   *
-   * @remarks
-   * By default, the actor source name is used. It is recommended to let that be the case.
-   * If you choose to override this, please ensure you are aware of the consequences and it is a deliberate decision.
-   * Changing this value may affect event tracing and source identification in your system.
-   */
-  source?: string;
-
-  /**
-   * Identifies the subject of the event. For Arvo, this must be the Process Id.
-   *
-   * @remarks
-   * By default, it is the actor subject id, and it is recommended to let that be the case.
-   * In rare cases, such as sending init events to a different orchestrator, you might need to explicitly provide it.
-   * Otherwise, it's best not to use this field directly to maintain consistency in event subject identification.
-   */
-  subject?: string;
 
   /**
    * Represents the cost associated with generating the cloudevent.

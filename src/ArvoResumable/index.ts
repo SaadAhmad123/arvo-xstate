@@ -42,18 +42,33 @@ import { isError } from '../utils/index';
 /**
  * ArvoResumable - A stateful orchestration handler for managing distributed workflows
  *
- * This class provides a framework for building resumable, event-driven orchestrations that can
- * coordinate between multiple services while maintaining persistent state and transactional safety.
- * It handles both initialization events and service response events, ensuring proper contract
- * validation and state management throughout the workflow lifecycle.
+ * ArvoResumable provides a handler-based approach to workflow orchestration that prioritizes
+ * explicit control and simplicity over declarative abstractions. It excels at straightforward
+ * request-response patterns and linear workflows while maintaining full type safety and
+ * contract validation throughout the execution lifecycle.
+ *
+ * This class addresses fundamental issues in event-driven architecture including:
+ * - Contract management with runtime validation and type safety
+ * - Graduated complexity allowing simple workflows to remain simple
+ * - Unified event handling across initialization and service responses
+ * - Explicit state management without hidden abstractions
  *
  * Key capabilities:
- * - Stateful workflow orchestration with persistence
- * - Resource locking for transaction safety
- * - Contract-based event validation
- * - OpenTelemetry integration for observability
- * - Automatic error handling and system error generation
- * - Support for service chaining and nested orchestrations
+ * - Handler-based workflow orchestration with explicit state control
+ * - Contract-driven event validation with runtime schema enforcement
+ * - Distributed resource locking for transaction safety
+ * - Comprehensive OpenTelemetry integration for observability
+ * - Automatic error handling with system error event generation
+ * - Support for orchestrator chaining and nested workflow patterns
+ * - Domain-based event routing and organization
+ *
+ * Unlike state machine approaches, ArvoResumable uses imperative handler functions
+ * that provide direct control over workflow logic. This makes debugging easier and
+ * reduces the learning curve for teams familiar with traditional programming patterns.
+ *
+ * @see {@link createArvoResumable} Factory function for creating instances
+ * @see {@link ArvoResumableHandler} Handler interface documentation
+ * @see {@link ArvoResumableState} State structure documentation
  */
 export class ArvoResumable<
   TMemory extends Record<string, any>,
@@ -121,7 +136,7 @@ export class ArvoResumable<
         if (resolvedContract) break;
         for (const emitType of [...contract.emitList, contract.systemError]) {
           if (resolvedContract) break;
-          if (event.type === emitType) {
+          if (event.type === emitType.type) {
             resolvedContract = contract;
           }
         }
@@ -307,20 +322,52 @@ export class ArvoResumable<
   /**
    * Executes the orchestration workflow for an incoming event
    *
-   * This is the main entry point that:
-   * 1. Validates the event and resolves contracts
-   * 2. Acquires distributed locks if required
-   * 3. Loads or initializes workflow state
-   * 4. Executes the orchestration handler
-   * 5. Creates and validates output events
-   * 6. Persists updated state
-   * 7. Handles errors and creates system error events
+   * This is the main orchestration entry point that coordinates the complete event
+   * processing lifecycle. It implements the core workflow execution pattern including
+   * validation, locking, state management, handler invocation, event creation, and
+   * persistence with comprehensive error handling and observability.
    *
-   * The execution is wrapped in OpenTelemetry spans for comprehensive observability.
+   * The execution process follows these phases:
+   * 1. **Validation & Setup** - Subject parsing, handler resolution, contract validation
+   * 2. **Resource Management** - Distributed lock acquisition and state loading
+   * 3. **Handler Execution** - Context preparation and user handler invocation
+   * 4. **Event Processing** - Result transformation and emittable event creation
+   * 5. **State Persistence** - Atomic state updates and event tracking
+   * 6. **Cleanup & Return** - Resource release and structured result return
    *
-   * @returns Object containing emitted events organized by domains
-   * @throws {TransactionViolation} When resource locking fails
-   * @throws {ViolationError} For various validation and configuration errors
+   * @param event - The triggering event to process
+   * @param opentelemetry - OpenTelemetry configuration for trace inheritance
+   *
+   * @returns Object containing emitted events organized by routing domains
+   * @returns result.events - Events in the default domain for immediate processing
+   * @returns result.allEventDomains - List of all domain names with events
+   * @returns result.domainedEvents - Events organized by domain for routing
+   * @returns result.domainedEvents.all - All emitted events regardless of domain
+   *
+   * @throws {TransactionViolation} When distributed lock acquisition fails
+   * @throws {ConfigViolation} When handler resolution or contract validation fails
+   * @throws {ContractViolation} When event schema validation fails
+   * @throws {ExecutionViolation} When workflow execution encounters critical errors
+   *
+   * @remarks
+   * **Execution Safety:**
+   * The method implements comprehensive error recovery with proper resource cleanup
+   * in all execution paths. ViolationErrors are rethrown for system handling while
+   * workflow errors become system error events for graceful degradation.
+   *
+   * **State Management:**
+   * Workflow state is managed atomically with optimistic concurrency control.
+   * Status transitions from 'active' to 'done' occur only when completion events
+   * are generated, ensuring proper workflow lifecycle management.
+   *
+   * **Observability:**
+   * Complete execution is traced using OpenTelemetry with detailed span attributes
+   * for debugging and monitoring. Event metadata includes processing context and
+   * routing information for operational visibility.
+   *
+   * **Terminal State Handling:**
+   * Workflows in 'done' status ignore additional events to prevent state corruption
+   * while preserving audit trails for completed workflow executions.
    */
   async execute(
     event: ArvoEvent,
@@ -333,7 +380,7 @@ export class ArvoResumable<
     } & Partial<Record<string, ArvoEvent[]>>;
   }> {
     return ArvoOpenTelemetry.getInstance().startActiveSpan({
-      name: `Resumable<${this.contracts.self.uri}>@<${event.type}>`,
+      name: `ArvoResumable<${this.contracts.self.uri}>@<${event.type}>`,
       spanOptions: {
         kind: SpanKind.PRODUCER,
         attributes: {
@@ -494,15 +541,30 @@ export class ArvoResumable<
 
           // This is not persisted until handling. The reason is that if the event
           // is causing a fault then what is the point of persisting it
-          if (state?.events?.expected?.[event.id] && Array.isArray(state?.events?.expected?.[event.id])) {
-            state.events.expected[event.id].push(event.toJSON());
+          if (
+            event.parentid &&
+            state?.events?.expected?.[event.parentid] &&
+            Array.isArray(state?.events?.expected?.[event.parentid])
+          ) {
+            state.events.expected[event.parentid].push(event.toJSON());
+          }
+
+          const eventTypeToExpectedEvent: Record<string, InferArvoEvent<ArvoEvent>[]> = {};
+          for (const [_, eventList] of Object.entries(state?.events?.expected ?? {})) {
+            for (const _evt of eventList) {
+              if (!eventTypeToExpectedEvent[_evt.type]) {
+                eventTypeToExpectedEvent[_evt.type] = [];
+              }
+              eventTypeToExpectedEvent[_evt.type].push(_evt);
+            }
           }
 
           const handler = this.handler[parsedEventSubject.orchestrator.version];
           const executionResult = await handler({
             span: span,
-            state: state?.state$$ ?? null,
+            context: state?.state$$ ?? null,
             metadata: state ?? null,
+            collectedEvents: eventTypeToExpectedEvent,
             init: contractType === 'self' ? (event.toJSON() as any) : null,
             service: contractType === 'service' ? event.toJSON() : null,
             contracts: {
@@ -526,6 +588,7 @@ export class ArvoResumable<
               ? [
                   {
                     ...executionResult.complete,
+                    type: this.contracts.self.metadata.completeEventType,
                     to: parsedEventSubject.meta?.redirectto ?? parsedEventSubject.execution.initiator,
                   },
                 ]
@@ -612,7 +675,7 @@ export class ArvoResumable<
               parentSubject: orchestrationParentSubject,
               subject: event.subject,
               events: eventTrackingState,
-              state$$: executionResult?.state ?? state?.state$$ ?? null,
+              state$$: executionResult?.context ?? state?.state$$ ?? null,
             },
             state,
             span,

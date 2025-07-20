@@ -1,33 +1,42 @@
 import type { ArvoOrchestratorContract, VersionedArvoContract } from 'arvo-core';
-import type { ArvoResumableHandler, ArvoResumableState } from './types.js';
-import type { IMachineMemory } from '../MachineMemory/interface.js';
+import type { ArvoResumableHandler, ArvoResumableState } from './types';
+import type { IMachineMemory } from '../MachineMemory/interface';
 import { ArvoResumable } from '.';
-import { areServiceContractsUnique } from '../ArvoMachine/utils.js';
+import { areServiceContractsUnique } from '../ArvoMachine/utils';
 import { v4 as uuid4 } from 'uuid';
 
 /**
  * Factory function for creating ArvoResumable orchestrator instances
  *
- * This function provides a convenient way to create new ArvoResumable orchestrators
- * with type safety and sensible defaults. It handles the instantiation and configuration
- * of the orchestrator with the provided contracts, memory interface, and handler logic.
- *
- * @template TMemory - The type of the workflow's memory/state object
+ * Creates a new ArvoResumable orchestrator with type safety and sensible defaults.
+ * ArvoResumable provides handler-based workflow orchestration with explicit context management,
+ * contract validation, and distributed locking capabilities.
  *
  * @param param - Configuration object for the orchestrator
+ * @param param.types - Optional type hints for better TypeScript inference
+ * @param param.types.context - Partial type hint for the workflow context structure (not used at runtime)
  * @param param.contracts - Contract definitions for the orchestrator and its services
- * @param param.contracts.self - The orchestrator's own contract defining its interface
- * @param param.contracts.services - Record of service contracts this orchestrator can call
- * @param param.memory - Memory interface for state persistence and retrieval
- * @param param.handler - The versioned orchestration logic handler function
- * @param param.executionunits - Resource allocation for this orchestrator (default: 0)
- * @param param.requiresResourceLocking - Whether to enable distributed locking (default: true when multiple services, false when single service)
+ * @param param.contracts.self - The orchestrator's own contract defining accepted events and emitted events
+ * @param param.contracts.services - Record of service contracts this orchestrator can invoke, keyed by service name
+ * @param param.memory - Generic memory interface for state persistence, locking, and retrieval operations
+ * @param param.handler - Versioned orchestration logic handlers mapped by semantic version
+ * @param param.executionunits - Resource allocation cost for this orchestrator's execution (default: 0)
+ * @param param.requiresResourceLocking - Enable distributed locking for concurrent safety (default: auto-determined by service count)
  *
  * @returns A new ArvoResumable orchestrator instance configured with the provided parameters
  *
- * @throws {Error}
- *  - When service contracts have duplicate URIs
- *  - When the self contract is registered as a service (circular dependency)
+ * @throws {Error} Service contracts have duplicate URIs - Multiple versions of the same contract are not allowed
+ * @throws {Error} Circular dependency detected - Self contract is registered as a service, creating execution loops
+ *
+ * @remarks
+ * **Resource Locking:**
+ * When `requiresResourceLocking` is not specified, it defaults to `true` when multiple
+ * services are configured (indicating potential concurrent operations) and `false` for
+ * single-service orchestrations.
+ *
+ * **Contract Validation:**
+ * The factory validates that all service contracts have unique URIs and prevents
+ * circular dependencies where the orchestrator's own contract is registered as a service.
  */
 export const createArvoResumable = <
   TMemory extends Record<string, any>,
@@ -37,11 +46,14 @@ export const createArvoResumable = <
     VersionedArvoContract<any, any>
   >,
 >(param: {
+  types?: {
+    context?: Partial<TMemory>;
+  };
   contracts: {
     self: TSelfContract;
     services: TServiceContract;
   };
-  memory: IMachineMemory<ArvoResumableState<TMemory>>;
+  memory: IMachineMemory<Record<string, any>>;
   handler: ArvoResumableHandler<ArvoResumableState<TMemory>, TSelfContract, TServiceContract>;
   executionunits?: number;
   requiresResourceLocking?: boolean;
@@ -65,7 +77,7 @@ export const createArvoResumable = <
 
   return new ArvoResumable<TMemory, TSelfContract, TServiceContract>({
     contracts: param.contracts,
-    memory: param.memory,
+    memory: param.memory as IMachineMemory<ArvoResumableState<TMemory>>,
     handler: param.handler,
     executionunits: param.executionunits ?? 0,
     requiresResourceLocking: param.requiresResourceLocking ?? Object.keys(param.contracts.services).length > 1,

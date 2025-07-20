@@ -73,6 +73,7 @@ export const valueWriteContract = createSimpleArvoContract({
         value: z.number(),
       }),
       emits: z.object({
+        key: z.string(),
         success: z.boolean(),
       }),
     },
@@ -88,6 +89,7 @@ export const valueReadContract = createSimpleArvoContract({
         key: z.string(),
       }),
       emits: z.object({
+        key: z.string(),
         value: z.number(),
       }),
     },

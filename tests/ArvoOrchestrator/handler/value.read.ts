@@ -15,6 +15,7 @@ export const valueReadHandler: EventHandlerFactory<ValueStoreConfig> = ({ valueS
         return {
           type: 'evt.value.read.success',
           data: {
+            key: event.data.key,
             value: value,
           },
         };

@@ -9,6 +9,27 @@ import type {
 import type { EnqueueArvoEventActionParam } from '../ArvoMachine/types';
 import type { Span } from '@opentelemetry/api';
 
+type ExtractServiceEventTypes<TServiceContract extends Record<string, VersionedArvoContract<any, any>>> = {
+  [K in keyof TServiceContract]:
+    | {
+        [L in keyof InferVersionedArvoContract<TServiceContract[K]>['emits']]: {
+          type: InferVersionedArvoContract<TServiceContract[K]>['emits'][L]['type'];
+          event: InferVersionedArvoContract<TServiceContract[K]>['emits'][L];
+        };
+      }[keyof InferVersionedArvoContract<TServiceContract[K]>['emits']]
+    | {
+        type: InferVersionedArvoContract<TServiceContract[K]>['systemError']['type'];
+        event: InferVersionedArvoContract<TServiceContract[K]>['systemError'];
+      };
+}[keyof TServiceContract];
+
+type AllServiceEventTypes<TServiceContract extends Record<string, VersionedArvoContract<any, any>>> =
+  ExtractServiceEventTypes<TServiceContract>['type'];
+
+type ServiceEventTypeMap<TServiceContract extends Record<string, VersionedArvoContract<any, any>>> = {
+  [T in ExtractServiceEventTypes<TServiceContract> as T['type']]: T['event'];
+};
+
 type Handler<
   TState extends ArvoResumableState<Record<string, any>>,
   TSelfContract extends VersionedArvoContract<any, any>,
@@ -16,7 +37,13 @@ type Handler<
 > = (param: {
   span: Span;
   metadata: Omit<TState, 'state$$'> | null;
-  state: TState['state$$'] | null;
+  collectedEvents: {
+    [K in AllServiceEventTypes<TServiceContract>]: ServiceEventTypeMap<TServiceContract>[K][];
+  } & {
+    // Fallback for any other event types
+    [key: string]: InferArvoEvent<ArvoEvent>[];
+  };
+  context: TState['state$$'] | null;
   init: InferVersionedArvoContract<TSelfContract>['accepts'] | null;
   service:
     | {
@@ -34,12 +61,17 @@ type Handler<
     services: TServiceContract;
   };
 }) => Promise<{
-  state?: TState['state$$'];
+  context?: TState['state$$'];
   complete?: {
-    [L in keyof InferVersionedArvoContract<TSelfContract>['emits']]: EnqueueArvoEventActionParam<
-      InferVersionedArvoContract<TSelfContract>['emits'][L]['data'],
-      InferVersionedArvoContract<TSelfContract>['emits'][L]['type']
-    >;
+    [L in keyof InferVersionedArvoContract<TSelfContract>['emits']]: Omit<
+      EnqueueArvoEventActionParam<
+        InferVersionedArvoContract<TSelfContract>['emits'][L]['data'],
+        InferVersionedArvoContract<TSelfContract>['emits'][L]['type']
+      >,
+      'type'
+    > & {
+      type?: InferVersionedArvoContract<TSelfContract>['emits'][L]['type'];
+    };
   }[keyof InferVersionedArvoContract<TSelfContract>['emits']];
   services?: Array<
     {
@@ -66,7 +98,9 @@ type Handler<
  * @param param - Handler execution context
  * @param param.span - OpenTelemetry span for distributed tracing
  * @param param.metadata - Complete workflow metadata (null for new workflows)
- * @param param.state - Current workflow state (null for new workflows)
+ * @param param.collectedEvents - Type-safe map of event types to their corresponding typed event arrays,
+ *                                enabling strongly-typed access with full IntelliSense support.
+ * @param param.context - Current workflow state (null for new workflows)
  * @param param.init - Initialization event data (only present for workflow start events)
  * @param param.service - Service response event data (only present for service callbacks)
  * @param param.contracts - Available contracts for type validation and event creation
@@ -74,7 +108,7 @@ type Handler<
  * @param param.contracts.services - External service contracts for invocation
  *
  * @returns Promise resolving to execution result or void
- * @returns result.state - Updated workflow state to persist
+ * @returns result.context - Updated workflow state to persist
  * @returns result.complete - Workflow completion event to emit (ends the workflow)
  * @returns result.services - Array of service invocation events to emit
  *

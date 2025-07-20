@@ -91,6 +91,7 @@ describe('ArvoOrchestrator', () => {
     expect(events.events[0].to).toBe(valueReadContract.type);
     expect(events.events[0].source).toBe(incrementOrchestratorContract.type);
     expect(events.events[0].data.key).toBe(initEvent.data.key);
+    expect(events.events[0].parentid).toBe(initEvent.id);
 
     await promiseTimeout();
     events = await handlers.valueRead.execute(events.events[0], {
@@ -231,7 +232,7 @@ describe('ArvoOrchestrator', () => {
   });
 
   it('should conducting nested orchestrators', async () => {
-    const broker = createSimpleEventBroker(Object.values(handlers));
+    const { broker } = createSimpleEventBroker(Object.values(handlers));
     let finalEvent: ArvoEvent | null = null;
     broker.subscribe('com.test.test', async (event) => {
       finalEvent = event;
@@ -420,7 +421,7 @@ describe('ArvoOrchestrator', () => {
   });
 
   it('should redirect the completion event to a different location', async () => {
-    const broker = createSimpleEventBroker(Object.values(handlers));
+    const { broker } = createSimpleEventBroker(Object.values(handlers));
     let finalEventFromTest: ArvoEvent | null = null;
     let finalEventFromTest1: ArvoEvent | null = null;
     broker.subscribe('com.test.test', async (event) => {
@@ -470,7 +471,7 @@ describe('ArvoOrchestrator', () => {
 
   it('should throw error event in case of faulty parent subject', async () => {
     let brokerError: Error | null = null;
-    const broker = createSimpleEventBroker(Object.values(handlers), {
+    const { broker } = createSimpleEventBroker(Object.values(handlers), {
       onError: (error) => {
         brokerError = error;
       },
@@ -517,7 +518,7 @@ describe('ArvoOrchestrator', () => {
   });
 
   it('should redirect the completion event to a different location', async () => {
-    const broker = createSimpleEventBroker(Object.values(handlers));
+    const { broker } = createSimpleEventBroker(Object.values(handlers));
     let finalEventFromTest: ArvoEvent | null = null;
     broker.subscribe('com.test.test', async (event) => {
       finalEventFromTest = event;

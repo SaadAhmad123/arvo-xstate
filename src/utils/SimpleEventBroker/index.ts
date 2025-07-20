@@ -156,7 +156,10 @@ export class SimpleEventBroker {
       while (this.queue.length > 0) {
         const event = this.queue.pop();
         if (!event) continue;
-        await promiseTimeout(this.eventProcessDelay);
+        if (this.eventProcessDelay) {
+          await promiseTimeout(this.eventProcessDelay);
+        }
+
         const handlers = this.subscribers.get(event.to ?? '');
 
         if (!handlers?.size) {
