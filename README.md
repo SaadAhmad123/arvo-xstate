@@ -1,6 +1,8 @@
 [![SonarCloud](https://sonarcloud.io/images/project_badges/sonarcloud-white.svg)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=SaadAhmad123_arvo-xstate&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=SaadAhmad123_arvo-xstate)
 
+> **Deprecated** From Arvo >= 3.0.0, `arvo-xstate` has been deprecated. Instead for orchestration patterns use  `arvo-event-handler`, all the functionality from `arvo-xstate` has also been migrated as is to it as well  
+
 # Arvo
 
 ## What is Arvo
